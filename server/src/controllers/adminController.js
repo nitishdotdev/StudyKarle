@@ -19,7 +19,7 @@ module.exports = {
     const totalSizeBytes = await noteModel.sumSizeBytes();
     const recentUploads = await noteModel.findRecent(5);
     const recentActivity = await adminActivityModel.recent(10);
-    const pdfActivity = await pdfActivityService.recent(10);
+    const pdfActivity = await pdfActivityService.recent();
 
     return ApiResponse.ok(res, {
       totalNotes: totalNotes,

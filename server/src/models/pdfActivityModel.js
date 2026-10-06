@@ -93,7 +93,7 @@ module.exports = {
    * otherwise fall back to the historical `pdf_name` snapshot.
    */
   async recent(limit) {
-    const rows = await db(TABLE)
+    const query = db(TABLE)
       .leftJoin("users", "users.id", "pdf_activity.user_id")
       .select(
         "pdf_activity.id",
@@ -105,8 +105,14 @@ module.exports = {
         "pdf_activity.created_at",
         "users.name as user_name"
       )
-      .orderBy("pdf_activity.created_at", "desc")
-      .limit(limit || 20);
+      .orderBy("pdf_activity.created_at", "desc");
+
+    const parsed = Number(limit);
+    if (Number.isFinite(parsed) && parsed > 0) {
+      query.limit(parsed);
+    }
+
+    const rows = await query;
 
     if (!rows.length) return [];
 

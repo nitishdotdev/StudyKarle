@@ -5,6 +5,8 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
+    "test:rate-limits": "node --test test/auth-rate-limits.test.js",
+    "test:otp-email": "node --test test/otp-email.test.js",
     "dev": "nodemon server.js",
     "migrate": "node scripts/baseline-existing-migrations.js && knex migrate:latest",
     "migrate:rollback": "knex migrate:rollback",

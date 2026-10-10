@@ -110,7 +110,12 @@ cp client/.env.example client/.env
 | `GOOGLE_DRIVE_FOLDER_ID` | Root folder of the content library |
 | `DRIVE_SYNC_INTERVAL_MS`, `DRIVE_SYNC_ON_START` | Drive sync scheduler (interval `0` disables the periodic run) |
 | `RESEND_API_KEY`, `EMAIL_FROM` | OTP email delivery |
-| `RATE_LIMIT_WINDOW_MS`, `RATE_LIMIT_MAX` | API rate limiting |
+| `AUTH_RATE_LIMIT_WINDOW_MS`, `AUTH_RATE_LIMIT_MAX` | Login/signup failures per IP+email (default 8 / 15 min) |
+| `AUTH_IP_RATE_LIMIT_WINDOW_MS`, `AUTH_IP_RATE_LIMIT_MAX` | Login/signup failures per IP across emails (default 40 / 15 min) |
+| `OTP_REQUEST_RATE_LIMIT_WINDOW_MS`, `OTP_REQUEST_RATE_LIMIT_MAX` | OTP sends per IP+email (default 5 / 15 min; successes count) |
+| `OTP_IP_RATE_LIMIT_WINDOW_MS`, `OTP_IP_RATE_LIMIT_MAX` | OTP sends per IP (default 20 / hour) |
+| `SESSION_RATE_LIMIT_WINDOW_MS`, `SESSION_RATE_LIMIT_MAX` | `GET /api/auth/me` (default 120 / 60 s, cookie-hash or IP) |
+| `TRUST_PROXY_HOPS` | Trusted proxy hops for `req.ip` (default 1; raise only after proxy-diag) |
 
 **`client/.env`**
 

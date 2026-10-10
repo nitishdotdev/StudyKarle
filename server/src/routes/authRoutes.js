@@ -4,7 +4,11 @@ const authenticate = require("../middleware/authenticate");
 const validate = require("../middleware/validate");
 const {
   authLimiter,
+  authIpLimiter,
+  otpRequestLimiter,
+  otpIpLimiter,
   sensitiveActionLimiter,
+  sessionCheckLimiter,
 } = require("../middleware/rateLimiter");
 const {
   signupValidator,
@@ -18,10 +22,10 @@ const {
 
 const router = express.Router();
 
-// OTP-based signup flow
 router.post(
   "/request-otp",
-  authLimiter,
+  otpIpLimiter,
+  otpRequestLimiter,
   requestOtpValidator,
   validate,
   authController.requestOtp
@@ -29,6 +33,7 @@ router.post(
 
 router.post(
   "/verify-otp",
+  authIpLimiter,
   sensitiveActionLimiter,
   verifyOtpValidator,
   validate,
@@ -37,15 +42,16 @@ router.post(
 
 router.post(
   "/resend-otp",
+  otpIpLimiter,
   sensitiveActionLimiter,
   resendOtpValidator,
   validate,
   authController.resendOtp
 );
 
-// Legacy direct signup (kept for backward compatibility)
 router.post(
   "/signup",
+  authIpLimiter,
   authLimiter,
   signupValidator,
   validate,
@@ -54,6 +60,7 @@ router.post(
 
 router.post(
   "/login",
+  authIpLimiter,
   authLimiter,
   loginValidator,
   validate,
@@ -61,6 +68,6 @@ router.post(
 );
 
 router.post("/logout", authController.logout);
-router.get("/me", authenticate, authController.me);
+router.get("/me", sessionCheckLimiter, authenticate, authController.me);
 
 module.exports = router;

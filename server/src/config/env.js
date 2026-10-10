@@ -30,7 +30,19 @@ function corsOrigins() {
   return origins;
 }
 
+// Number of reverse-proxy hops in front of Express whose X-Forwarded-For
+// entry may be trusted. Default 1 preserves existing behaviour. Do NOT
+// raise it until the real chain is verified (see proxyDiagnostics.js),
+// otherwise clients can spoof their IP and dodge rate limits.
+function trustProxyHops() {
+  const raw = process.env.TRUST_PROXY_HOPS;
+  if (raw === undefined || raw === "") return 1;
+  const n = Number(raw);
+  return Number.isInteger(n) && n >= 0 && n <= 5 ? n : 1;
+}
+
 module.exports = {
+  trustProxyHops: trustProxyHops(),
   nodeEnv: process.env.NODE_ENV || "development",
   port: Number(process.env.PORT) || 5000,
   clientUrl: process.env.CLIENT_URL || "http://localhost:5173",

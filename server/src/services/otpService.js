@@ -32,12 +32,17 @@ module.exports = {
       resendCount: 0,
     });
 
-    await sendEmail({
-      to: email,
-      subject: "Your StudyKarle Verification Code",
-      html: `<p>Your OTP is: <strong>${otp}</strong></p><p>Expires in ${env.otp.expiryMinutes} minutes.</p>`,
-      text: `Your OTP is: ${otp}. Expires in ${env.otp.expiryMinutes} minutes.`,
-    });
+    try {
+      await sendEmail({
+        to: email,
+        subject: "Your StudyKarle Verification Code",
+        html: `<p>Your OTP is: <strong>${otp}</strong></p><p>Expires in ${env.otp.expiryMinutes} minutes.</p>`,
+        text: `Your OTP is: ${otp}. Expires in ${env.otp.expiryMinutes} minutes.`,
+      });
+    } catch (err) {
+      await otpVerificationModel.removeByEmail(email);
+      throw err;
+    }
 
     return {
       email: record.email,
@@ -95,12 +100,17 @@ module.exports = {
       resendCount: record.resend_count + 1,
     });
 
-    await sendEmail({
-      to: email,
-      subject: "Your StudyKarle Verification Code",
-      html: `<p>Your OTP is: <strong>${otp}</strong></p><p>Expires in ${env.otp.expiryMinutes} minutes.</p>`,
-      text: `Your OTP is: ${otp}. Expires in ${env.otp.expiryMinutes} minutes.`,
-    });
+    try {
+      await sendEmail({
+        to: email,
+        subject: "Your StudyKarle Verification Code",
+        html: `<p>Your OTP is: <strong>${otp}</strong></p><p>Expires in ${env.otp.expiryMinutes} minutes.</p>`,
+        text: `Your OTP is: ${otp}. Expires in ${env.otp.expiryMinutes} minutes.`,
+      });
+    } catch (err) {
+      await otpVerificationModel.removeByEmail(email);
+      throw err;
+    }
 
     return {
       email: newRecord.email,

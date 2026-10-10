@@ -10,6 +10,7 @@ const routes = require("./routes/index"); // ← All routes: auth, notes, saved,
 const notFound = require("./middleware/notFound");
 const errorHandler = require("./middleware/errorHandler");
 const csrfProtection = require("./middleware/csrfProtection");
+const proxyDiagnostics = require("./middleware/proxyDiagnostics");
 
 const app = express();
 
@@ -27,7 +28,10 @@ env.corsOrigins.forEach(function (origin) {
   }
 });
 
-app.set("trust proxy", 1);
+// Hop count is explicit and numeric (never `true`), so only the configured
+// number of proxies are trusted for req.ip. See TRUST_PROXY_HOPS in env.js.
+// Default remains 1 until production proxy-diag logs confirm the real chain.
+app.set("trust proxy", env.trustProxyHops);
 
 app.use(helmet());
 
@@ -85,10 +89,12 @@ app.get("/api/health", function (req, res) {
     data: {
       status: "ok",
       env: env.nodeEnv,
+      commit: (process.env.RENDER_GIT_COMMIT || "unknown").slice(0, 7),
     },
   });
 });
 
+app.use("/api/auth", proxyDiagnostics);
 app.use("/api", csrfProtection); // CSRF: require X-Requested-With on non-GET /api requests
 app.use("/api", routes); // ← Mounts ALL routes: /api/auth, /api/notes, /api/admin, etc.
 

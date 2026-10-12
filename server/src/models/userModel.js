@@ -10,7 +10,6 @@ const PUBLIC_COLUMNS = [
   "course",
   "current_year",
   "created_at",
-  "google_sub",
 ];
 
 function publicUser(row) {

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Navigate, useNavigate, useSearchParams } from "react-router-dom";
 import useAuth from "../hooks/useAuth";
 import { useToast } from "../context/ToastContext";
@@ -11,12 +11,14 @@ export default function GoogleCompletePage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const [failed, setFailed] = useState(false);
+  const completionStarted = useRef(false);
 
   useEffect(
     function () {
-      if (loading) {
+      if (loading || completionStarted.current) {
         return;
       }
+      completionStarted.current = true;
       const ticket = searchParams.get("ticket");
       const redirect = searchParams.get("redirect") || "/dashboard";
       if (!ticket) {

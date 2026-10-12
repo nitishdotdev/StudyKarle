@@ -1,7 +1,8 @@
-import React from "react";
-import { Link, Navigate } from "react-router-dom";
+import React, { useEffect } from "react";
+import { Link, Navigate, useSearchParams } from "react-router-dom";
 import LoginForm from "../components/auth/LoginForm";
 import useAuth from "../hooks/useAuth";
+import { useToast } from "../context/ToastContext";
 import LoginImage from "../assets/illustrations/login.png";
 
 function Icon({ name, className = "" }) {
@@ -18,6 +19,17 @@ function Icon({ name, className = "" }) {
 
 export default function LoginPage() {
   const { isAuthenticated, loading } = useAuth();
+  const toast = useToast();
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  useEffect(function () {
+    const error = searchParams.get("error");
+    if (error) {
+      toast.error(error);
+      searchParams.delete("error");
+      setSearchParams(searchParams, { replace: true });
+    }
+  }, []);
 
   if (!loading && isAuthenticated) {
     return <Navigate to="/dashboard" replace />;

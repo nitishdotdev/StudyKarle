@@ -68,6 +68,18 @@ const otpVerificationModel = {
     if (!row || row.otp !== String(otp)) return null;
     return row;
   },
+  async findLatestByEmailAndPurpose(email) {
+    return rows.get(normalizeEmail(email)) || null;
+  },
+  async removeByEmailAndPurpose(email) {
+    rows.delete(normalizeEmail(email));
+  },
+  async consume() {
+    return 1;
+  },
+  async incrementAttempts() {
+    return 1;
+  },
 };
 
 stub(path.join(__dirname, "..", "src", "models", "otpVerificationModel.js"), otpVerificationModel);
@@ -152,7 +164,7 @@ test("requestOtp stores a row when email send succeeds", async () => {
   assert.equal(result.email, "ok@example.com");
   const row = await otpVerificationModel.findByEmail("ok@example.com");
   assert.ok(row);
-  assert.equal(row.otp.length, 6);
+  assert.equal(row.otp.length, 64);
 });
 
 test("resendOtp rolls back the OTP row when email send fails", async () => {

@@ -1,13 +1,11 @@
 import axiosClient from "./axiosClient";
 
-// Legacy direct signup (kept for backward compatibility)
 export function signup(payload) {
   return axiosClient.post("/auth/signup", payload).then(function (res) {
     return res.data.data;
   });
 }
 
-// NEW: OTP-based signup flow
 export function requestOtp(payload) {
   return axiosClient.post("/auth/request-otp", payload).then(function (res) {
     return res.data.data;
@@ -38,8 +36,53 @@ export function logout() {
   });
 }
 
+let inFlightCurrentUser = null;
+
 export function fetchCurrentUser() {
-  return axiosClient.get("/auth/me").then(function (res) {
+  if (inFlightCurrentUser) {
+    return inFlightCurrentUser;
+  }
+  inFlightCurrentUser = axiosClient
+    .get("/auth/me")
+    .then(function (res) {
+      return res.data.data;
+    })
+    .finally(function () {
+      inFlightCurrentUser = null;
+    });
+  return inFlightCurrentUser;
+}
+
+export function requestPasswordReset(payload) {
+  return axiosClient.post("/auth/forgot-password", payload).then(function (res) {
+    return res.data.data;
+  });
+}
+
+export function resendPasswordReset(payload) {
+  return axiosClient
+    .post("/auth/forgot-password/resend", payload)
+    .then(function (res) {
+      return res.data.data;
+    });
+}
+
+export function verifyPasswordResetOtp(payload) {
+  return axiosClient
+    .post("/auth/forgot-password/verify", payload)
+    .then(function (res) {
+      return res.data.data;
+    });
+}
+
+export function resetPassword(payload) {
+  return axiosClient.post("/auth/reset-password", payload).then(function (res) {
+    return res.data.data;
+  });
+}
+
+export function completeGoogleLogin(payload) {
+  return axiosClient.post("/auth/google/complete", payload).then(function (res) {
     return res.data.data;
   });
 }

@@ -13,6 +13,9 @@ const {
 const {
   signupValidator,
   loginValidator,
+  requestPasswordResetValidator,
+  verifyPasswordResetOtpValidator,
+  resetPasswordValidator,
 } = require("../validators/authValidators");
 const {
   requestOtpValidator,
@@ -65,6 +68,51 @@ router.post(
   loginValidator,
   validate,
   authController.login
+);
+
+router.post(
+  "/forgot-password",
+  otpIpLimiter,
+  otpRequestLimiter,
+  requestPasswordResetValidator,
+  validate,
+  authController.requestPasswordReset
+);
+
+router.post(
+  "/forgot-password/resend",
+  otpIpLimiter,
+  sensitiveActionLimiter,
+  requestPasswordResetValidator,
+  validate,
+  authController.resendPasswordReset
+);
+
+router.post(
+  "/forgot-password/verify",
+  authIpLimiter,
+  sensitiveActionLimiter,
+  verifyPasswordResetOtpValidator,
+  validate,
+  authController.verifyPasswordResetOtp
+);
+
+router.post(
+  "/reset-password",
+  authIpLimiter,
+  sensitiveActionLimiter,
+  resetPasswordValidator,
+  validate,
+  authController.resetPassword
+);
+
+router.get("/google", authController.googleStart);
+router.get("/google/callback", authController.googleCallback);
+router.post(
+  "/google/complete",
+  authIpLimiter,
+  authLimiter,
+  authController.googleComplete
 );
 
 router.post("/logout", authController.logout);

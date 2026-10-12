@@ -59,6 +59,17 @@ module.exports = {
     redirectUri:
       process.env.GOOGLE_REDIRECT_URI || "http://localhost:5000/oauth2callback",
     driveFolderId: process.env.GOOGLE_DRIVE_FOLDER_ID || "",
+    oauthClientId:
+      process.env.GOOGLE_OAUTH_CLIENT_ID ||
+      process.env.GOOGLE_CLIENT_ID ||
+      "",
+    oauthClientSecret:
+      process.env.GOOGLE_OAUTH_CLIENT_SECRET ||
+      process.env.GOOGLE_CLIENT_SECRET ||
+      "",
+    authRedirectUri:
+      process.env.GOOGLE_OAUTH_REDIRECT_URI ||
+      "http://localhost:5000/api/auth/google/callback",
   },
 
   // Google Drive sync scheduler. Interval of 0 disables the periodic run

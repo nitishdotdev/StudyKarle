@@ -1,4 +1,5 @@
 import React from "react";
+import { SOCIAL_LINKS, SOCIAL_REL } from "../utils/socialLinks";
 
 const contactPoints = [
   {
@@ -18,26 +19,14 @@ const contactPoints = [
   },
 ];
 
-const socialLinks = [
-  {
-    icon: "photo_camera",
-    title: "Instagram",
-    description: "Follow for updates and behind-the-scenes.",
-    href: "https://www.instagram.com/realnitishkumarr",
-  },
-  {
-    icon: "work",
-    title: "LinkedIn",
-    description: "Connect professionally.",
-    href: "https://www.linkedin.com/in/nitishsingh-aiml/",
-  },
-  {
-    icon: "code",
-    title: "GitHub",
-    description: "Check out the code and projects.",
-    href: "https://github.com/NitishSolves",
-  },
-];
+const socialLinks = SOCIAL_LINKS.map(function (link) {
+  return {
+    icon: link.icon,
+    title: link.label,
+    description: link.description,
+    href: link.href,
+  };
+});
 
 function Icon({ name }) {
   return <span className="material-symbols-outlined">{name}</span>;
@@ -107,7 +96,7 @@ export default function ContactPage() {
                   key={link.title}
                   href={link.href}
                   target="_blank"
-                  rel="noreferrer"
+                  rel={SOCIAL_REL}
                   className="group flex flex-col items-center text-center rounded-2xl border border-border-subtle p-6 transition-all duration-300 hover:-translate-y-1 hover:shadow-lg hover:border-primary/30"
                 >
                   <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10 text-primary transition-colors group-hover:bg-primary group-hover:text-white">

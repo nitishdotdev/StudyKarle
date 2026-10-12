@@ -14,6 +14,13 @@ module.exports = function csrfProtection(req, res, next) {
     return next();
   }
 
+  // Browser redirects from Google cannot attach X-Requested-With. The
+  // callback is GET-only and already skipped above; this documents the
+  // exemption if a POST token-exchange is ever added.
+  if (req.originalUrl.indexOf("/auth/google") === 0) {
+    return next();
+  }
+
   if (req.headers["x-requested-with"] !== "XMLHttpRequest") {
     return next(
       ApiError.forbidden("CSRF protection: request must include an X-Requested-With header")

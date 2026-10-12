@@ -21,6 +21,12 @@ const LoginPage = lazy(function () {
 const SignupPage = lazy(function () {
   return import("./pages/SignupPage");
 });
+const ForgotPasswordPage = lazy(function () {
+  return import("./pages/ForgotPasswordPage");
+});
+const GoogleCompletePage = lazy(function () {
+  return import("./pages/GoogleCompletePage");
+});
 const DashboardPage = lazy(function () {
   return import("./pages/DashboardPage");
 });
@@ -112,6 +118,8 @@ export default function App() {
       <Route element={<AuthLayout />}>
         <Route path="/login" element={<SuspenseRoute><LoginPage /></SuspenseRoute>} />
         <Route path="/signup" element={<SuspenseRoute><SignupPage /></SuspenseRoute>} />
+        <Route path="/forgot-password" element={<SuspenseRoute><ForgotPasswordPage /></SuspenseRoute>} />
+        <Route path="/auth/google/complete" element={<SuspenseRoute><GoogleCompletePage /></SuspenseRoute>} />
       </Route>
       <Route
         path="/dashboard"

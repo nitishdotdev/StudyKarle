@@ -48,6 +48,13 @@ stub("controllers/authController.js", {
   resendOtp: (req, res) => ok(res),
   logout: (req, res) => ok(res),
   me: (req, res) => res.status(200).json({ success: true, data: req.user }),
+  requestPasswordReset: (req, res) => ok(res),
+  resendPasswordReset: (req, res) => ok(res),
+  verifyPasswordResetOtp: (req, res) => ok(res),
+  resetPassword: (req, res) => ok(res),
+  googleStart: (req, res) => res.redirect("https://accounts.google.com"),
+  googleCallback: (req, res) => res.redirect("http://localhost:5173/login"),
+  googleComplete: (req, res) => ok(res),
 });
 stub("models/userModel.js", {
   findById: async (id) =>

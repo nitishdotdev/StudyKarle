@@ -222,6 +222,7 @@ export default function ProfilePage() {
                 </form>
               </div>
 
+              {profileData.user.has_password !== false ? (
               <div className="bg-white rounded-xl shadow-sm border border-border-subtle p-8">
                 <h3 className="font-headline-md text-headline-md text-text-primary mb-6">
                   Change Password
@@ -260,6 +261,17 @@ export default function ProfilePage() {
                   </Button>
                 </form>
               </div>
+              ) : (
+              <div className="bg-white rounded-xl shadow-sm border border-border-subtle p-8">
+                <h3 className="font-headline-md text-headline-md text-text-primary mb-2">
+                  Password
+                </h3>
+                <p className="text-body-sm text-text-secondary">
+                  This account uses Google sign-in. Password recovery is not
+                  available for Google-only accounts.
+                </p>
+              </div>
+              )}
             </div>
           </div>
 

@@ -1,5 +1,6 @@
 import React from "react";
 import { Link } from "react-router-dom";
+import { SOCIAL_LINKS, SOCIAL_REL } from "../../utils/socialLinks";
 
 function Icon({ name, className = "" }) {
   return (
@@ -18,7 +19,7 @@ function FooterLink({ to, children, external = false }) {
 
   if (external) {
     return (
-      <a href={to} target="_blank" rel="noreferrer" className={baseClass}>
+      <a href={to} target="_blank" rel={SOCIAL_REL} className={baseClass}>
         {children}
       </a>
     );
@@ -90,6 +91,23 @@ export default function Footer() {
               throughout their journey.
             </p>
 
+            <div className="flex flex-wrap items-center gap-2">
+              {SOCIAL_LINKS.map(function (link) {
+                return (
+                  <a
+                    key={link.id}
+                    href={link.href}
+                    target="_blank"
+                    rel={SOCIAL_REL}
+                    aria-label={link.label}
+                    className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-border-subtle text-text-secondary transition-colors duration-200 hover:border-primary/30 hover:text-primary"
+                  >
+                    <Icon name={link.icon} className="text-[18px]" />
+                  </a>
+                );
+              })}
+            </div>
+
             <div className="flex flex-wrap gap-3">
               <span className="rounded-full bg-primary/5 px-3 py-1 text-label-sm text-primary">
                 Built for every learner
@@ -137,10 +155,7 @@ export default function Footer() {
 
           <p className="mt-4 text-center text-label-sm text-text-muted">
             Made with <span className="text-red-500">❤️</span> by{" "}
-            <FooterLink
-              to="https://www.instagram.com/realnitishkumarr/"
-              external
-            >
+            <FooterLink to={SOCIAL_LINKS[0].href} external>
               Nitish Kumar
             </FooterLink>
           </p>

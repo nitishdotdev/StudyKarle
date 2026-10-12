@@ -188,7 +188,7 @@ async function findOrCreateFromGoogle(identity) {
   const existing = await userModel.findByEmail(identity.email);
   if (existing) {
     throw ApiError.conflict(
-      "An account with this email already exists. Sign in with your password, then link Google from your account."
+      "An account with this email already exists. Please sign in with your password."
     );
   }
 

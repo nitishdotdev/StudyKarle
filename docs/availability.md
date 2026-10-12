@@ -95,8 +95,12 @@ Upgrading the **workspace** plan does not remove Free compute spin-down. Changin
 
 Before deploying:
 
-- Do not run production migrations as part of this availability change (none are required).
-- Confirm `/health` returns 200 locally.
+- **This feature includes a required database migration:** `20261010000001_auth_google_and_password_reset.js`. The new auth code expects the new `users` columns and OTP/reset/OAuth tables. Do not deploy the new backend code to production without ensuring this migration completes.
+- Confirm production `NODE_ENV=production` and database connection variables (`DATABASE_URL`, or the configured `DB_*` variables) are available to the migration command.
+- If the Render service's root directory is `server`, for a Free service set the Build Command to `npm ci && NODE_ENV=production npm run migrate` and the Start Command to `npm start`. If the root directory is the repository root, use `cd server && npm ci && NODE_ENV=production npm run migrate` as the Build Command and `cd server && npm start` as the Start Command. Preserve any existing required install/build steps and verify the actual root-directory setting before changing commands.
+- A paid Render service can use the dedicated pre-deploy command `npm run migrate` when its root directory is `server`; Render does not offer pre-deploy commands or shell access on Free web services. Running the migration in the build command allows a failed migration to stop the deployment before the new code goes live.
+- The migration is designed to expand the current schema (new columns/tables and relaxed constraints). Review the Render deploy log and confirm the migration completed before testing the new auth flows.
+- Confirm `/health` returns 200 after deployment.
 - Confirm GitHub Actions workflow YAML is on the default branch before expecting cron.
 - Do not raise auth rate-limit env vars.
 

@@ -1,0 +1,51 @@
+name: Keep-alive
+
+on:
+  schedule:
+    - cron: "7,17,27,37,47,57 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  ping:
+    name: Ping backend health
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Request public health endpoint
+        env:
+          KEEP_ALIVE_URL: ${{ vars.KEEP_ALIVE_URL }}
+        run: |
+          set -u
+          URL="${KEEP_ALIVE_URL:-https://studykarle-backend-new.onrender.com/health}"
+          ATTEMPTS=4
+          DELAY=8
+          i=1
+          while [ "$i" -le "$ATTEMPTS" ]; do
+            CODE="000"
+            set +e
+            CODE=$(curl -sS -o /dev/null -w "%{http_code}" \
+              --connect-timeout 10 \
+              --max-time 45 \
+              -A "StudyKarle-KeepAlive" \
+              "$URL")
+            CURL_STATUS=$?
+            set -e
+            if [ "$CURL_STATUS" -ne 0 ]; then
+              CODE="000"
+            fi
+            if [ "$CODE" = "200" ]; then
+              echo "health_ok attempt=${i} status=200"
+              exit 0
+            fi
+            echo "health_retry attempt=${i} status=${CODE}"
+            if [ "$i" -lt "$ATTEMPTS" ]; then
+              sleep "$DELAY"
+              DELAY=$((DELAY * 2))
+            fi
+            i=$((i + 1))
+          done
+          echo "health_failed"
+          exit 1

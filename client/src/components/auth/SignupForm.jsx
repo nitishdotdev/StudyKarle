@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Input from "../common/Input";
 import Button from "../common/Button";
+import GoogleButton, { AuthSeparator } from "./GoogleButton";
 import useAuth from "../../hooks/useAuth";
 import { useToast } from "../../context/ToastContext";
 
@@ -122,6 +123,9 @@ export default function SignupForm() {
   // Step 1: Collect name, email, password
   if (step === 1) {
     return (
+      <div>
+      <GoogleButton disabled={submitting} />
+      <AuthSeparator />
       <form onSubmit={handleRequestOtp} className="space-y-4">
         <div>
           <Input
@@ -144,6 +148,7 @@ export default function SignupForm() {
             placeholder="you@example.com"
             error={errors.email}
             disabled={submitting}
+            autoComplete="email"
           />
         </div>
         <div>
@@ -162,6 +167,7 @@ export default function SignupForm() {
           {submitting ? "Sending code..." : "Continue"}
         </Button>
       </form>
+      </div>
     );
   }
 
@@ -175,17 +181,33 @@ export default function SignupForm() {
       </div>
       <div>
         <Input
+          id="signup-otp"
           label="Verification Code"
           name="otp"
           value={otp}
           onChange={function (e) {
-            setOtp(e.target.value);
+            setOtp(String(e.target.value || "").replace(/\D/g, "").slice(0, 6));
+          }}
+          onPaste={function (e) {
+            const text =
+              (e.clipboardData && e.clipboardData.getData("text")) || "";
+            const digits = String(text).replace(/\D/g, "").slice(0, 6);
+            if (digits) {
+              e.preventDefault();
+              setOtp(digits);
+            }
           }}
           placeholder="000000"
           maxLength={6}
           error={errors.otp}
           disabled={submitting}
           autoFocus
+          inputMode="numeric"
+          autoComplete="one-time-code"
+          autoCorrect="off"
+          autoCapitalize="off"
+          spellCheck={false}
+          pattern="[0-9]*"
         />
       </div>
       <Button type="submit" loading={submitting} className="w-full">

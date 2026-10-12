@@ -11,6 +11,7 @@ const notFound = require("./middleware/notFound");
 const errorHandler = require("./middleware/errorHandler");
 const csrfProtection = require("./middleware/csrfProtection");
 const proxyDiagnostics = require("./middleware/proxyDiagnostics");
+const healthController = require("./controllers/healthController");
 
 const app = express();
 
@@ -83,16 +84,8 @@ if (!env.isProduction) {
   app.use(morgan("dev"));
 }
 
-app.get("/api/health", function (req, res) {
-  res.json({
-    success: true,
-    data: {
-      status: "ok",
-      env: env.nodeEnv,
-      commit: (process.env.RENDER_GIT_COMMIT || "unknown").slice(0, 7),
-    },
-  });
-});
+app.get("/health", healthController.health);
+app.get("/api/health", healthController.health);
 
 app.use("/api/auth", proxyDiagnostics);
 app.use("/api", csrfProtection); // CSRF: require X-Requested-With on non-GET /api requests

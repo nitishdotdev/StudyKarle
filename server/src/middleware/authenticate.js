@@ -23,6 +23,12 @@ module.exports = asyncHandler(async function authenticate(req, res, next) {
     throw ApiError.unauthorized('Account no longer exists');
   }
 
+  const currentTv = user.token_version || 0;
+  const tokenTv = payload.tv == null ? 0 : payload.tv;
+  if (currentTv !== tokenTv) {
+    throw ApiError.unauthorized('Session expired. Please log in again');
+  }
+
   req.user = {
     id: user.id,
     name: user.name,

@@ -37,8 +37,45 @@ const changePasswordValidator = [
     .withMessage("New password must contain at least one number"),
 ];
 
+const requestPasswordResetValidator = [
+  body("email")
+    .trim()
+    .isEmail()
+    .withMessage("A valid email is required")
+    .normalizeEmail(),
+];
+
+const verifyPasswordResetOtpValidator = [
+  body("email")
+    .trim()
+    .isEmail()
+    .withMessage("A valid email is required")
+    .normalizeEmail(),
+  body("otp")
+    .trim()
+    .isLength({ min: 6, max: 6 })
+    .withMessage("OTP must be 6 digits")
+    .isNumeric()
+    .withMessage("OTP must contain only numbers"),
+];
+
+const resetPasswordValidator = [
+  body("resetToken").trim().notEmpty().withMessage("Reset authorization is required"),
+  body("password")
+    .isLength({ min: 8 })
+    .withMessage("Password must be at least 8 characters")
+    .matches(/\d/)
+    .withMessage("Password must contain at least one number"),
+  body("confirmPassword")
+    .notEmpty()
+    .withMessage("Please confirm your new password"),
+];
+
 module.exports = {
   signupValidator: signupValidator,
   loginValidator: loginValidator,
   changePasswordValidator: changePasswordValidator,
+  requestPasswordResetValidator: requestPasswordResetValidator,
+  verifyPasswordResetOtpValidator: verifyPasswordResetOtpValidator,
+  resetPasswordValidator: resetPasswordValidator,
 };

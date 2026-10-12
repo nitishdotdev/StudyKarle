@@ -166,12 +166,15 @@ axiosClient.interceptors.response.use(
         } catch (e) {
           parsed = null;
         }
+        const blobHeaders = (error.response && error.response.headers) || {};
         return Promise.reject({
           status: status,
           message:
             (parsed && parsed.message) ||
             "Something went wrong. Please try again.",
           details: (parsed && parsed.details) || null,
+          retryAfter:
+            blobHeaders["retry-after"] || blobHeaders["Retry-After"] || null,
         });
       });
     }
@@ -182,10 +185,13 @@ axiosClient.interceptors.response.use(
     const details =
       (error.response && error.response.data && error.response.data.details) ||
       null;
+    const headers = (error.response && error.response.headers) || {};
+    const retryAfter = headers["retry-after"] || headers["Retry-After"] || null;
     return Promise.reject({
       status: status,
       message: message,
       details: details,
+      retryAfter: retryAfter,
     });
   }
 );

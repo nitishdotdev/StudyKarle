@@ -4,26 +4,52 @@ import React, {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
 import * as authApi from "../api/authApi";
 import { invalidateCache } from "../api/axiosClient";
+import { isTransientError, withTransientRetry } from "../utils/sessionRetry";
 
 const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [sessionError, setSessionError] = useState(null);
+  const userRef = useRef(null);
+
+  useEffect(
+    function () {
+      userRef.current = user;
+    },
+    [user]
+  );
 
   const loadUser = useCallback(function () {
     setLoading(true);
-    return authApi
-      .fetchCurrentUser()
+    setSessionError(null);
+    return withTransientRetry(function () {
+      return authApi.fetchCurrentUser();
+    })
       .then(function (data) {
         setUser(data);
+        setSessionError(null);
       })
-      .catch(function () {
-        setUser(null);
+      .catch(function (err) {
+        if (err && err.status === 401) {
+          setUser(null);
+          setSessionError(null);
+          return;
+        }
+        if (isTransientError(err) && userRef.current) {
+          return;
+        }
+        if (!userRef.current) {
+          setSessionError(
+            "StudyKarle is temporarily unavailable. Please try again in a moment."
+          );
+        }
       })
       .finally(function () {
         setLoading(false);
@@ -95,6 +121,7 @@ export function AuthProvider({ children }) {
       return {
         user: user,
         loading: loading,
+        sessionError: sessionError,
         isAuthenticated: !!user,
         isAdmin: !!user && user.role === "admin",
         login: login,
@@ -110,6 +137,7 @@ export function AuthProvider({ children }) {
     [
       user,
       loading,
+      sessionError,
       login,
       signup,
       requestOtp,

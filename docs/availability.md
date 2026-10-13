@@ -56,13 +56,23 @@ If the job fails with `health_failed`, check Render dashboard that the existing 
 
 ## Frontend session resilience
 
-`GET /api/auth/me` retries transient HTTP 429, 502, 503, 504, and network errors with bounded exponential backoff and jitter (4 attempts, max wait 8s). `Retry-After` is respected up to that cap.
+`GET /api/auth/me` runs as a single, shared in-flight check per application
+initialization. Concurrent consumers (the provider mount, route guards, a
+manual retry) reuse the same promise, so one page load issues one request.
 
-- Concurrent `/auth/me` calls share one in-flight promise.
-- Transient failures do not clear a valid session or cookies.
-- HTTP 401 still follows the unauthenticated flow.
-- Initial load that only sees transient errors shows a retry UI instead of bouncing to `/login`.
+- A single logical session check performs **one** request. HTTP 429 is treated
+  as a transient failure, is **not** retried automatically, and never clears a
+  valid session or cookies. Retrying the platform `hibernate-rate-limited` 429
+  only multiplies the burst, so it is deliberately excluded from retries.
+- Only transient 5xx (502/503/504) and network errors are retried, with bounded
+  exponential backoff and jitter (up to 4 attempts, max wait 8s). `Retry-After`
+  is respected up to that cap.
+- A documented HTTP 401 follows the unauthenticated flow.
+- An initial load whose session status is unknown shows a retry UI instead of
+  bouncing to `/login`; the public homepage stays usable.
 - Login, signup, OTP, and password-reset POSTs are not retried automatically.
+- Aborted/cancelled requests are never retried, and a response that arrives
+  after the provider unmounts does not set state.
 
 ## Limitations
 

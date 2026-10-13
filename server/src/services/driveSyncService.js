@@ -44,6 +44,9 @@ const db = require("../config/db");
 const env = require("../config/env");
 const driveService = require("./driveService");
 const logger = require("../utils/logger");
+const {
+  formatGoogleOAuthError,
+} = require("../utils/googleOAuthError");
 
 // Arbitrary fixed key identifying the StudyKarle sync lock.
 const SYNC_LOCK_KEY = 0x53594e43544f4c; // "SYNCTOL"
@@ -263,6 +266,17 @@ async function runSync() {
     return { status: "success", counts: { folders: folders, files: files } };
   } catch (err) {
     logger.error("[drive-sync] failed", err);
+    // Google reports the useful cause (invalid_client / invalid_grant /
+    // deleted_client ...) only on the token response body, which the default
+    // error message discards. Surface it sanitized so credentials are never
+    // logged. See src/utils/googleOAuthError.js.
+    logger.error(
+      "[drive-sync] provider: " +
+        formatGoogleOAuthError(err, [
+          env.google.clientSecret,
+          env.google.refreshToken,
+        ])
+    );
     await setState({
       status: "error",
       last_attempt_at: db.fn.now(),

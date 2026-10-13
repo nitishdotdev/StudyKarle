@@ -181,8 +181,13 @@ module.exports = {
       try {
         children = await this.listChildren(current.driveId);
       } catch (err) {
+        // Keep the human-readable folder-path context, but preserve the
+        // original provider error as `cause` so callers (and the sanitized
+        // OAuth diagnostic) can still read response.status / response.data
+        // instead of seeing only the wrapper message.
         throw new Error(
-          "Failed to list children of " + current.path + ": " + err.message
+          "Failed to list children of " + current.path + ": " + err.message,
+          { cause: err }
         );
       }
 

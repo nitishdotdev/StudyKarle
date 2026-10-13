@@ -9,15 +9,28 @@ import React, {
 } from "react";
 import * as authApi from "../api/authApi";
 import { invalidateCache } from "../api/axiosClient";
-import { isTransientError, withTransientRetry } from "../utils/sessionRetry";
+import { createSessionCheck, interpretSessionError } from "../utils/sessionCheck";
 
 const AuthContext = createContext(null);
+
+// The single source of truth for the initial (and manually refreshed) session
+// check. It is created once per provider, so every caller shares one in-flight
+// `/api/auth/me` request instead of starting its own.
+function useSessionChecker(fetchCurrentUser) {
+  const ref = useRef(null);
+  if (!ref.current) {
+    ref.current = createSessionCheck(fetchCurrentUser);
+  }
+  return ref.current;
+}
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [sessionError, setSessionError] = useState(null);
   const userRef = useRef(null);
+  const aliveRef = useRef(true);
+  const sessionCheck = useSessionChecker(authApi.fetchCurrentUser);
 
   useEffect(
     function () {
@@ -26,35 +39,42 @@ export function AuthProvider({ children }) {
     [user]
   );
 
+  // Track mount state so a late response after unmount cannot set state.
+  useEffect(function () {
+    aliveRef.current = true;
+    return function () {
+      aliveRef.current = false;
+    };
+  }, []);
+
   const loadUser = useCallback(function () {
     setLoading(true);
     setSessionError(null);
-    return withTransientRetry(function () {
-      return authApi.fetchCurrentUser();
-    })
+    return sessionCheck
+      .check()
       .then(function (data) {
+        if (!aliveRef.current) return;
         setUser(data);
         setSessionError(null);
       })
       .catch(function (err) {
-        if (err && err.status === 401) {
+        if (!aliveRef.current) return;
+        const outcome = interpretSessionError(err, !!userRef.current);
+        if (outcome.action === "logout") {
           setUser(null);
           setSessionError(null);
           return;
         }
-        if (isTransientError(err) && userRef.current) {
-          return;
+        if (outcome.action === "error") {
+          setSessionError(outcome.message);
         }
-        if (!userRef.current) {
-          setSessionError(
-            "StudyKarle is temporarily unavailable. Please try again in a moment."
-          );
-        }
+        // outcome.action === "keep": the result is unknown or non-fatal, so
+        // preserve the existing session rather than reporting the wrong state.
       })
       .finally(function () {
-        setLoading(false);
+        if (aliveRef.current) setLoading(false);
       });
-  }, []);
+  }, [sessionCheck]);
 
   useEffect(
     function () {

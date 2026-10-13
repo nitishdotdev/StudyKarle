@@ -2,22 +2,47 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {
   isTransientError,
+  isRetryableError,
+  isCanceled,
   parseRetryAfter,
   computeDelayMs,
   withTransientRetry,
+  RETRYABLE_STATUSES,
   MAX_WAIT_MS,
 } from "../../client/src/utils/sessionRetry.js";
 
-test("treats 429, 502, 503, 504, and network errors as transient", () => {
+test("429 is transient (result unknown) but must NOT be auto-retried", () => {
   assert.equal(isTransientError({ status: 429 }), true);
-  assert.equal(isTransientError({ status: 502 }), true);
-  assert.equal(isTransientError({ status: 503 }), true);
-  assert.equal(isTransientError({ status: 504 }), true);
+  assert.equal(isRetryableError({ status: 429 }), false);
+});
+
+test("treats 502, 503, 504, and network errors as transient and retryable", () => {
+  RETRYABLE_STATUSES.forEach((status) => {
+    assert.equal(isTransientError({ status }), true);
+    assert.equal(isRetryableError({ status }), true);
+  });
   assert.equal(isTransientError({ status: 0 }), true);
+  assert.equal(isRetryableError({ status: 0 }), true);
   assert.equal(isTransientError({}), true);
+  assert.equal(isRetryableError({}), true);
+});
+
+test("definitive answers (401/400/500) are neither transient nor retryable", () => {
   assert.equal(isTransientError({ status: 401 }), false);
   assert.equal(isTransientError({ status: 400 }), false);
   assert.equal(isTransientError({ status: 500 }), false);
+  assert.equal(isRetryableError({ status: 401 }), false);
+  assert.equal(isRetryableError({ status: 400 }), false);
+  assert.equal(isRetryableError({ status: 500 }), false);
+});
+
+test("aborted requests are detected and never retried", () => {
+  assert.equal(isCanceled({ code: "ERR_CANCELED" }), true);
+  assert.equal(isCanceled({ name: "CanceledError" }), true);
+  assert.equal(isCanceled({ name: "AbortError" }), true);
+  assert.equal(isCanceled({ status: 0 }), false);
+  assert.equal(isTransientError({ code: "ERR_CANCELED" }), false);
+  assert.equal(isRetryableError({ code: "ERR_CANCELED" }), false);
 });
 
 test("respects Retry-After up to the maximum wait", () => {
@@ -30,7 +55,7 @@ test("respects Retry-After up to the maximum wait", () => {
   assert.equal(short, 1000);
 });
 
-test("retries transient errors then recovers", async () => {
+test("retries a transient 5xx error then recovers", async () => {
   let attempts = 0;
   const result = await withTransientRetry(
     function () {
@@ -79,7 +104,7 @@ test("does not retry a genuine 401", async () => {
   assert.equal(attempts, 1);
 });
 
-test("stops after exhausting retries on persistent 429", async () => {
+test("does NOT retry a persistent 429 (no burst)", async () => {
   let attempts = 0;
   await assert.rejects(
     () =>
@@ -89,7 +114,6 @@ test("stops after exhausting retries on persistent 429", async () => {
           return Promise.reject({ status: 429, message: "Too many requests" });
         },
         {
-          maxAttempts: 4,
           sleep: function () {
             return Promise.resolve();
           },
@@ -100,7 +124,7 @@ test("stops after exhausting retries on persistent 429", async () => {
       return true;
     }
   );
-  assert.equal(attempts, 4);
+  assert.equal(attempts, 1);
 });
 
 test("retries network failures then gives up", async () => {

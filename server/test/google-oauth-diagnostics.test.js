@@ -139,6 +139,132 @@ test("handles a missing response (network error) without throwing", () => {
   assert.equal(diag.description, null);
 });
 
+test("extracts a provider response nested under a context-error cause", () => {
+  const provider = gaxiosError(401, {
+    error: "invalid_client",
+    error_description: "The OAuth client was not found.",
+  });
+  const wrapped = new Error(
+    "Failed to list children of : Request failed with status code 401",
+    { cause: provider }
+  );
+
+  const diag = describeGoogleOAuthError(wrapped, DRIVE_SECRETS);
+  assert.equal(diag.status, 401);
+  assert.equal(diag.code, "invalid_client");
+  assert.equal(diag.description, "The OAuth client was not found.");
+
+  const line = formatGoogleOAuthError(wrapped, DRIVE_SECRETS);
+  assert.ok(line.indexOf("status=401") !== -1);
+  assert.ok(line.indexOf("error=invalid_client") !== -1);
+});
+
+test("redacts secrets embedded in a nested provider description", () => {
+  const provider = gaxiosError(401, {
+    error: "invalid_client",
+    error_description:
+      "client_secret=drive-client-secret-DO-NOT-LOG " +
+      "token=drive-refresh-token-DO-NOT-LOG",
+  });
+  const wrapped = new Error("context wrapper", { cause: provider });
+
+  const line = formatGoogleOAuthError(wrapped, DRIVE_SECRETS);
+  assert.ok(line.indexOf("DO-NOT-LOG") === -1);
+  assert.ok(line.indexOf("drive-client-secret-DO-NOT-LOG") === -1);
+  assert.ok(line.indexOf("drive-refresh-token-DO-NOT-LOG") === -1);
+  assert.ok(line.indexOf("status=401") !== -1);
+  assert.ok(line.indexOf("[REDACTED]") !== -1);
+});
+
+test("finds the provider response at any depth of the cause chain", () => {
+  const provider = gaxiosError(403, {
+    error: "invalid_grant",
+    error_description: "Token has been expired or revoked.",
+  });
+  const middle = new Error("Request failed with status code 403", {
+    cause: provider,
+  });
+  const outer = new Error("drive sync failed", { cause: middle });
+
+  const diag = describeGoogleOAuthError(outer, DRIVE_SECRETS);
+  assert.equal(diag.status, 403);
+  assert.equal(diag.code, "invalid_grant");
+  assert.equal(diag.description, "Token has been expired or revoked.");
+});
+
+test("nested cause with no provider response yields the n/a diagnostic", () => {
+  const wrapped = new Error("drive sync failed", {
+    cause: new Error("socket hang up"),
+  });
+  const diag = describeGoogleOAuthError(wrapped, DRIVE_SECRETS);
+  assert.equal(diag.status, 0);
+  assert.equal(diag.code, null);
+  assert.equal(diag.description, null);
+  assert.equal(formatGoogleOAuthError(wrapped, DRIVE_SECRETS), "status=n/a error=n/a");
+});
+
+test("circular cause chains terminate and still surface the provider", () => {
+  const provider = gaxiosError(401, {
+    error: "invalid_client",
+    error_description: "The OAuth client was not found.",
+  });
+  const start = new Error("start", { cause: provider });
+  provider.cause = start; // close the loop back to the head
+
+  const diag = describeGoogleOAuthError(start, DRIVE_SECRETS);
+  assert.equal(diag.status, 401);
+  assert.equal(diag.code, "invalid_client");
+  assert.equal(diag.description, "The OAuth client was not found.");
+});
+
+test("circular cause chains with no provider terminate safely", () => {
+  const a = new Error("a");
+  const b = new Error("b");
+  a.cause = b;
+  b.cause = a;
+
+  assert.deepEqual(describeGoogleOAuthError(a, DRIVE_SECRETS), {
+    status: 0,
+    code: null,
+    description: null,
+  });
+});
+
+test("ignores malformed provider response bodies", () => {
+  const bodies = ["not-json-{", 42, true, null];
+  for (let i = 0; i < bodies.length; i++) {
+    const err = gaxiosError(500, bodies[i], "Request failed with status code 500");
+    const diag = describeGoogleOAuthError(err, DRIVE_SECRETS);
+    assert.equal(diag.status, 500);
+    assert.equal(diag.code, null);
+    assert.equal(diag.description, null);
+  }
+});
+
+test("ordinary non-OAuth errors stay n/a without throwing", () => {
+  const err = new Error("ECONNREFUSED 127.0.0.1:5432");
+  const diag = describeGoogleOAuthError(err, DRIVE_SECRETS);
+  assert.equal(diag.status, 0);
+  assert.equal(diag.code, null);
+  assert.equal(diag.description, null);
+  assert.equal(formatGoogleOAuthError(err, DRIVE_SECRETS), "status=n/a error=n/a");
+});
+
+test("does not follow the cause chain past the depth limit", () => {
+  let current = gaxiosError(401, {
+    error: "invalid_client",
+    error_description: "The OAuth client was not found.",
+  });
+  for (let i = 0; i < 10; i++) {
+    current = new Error("wrapper " + i, { cause: current });
+  }
+
+  const diag = describeGoogleOAuthError(current, DRIVE_SECRETS);
+  assert.equal(diag.status, 0);
+  assert.equal(diag.code, null);
+  assert.equal(diag.description, null);
+});
+
 test("redact leaves short/absent secrets alone and caps length", () => {
   assert.equal(redact("normal text", ["short"]), "normal text");
   assert.equal(redact("abc secret-value xyz", ["secret-value"]), "abc [REDACTED] xyz");

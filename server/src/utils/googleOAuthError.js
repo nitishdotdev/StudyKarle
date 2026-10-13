@@ -77,14 +77,57 @@ function extractProviderBody(error) {
   return null;
 }
 
-function statusOf(error) {
-  const response = error && error.response;
-  const status =
-    (response && response.status) ||
-    (error && typeof error.status === "number" && error.status) ||
-    (response && Number(response.code)) ||
-    0;
-  return Number(status) || 0;
+// Bound how far we follow `error.cause` so a pathological chain cannot turn a
+// diagnostic into an unbounded walk (or an accidental cycle).
+const MAX_CAUSE_DEPTH = 5;
+
+// Flatten an error and its `cause` chain, newest first. Deeper `cause` links
+// are common in this codebase: driveService.walkTree wraps the original Drive
+// error to add folder-path context, and google-auth-library / gaxios wrap the
+// token-endpoint failure again. The provider response can therefore live on a
+// nested error, not necessarily the one handed to the diagnostic.
+//
+// Traversal is depth-limited and cycle-safe via the `seen` set so a
+// self-referential or mutually-referential `cause` can never loop forever.
+function collectCauseChain(error) {
+  const chain = [];
+  const seen = new Set();
+  let current = error;
+  let depth = 0;
+  while (
+    current &&
+    (typeof current === "object" || typeof current === "function") &&
+    depth < MAX_CAUSE_DEPTH
+  ) {
+    if (seen.has(current)) {
+      break;
+    }
+    seen.add(current);
+    chain.push(current);
+    current = current.cause;
+    depth++;
+  }
+  return chain;
+}
+
+function statusOf(errorOrChain) {
+  const chain = Array.isArray(errorOrChain)
+    ? errorOrChain
+    : collectCauseChain(errorOrChain);
+  for (let i = 0; i < chain.length; i++) {
+    const error = chain[i];
+    const response = error && error.response;
+    const status =
+      (response && response.status) ||
+      (error && typeof error.status === "number" && error.status) ||
+      (response && Number(response.code)) ||
+      0;
+    const normalized = Number(status) || 0;
+    if (normalized) {
+      return normalized;
+    }
+  }
+  return 0;
 }
 
 /**
@@ -93,7 +136,17 @@ function statusOf(error) {
  * @returns {{ status:number, code:string|null, description:string|null }}
  */
 function describeGoogleOAuthError(error, secrets) {
-  const body = extractProviderBody(error);
+  const chain = collectCauseChain(error);
+
+  // Prefer the first error in the chain that actually carries a provider
+  // response body; the outermost wrapper usually only has a generic message.
+  let body = null;
+  for (let i = 0; i < chain.length; i++) {
+    body = extractProviderBody(chain[i]);
+    if (body) {
+      break;
+    }
+  }
 
   let code = null;
   let description = null;
@@ -111,12 +164,18 @@ function describeGoogleOAuthError(error, secrets) {
   }
 
   // Fallback: some paths set the provider code directly as the message.
-  if (!code && error && looksLikeOAuthCode(error.message)) {
-    code = redact(error.message, secrets);
+  if (!code) {
+    for (let i = 0; i < chain.length; i++) {
+      const message = chain[i] && chain[i].message;
+      if (looksLikeOAuthCode(message)) {
+        code = redact(message, secrets);
+        break;
+      }
+    }
   }
 
   return {
-    status: statusOf(error),
+    status: statusOf(chain),
     code: code || null,
     description: description || null,
   };

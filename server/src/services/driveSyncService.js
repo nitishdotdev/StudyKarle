@@ -239,6 +239,17 @@ async function runSync() {
       logger.warn(
         "[drive-sync] could not fetch root folder name: " + err.message
       );
+      // Same sanitized provider diagnostic as the main failure path: the root
+      // metadata call can fail with an OAuth refresh error too (invalid_client
+      // / invalid_grant). Only provider status/code/description are surfaced;
+      // credentials are redacted and the raw response is never logged.
+      logger.warn(
+        "[drive-sync] provider (root folder): " +
+          formatGoogleOAuthError(err, [
+            env.google.clientSecret,
+            env.google.refreshToken,
+          ])
+      );
     }
 
     const nodes = await driveService.walkTree(rootFolderId);

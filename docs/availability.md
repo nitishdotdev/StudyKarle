@@ -6,8 +6,8 @@ This document describes the keep-alive workaround, session-retry behavior, and t
 
 Production backend origin (from `client/vercel.json` and `server/.env.example`):
 
-- Health (preferred keep-alive target): `https://studykarle-backend-new.onrender.com/health`
-- Compatibility alias: `https://studykarle-backend-new.onrender.com/api/health`
+- Health (preferred keep-alive target): `https://studykarle-backend.onrender.com/health`
+- Compatibility alias: `https://studykarle-backend.onrender.com/api/health`
 - Local: `http://localhost:5000/health` and `http://localhost:5000/api/health`
 
 Both routes are public `GET` handlers. They return HTTP 200 and:
@@ -52,7 +52,7 @@ Scheduled workflows run only from the default branch after this file is merged t
 4. Confirm the job did not call `/api/auth/*`.
 5. After merge, wait for a scheduled run and inspect the same log line.
 
-If the job fails with `health_failed`, check Render dashboard that the existing `studykarle-backend-new` service is running, then inspect GitHub Actions for the last HTTP status (000 = network, 429 = platform or app limit, 5xx = application or platform error). Do not dump response bodies.
+If the job fails with `health_failed`, check Render dashboard that the existing `studykarle-backend` service is running, then inspect GitHub Actions for the last HTTP status (000 = network, 429 = platform or app limit, 5xx = application or platform error). Do not dump response bodies.
 
 ## Frontend session resilience
 
@@ -86,7 +86,7 @@ manual retry) reuse the same promise, so one page load issues one request.
 
 Do not purchase or change billing from this repository. To remove Free-plan idle spin-down on the **existing** web service (do not create a second service):
 
-1. Open [Render Dashboard](https://dashboard.render.com) and select the existing backend web service (`studykarle-backend-new`).
+1. Open [Render Dashboard](https://dashboard.render.com) and select the existing backend web service (`studykarle-backend`).
 2. Open the service **Compute** page.
 3. Under **Compute**, click **Edit**.
 4. Select a paid web-service plan (lowest always-on option is `0.5c-512mb`, 0.5 CPU / 512 MB, listed at $7/month on [Render pricing](https://render.com/pricing#compute)).

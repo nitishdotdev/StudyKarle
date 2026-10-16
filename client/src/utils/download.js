@@ -5,7 +5,7 @@ import axiosClient from "../api/axiosClient";
 //
 // Why this matters: StudyKarle's auth cookie is a partitioned cross-site
 // cookie. A top-level browser navigation to the backend origin
-// (https://studykarle-backend-new.onrender.com/api/...) lands in a different
+// (https://studykarle-backend.onrender.com/api/...) lands in a different
 // cookie partition (or a browser that ignores partitioning), so the session
 // is not attached and the request is rejected. Fetching through axios (which
 // always sends credentials in the same partition as the SPA) keeps the file

@@ -19,7 +19,7 @@ jobs:
           KEEP_ALIVE_URL: ${{ vars.KEEP_ALIVE_URL }}
         run: |
           set -u
-          URL="${KEEP_ALIVE_URL:-https://studykarle-backend-new.onrender.com/health}"
+          URL="${KEEP_ALIVE_URL:-https://studykarle-backend.onrender.com/health}"
           ATTEMPTS=4
           DELAY=8
           i=1

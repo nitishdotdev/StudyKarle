@@ -146,7 +146,7 @@ npm run dev
 - Frontend: `http://localhost:5173`
 - Backend API: `http://localhost:5000/api`
 - Health check: `http://localhost:5000/health` (also `http://localhost:5000/api/health`)
-- Production health: `https://studykarle-backend-new.onrender.com/health`
+- Production health: `https://studykarle-backend.onrender.com/health`
 
 See `docs/availability.md` for keep-alive, session retries, and the paid always-on option.
 

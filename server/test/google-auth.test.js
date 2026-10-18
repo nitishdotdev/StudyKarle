@@ -109,34 +109,36 @@ test("safeRedirectPath blocks open redirects", () => {
 });
 
 test("Google signup creates a student, never an admin", async () => {
-  const user = await googleAuthService.findOrCreateFromGoogle({
+  const result = await googleAuthService.findOrCreateFromGoogle({
     sub: "google-sub-1",
     email: "new@gmail.com",
     name: "New User",
     picture: null,
   });
+  assert.equal(result.status, "authenticated");
+  const user = result.user;
   assert.equal(user.role, "student");
   assert.equal(user.google_linked, true);
   assert.equal(user.has_password, false);
   assert.equal(user.email, "new@gmail.com");
 });
 
-test("Google identity is reused by stable sub, not auto-linked by email", async () => {
-  await userModel.create({
+test("Existing email/password account requires password confirmation to link", async () => {
+  const local = await userModel.create({
     name: "Local",
     email: "same@gmail.com",
     passwordHash: "hash",
     role: "admin",
   });
-  await assert.rejects(
-    () =>
-      googleAuthService.findOrCreateFromGoogle({
-        sub: "google-sub-2",
-        email: "same@gmail.com",
-        name: "Local",
-      }),
-    /already exists/i
-  );
+  const result = await googleAuthService.findOrCreateFromGoogle({
+    sub: "google-sub-2",
+    email: "same@gmail.com",
+    name: "Local",
+  });
+  assert.equal(result.status, "link_required");
+  assert.equal(result.user.id, local.id);
+  assert.equal(result.user.role, "admin");
+  assert.equal(result.user.google_sub, null);
 
   const googleUser = await userModel.create({
     name: "G",
@@ -150,8 +152,45 @@ test("Google identity is reused by stable sub, not auto-linked by email", async 
     email: "g@gmail.com",
     name: "G",
   });
-  assert.equal(reused.id, googleUser.id);
-  assert.equal(reused.role, "student");
+  assert.equal(reused.status, "authenticated");
+  assert.equal(reused.user.id, googleUser.id);
+  assert.equal(reused.user.role, "student");
+});
+
+test("password-less existing account is routed to email recovery, not auto-linked", async () => {
+  const local = await userModel.create({
+    name: "No Pass",
+    email: "nopass@gmail.com",
+    passwordHash: null,
+    role: "student",
+  });
+  const result = await googleAuthService.findOrCreateFromGoogle({
+    sub: "google-sub-nopass",
+    email: "nopass@gmail.com",
+    name: "No Pass",
+  });
+  assert.equal(result.status, "recovery_required");
+  assert.equal(result.user.id, local.id);
+  assert.equal(result.user.google_sub, null);
+});
+
+test("an account already linked to a different Google identity is not overwritten", async () => {
+  await userModel.create({
+    name: "Linked",
+    email: "linked@gmail.com",
+    passwordHash: "hash",
+    googleSub: "existing-sub",
+    role: "student",
+  });
+  await assert.rejects(
+    () =>
+      googleAuthService.findOrCreateFromGoogle({
+        sub: "different-sub",
+        email: "linked@gmail.com",
+        name: "Linked",
+      }),
+    /already linked to a different google account/i
+  );
 });
 
 test("disposable Google emails are blocked before account creation", async () => {

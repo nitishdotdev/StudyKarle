@@ -71,6 +71,52 @@ const resetPasswordValidator = [
     .withMessage("Please confirm your new password"),
 ];
 
+const googleLinkTicketValidator = [
+  body("ticket")
+    .isString()
+    .withMessage("A linking ticket is required")
+    .trim()
+    .notEmpty()
+    .withMessage("A linking ticket is required")
+    .isLength({ max: 512 })
+    .withMessage("A linking ticket is required"),
+];
+
+const googleLinkVerifyValidator = [
+  body("ticket")
+    .isString()
+    .withMessage("A linking ticket is required")
+    .trim()
+    .notEmpty()
+    .withMessage("A linking ticket is required")
+    .isLength({ max: 512 })
+    .withMessage("A linking ticket is required"),
+  body("password")
+    .isString()
+    .withMessage("Password is required")
+    .notEmpty()
+    .withMessage("Password is required")
+    .isLength({ max: 1024 })
+    .withMessage("Password is too long"),
+];
+
+const googleLinkRecoveryVerifyValidator = [
+  body("ticket")
+    .isString()
+    .withMessage("A linking ticket is required")
+    .trim()
+    .notEmpty()
+    .withMessage("A linking ticket is required")
+    .isLength({ max: 512 })
+    .withMessage("A linking ticket is required"),
+  body("otp")
+    .trim()
+    .isLength({ min: 6, max: 6 })
+    .withMessage("OTP must be 6 digits")
+    .isNumeric()
+    .withMessage("OTP must contain only numbers"),
+];
+
 module.exports = {
   signupValidator: signupValidator,
   loginValidator: loginValidator,
@@ -78,4 +124,7 @@ module.exports = {
   requestPasswordResetValidator: requestPasswordResetValidator,
   verifyPasswordResetOtpValidator: verifyPasswordResetOtpValidator,
   resetPasswordValidator: resetPasswordValidator,
+  googleLinkTicketValidator: googleLinkTicketValidator,
+  googleLinkVerifyValidator: googleLinkVerifyValidator,
+  googleLinkRecoveryVerifyValidator: googleLinkRecoveryVerifyValidator,
 };

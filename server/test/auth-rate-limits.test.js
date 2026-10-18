@@ -54,6 +54,10 @@ stub("controllers/authController.js", {
   resetPassword: (req, res) => ok(res),
   googleStart: (req, res) => res.redirect("https://accounts.google.com"),
   googleCallback: (req, res) => res.redirect("http://localhost:5173/login"),
+  googleLinkInfo: (req, res) => ok(res),
+  googleLinkVerify: (req, res) => ok(res),
+  googleLinkRecoveryRequest: (req, res) => ok(res),
+  googleLinkRecoveryVerify: (req, res) => ok(res),
   googleComplete: (req, res) => ok(res),
 });
 stub("models/userModel.js", {

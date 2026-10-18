@@ -4,6 +4,7 @@ const authService = require("../services/authService");
 const otpService = require("../services/otpService");
 const tokenService = require("../services/tokenService");
 const googleAuthService = require("../services/googleAuthService");
+const googleLinkService = require("../services/googleLinkService");
 const passwordResetService = require("../services/passwordResetService");
 const disposableEmailService = require("../services/disposableEmailService");
 const userModel = require("../models/userModel");
@@ -40,6 +41,22 @@ function clientSuccessRedirect(ticket, path) {
     "/auth/google/complete?" +
     params.toString()
   );
+}
+
+// The linking screen receives ONLY the opaque, single-use ticket. The bound
+// Google email and the destination stay server-side (never raw claims in URLs).
+function clientLinkRedirect(ticket) {
+  const params = new URLSearchParams();
+  params.set("ticket", ticket);
+  return (
+    env.clientUrl.replace(/\/$/, "") +
+    "/auth/google/link?" +
+    params.toString()
+  );
+}
+
+function operationalMessage(err, fallback) {
+  return err && err.isOperational ? err.message : fallback;
 }
 
 module.exports = {
@@ -232,17 +249,45 @@ module.exports = {
       return res.redirect(clientErrorRedirect(message));
     }
 
-    let user;
+    let decision;
     try {
-      user = await googleAuthService.findOrCreateFromGoogle(identity);
+      decision = await googleAuthService.findOrCreateFromGoogle(identity);
     } catch (err) {
-      const message =
-        err && err.isOperational
-          ? err.message
-          : "Google sign-in failed. Please try again.";
-      return res.redirect(clientErrorRedirect(message));
+      return res.redirect(
+        clientErrorRedirect(
+          operationalMessage(err, "Google sign-in failed. Please try again.")
+        )
+      );
     }
 
+    // The email already belongs to an existing account that is not linked to
+    // this Google identity. Do not dead-end: create a bound challenge and send
+    // the user to the linking screen to prove ownership.
+    if (
+      decision.status === "link_required" ||
+      decision.status === "recovery_required"
+    ) {
+      let challenge;
+      try {
+        challenge = await googleLinkService.createChallenge(
+          decision.user,
+          identity,
+          statePayload.r
+        );
+      } catch (err) {
+        return res.redirect(
+          clientErrorRedirect(
+            operationalMessage(
+              err,
+              "Google sign-in failed. Please try again."
+            )
+          )
+        );
+      }
+      return res.redirect(clientLinkRedirect(challenge.ticket));
+    }
+
+    const user = decision.user;
     const full = await userModel.findById(user.id);
     const ticket = randomToken(32);
     await oauthLoginTicketModel.create({
@@ -251,6 +296,53 @@ module.exports = {
       expiresAt: new Date(Date.now() + 2 * 60 * 1000),
     });
     return res.redirect(clientSuccessRedirect(ticket, statePayload.r));
+  }),
+
+  // ------------------------------------------------------------------
+  // Google account linking (existing email/password or password-less account)
+  // ------------------------------------------------------------------
+  googleLinkInfo: asyncHandler(async function (req, res) {
+    const info = await googleLinkService.getChallengeInfo(
+      req.body && req.body.ticket
+    );
+    return ApiResponse.ok(res, info);
+  }),
+
+  googleLinkVerify: asyncHandler(async function (req, res) {
+    const result = await googleLinkService.completePasswordLink(
+      req.body && req.body.ticket,
+      req.body && req.body.password
+    );
+    const full = await userModel.findById(result.user.id);
+    issueSession(res, full || result.user);
+    return ApiResponse.ok(res, {
+      user: result.user,
+      redirect: result.redirect,
+    });
+  }),
+
+  googleLinkRecoveryRequest: asyncHandler(async function (req, res) {
+    const result = await googleLinkService.requestRecoveryOtp(
+      req.body && req.body.ticket
+    );
+    return ApiResponse.ok(res, {
+      message: "Verification code sent to your email",
+      email: result.email,
+      expiresAt: result.expiresAt,
+    });
+  }),
+
+  googleLinkRecoveryVerify: asyncHandler(async function (req, res) {
+    const result = await googleLinkService.verifyRecoveryOtp(
+      req.body && req.body.ticket,
+      req.body && req.body.otp
+    );
+    const full = await userModel.findById(result.user.id);
+    issueSession(res, full || result.user);
+    return ApiResponse.ok(res, {
+      user: result.user,
+      redirect: result.redirect,
+    });
   }),
 
   googleComplete: asyncHandler(async function (req, res) {

@@ -156,63 +156,126 @@ async function verifyIdToken(idToken, expectedNonce) {
     throw ApiError.unauthorized("Google did not provide a verified email.");
   }
 
+  const name = payload.name ? String(payload.name).trim() : "";
   return {
     sub: payload.sub,
     email: email,
-    name: payload.name || email.split("@")[0],
+    name: name || email.split("@")[0],
     picture: payload.picture || null,
     emailVerified: true,
   };
 }
 
-async function findOrCreateFromGoogle(identity) {
-  disposableEmailService.assertNotDisposable(identity.email);
+// The message shown when a Google identity is already attached to a different
+// StudyKarle account (or vice versa). It gives recovery guidance rather than
+// silently replacing a link.
+const DIFFERENT_IDENTITY_MESSAGE =
+  "This account is already linked to a different Google account. Please sign in with the Google account you originally used, or reset your password to sign in with email.";
 
-  const bySub = await userModel.findByGoogleSub(identity.sub);
-  if (bySub) {
-    disposableEmailService.assertNotDisposable(bySub.email);
-    return userModel.publicUser(bySub) || {
-      id: bySub.id,
-      name: bySub.name,
-      email: bySub.email,
-      role: bySub.role,
-      avatar_url: bySub.avatar_url,
-      course: bySub.course,
-      current_year: bySub.current_year,
-      created_at: bySub.created_at,
-      has_password: !!bySub.password_hash,
-      google_linked: true,
-    };
-  }
+function usableName(identity) {
+  const raw = identity && identity.name ? String(identity.name).trim() : "";
+  const local = identity && identity.email
+    ? String(identity.email).split("@")[0]
+    : "";
+  return raw || local;
+}
 
-  const existing = await userModel.findByEmail(identity.email);
-  if (existing) {
-    throw ApiError.conflict(
-      "An account with this email already exists. Please sign in with your password."
+// Present a consistent, public-safe account shape to the callback regardless
+// of whether the row came from a fresh create or an existing lookup.
+function decisionUser(row) {
+  if (!row) return row;
+  return Object.assign({}, row, {
+    has_password: !!row.password_hash,
+    google_linked: !!row.google_sub,
+  });
+}
+
+async function createGoogleUser(identity) {
+  const name = usableName(identity);
+  if (!name || name.length < 2) {
+    throw ApiError.badRequest(
+      "We could not read a valid name from your Google profile. Please sign up with your email address."
     );
   }
-
-  const created = await userModel.create({
-    name: identity.name,
+  return userModel.create({
+    name: name,
     email: identity.email,
     passwordHash: null,
     role: "student",
     googleSub: identity.sub,
     avatarUrl: identity.picture,
   });
+}
 
-  return {
-    id: created.id,
-    name: created.name,
-    email: created.email,
-    role: created.role,
-    avatar_url: created.avatar_url,
-    course: created.course,
-    current_year: created.current_year,
-    created_at: created.created_at,
-    has_password: false,
-    google_linked: true,
-  };
+// Classify an existing email/password-less account without ever auto-linking.
+function classifyExisting(existing, identity) {
+  if (existing.google_sub && existing.google_sub !== identity.sub) {
+    throw ApiError.conflict(DIFFERENT_IDENTITY_MESSAGE);
+  }
+  if (existing.google_sub === identity.sub) {
+    return { status: "authenticated", user: decisionUser(existing) };
+  }
+  if (existing.password_hash) {
+    return { status: "link_required", user: decisionUser(existing) };
+  }
+  return { status: "recovery_required", user: decisionUser(existing) };
+}
+
+// Resolve an unexpected unique-violation (email or Google subject) into a
+// concrete account state instead of surfacing a raw database error.
+async function resolveGoogleRace(identity) {
+  const bySub = await userModel.findByGoogleSub(identity.sub);
+  if (bySub) {
+    disposableEmailService.assertNotDisposable(bySub.email);
+    return { status: "authenticated", user: decisionUser(bySub) };
+  }
+  const existing = await userModel.findByEmail(identity.email);
+  if (existing) {
+    disposableEmailService.assertNotDisposable(existing.email);
+    return classifyExisting(existing, identity);
+  }
+  throw ApiError.conflict(
+    "We could not complete Google sign-in. Please try again."
+  );
+}
+
+/**
+ * Resolve a verified Google identity into a StudyKarle account decision.
+ *
+ * @returns {Promise<{status:"authenticated"|"link_required"|"recovery_required", user:object}>}
+ *   - authenticated: existing linked account, or a brand-new account.
+ *   - link_required: an existing password account must confirm its password
+ *     before the Google subject is attached.
+ *   - recovery_required: an existing password-less account must verify via
+ *     email before the Google subject is attached.
+ * Never creates a duplicate and never auto-links by email alone.
+ */
+async function findOrCreateFromGoogle(identity) {
+  disposableEmailService.assertNotDisposable(identity.email);
+
+  const bySub = await userModel.findByGoogleSub(identity.sub);
+  if (bySub) {
+    disposableEmailService.assertNotDisposable(bySub.email);
+    return { status: "authenticated", user: decisionUser(bySub) };
+  }
+
+  const existing = await userModel.findByEmail(identity.email);
+  if (existing) {
+    disposableEmailService.assertNotDisposable(existing.email);
+    return classifyExisting(existing, identity);
+  }
+
+  let created;
+  try {
+    created = await createGoogleUser(identity);
+  } catch (err) {
+    if (err && err.code === "23505") {
+      return resolveGoogleRace(identity);
+    }
+    throw err;
+  }
+
+  return { status: "authenticated", user: decisionUser(created) };
 }
 
 module.exports = {

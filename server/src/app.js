@@ -78,6 +78,11 @@ app.use(compression());
 
 app.use(express.json({ limit: "2mb" }));
 app.use(express.urlencoded({ extended: true }));
+// Cookie parsing itself is not CSRF protection. State-changing /api routes
+// are guarded by csrfProtection below (required X-Requested-With header
+// plus the CORS allowlist). CodeQL js/missing-token-validation only
+// recognizes csurf/lusca-style token middleware.
+// codeql[js/missing-token-validation]
 app.use(cookieParser());
 
 if (!env.isProduction) {

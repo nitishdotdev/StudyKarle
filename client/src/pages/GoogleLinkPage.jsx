@@ -6,7 +6,7 @@ import PageLoader from "../components/common/PageLoader";
 import useAuth from "../hooks/useAuth";
 import { useToast } from "../context/ToastContext";
 import * as authApi from "../api/authApi";
-import { consumeOAuthHash } from "../utils/oauthTicket";
+import { consumeOAuthHash, clearOAuthTicket } from "../utils/oauthTicket";
 
 function Icon({ name, className = "" }) {
   return (
@@ -66,6 +66,7 @@ export default function GoogleLinkPage() {
 
       const captured = consumeOAuthHash().ticket;
       if (!captured) {
+        clearOAuthTicket();
         toast.error("This Google linking link is invalid or has expired.");
         navigate("/login", { replace: true });
         return;
@@ -93,6 +94,7 @@ export default function GoogleLinkPage() {
   );
 
   function completeLogin(result) {
+    clearOAuthTicket();
     setUser(result.user);
     toast.success("Google account connected. You're signed in.");
     navigate(safeRedirect(result.redirect), { replace: true });
@@ -221,6 +223,7 @@ export default function GoogleLinkPage() {
                 fullWidth
                 className="mt-6"
                 onClick={function () {
+                  clearOAuthTicket();
                   navigate("/login", { replace: true });
                 }}
               >
@@ -385,6 +388,7 @@ export default function GoogleLinkPage() {
                 <button
                   type="button"
                   onClick={function () {
+                    clearOAuthTicket();
                     navigate("/login", { replace: true });
                   }}
                   disabled={busy}

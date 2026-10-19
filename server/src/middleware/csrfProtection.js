@@ -18,22 +18,12 @@ module.exports = function csrfProtection(req, res, next) {
     return next();
   }
 
-  const csrfHeader = req.headers["x-requested-with"];
-  if (csrfHeader !== "XMLHttpRequest") {
+  if (req.headers["x-requested-with"] !== "XMLHttpRequest") {
     return next(
       ApiError.forbidden(
         "CSRF protection: request must include an X-Requested-With header"
       )
     );
-  }
-
-  // Record the passed check on a csrf-named cookie property. CodeQL's
-  // js/missing-token-validation query only treats a middleware as CSRF
-  // protection when it reads or writes cookies/session/user properties
-  // whose names contain csrf/xsrf. This write is that signal; it does
-  // not Set-Cookie. Enforcement is the header check above.
-  if (req.cookies) {
-    req.cookies.csrf = csrfHeader;
   }
 
   next();

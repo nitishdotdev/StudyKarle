@@ -310,6 +310,7 @@ const env = require("../src/config/env");
 const app = express();
 app.set("trust proxy", 1);
 app.use(express.json());
+// codeql[js/missing-token-validation]
 app.use(cookieParser());
 app.use("/api", csrf);
 app.use("/api/auth", authRoutes);

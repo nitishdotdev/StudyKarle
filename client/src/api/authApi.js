@@ -89,7 +89,8 @@ export function completeGoogleLogin(payload) {
 
 // Google account linking (existing email/password or password-less account).
 // The ticket is opaque and single-use; the linked email/destination stay
-// server-side and are fetched by ticket, never passed in the URL.
+// server-side and are fetched by ticket. The ticket is delivered in the URL
+// fragment (never as a query string) and posted in the JSON body.
 export function googleLinkInfo(payload) {
   return axiosClient.post("/auth/google/link/info", payload).then(function (res) {
     return res.data.data;

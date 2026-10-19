@@ -418,7 +418,9 @@ async function callback(nonce, payload) {
 }
 
 function ticketFromLocation(location) {
-  return new URL(location).searchParams.get("ticket");
+  const url = new URL(location);
+  assert.equal(url.searchParams.get("ticket"), null, "ticket must not be in the query string");
+  return new URLSearchParams(url.hash.replace(/^#/, "")).get("ticket");
 }
 
 function cookieValue(setCookie) {
@@ -438,7 +440,8 @@ test("new Google user: callback issues a completion ticket and /google/complete 
     newGooglePayload({ sub: "new-sub", email: "new@gmail.com", name: "New User" })
   );
   assert.equal(cb.status, 302);
-  assert.ok(cb.location.indexOf("http://localhost:5173/auth/google/complete?") === 0);
+  assert.ok(cb.location.indexOf("http://localhost:5173/auth/google/complete#") === 0);
+  assert.ok(cb.location.indexOf("?ticket=") === -1);
   const ticket = ticketFromLocation(cb.location);
   assert.ok(ticket);
 
@@ -493,7 +496,8 @@ test("existing password account: callback redirects to the link screen with no r
     newGooglePayload({ sub: "req-sub", email: "linked-req@gmail.com" })
   );
   assert.equal(cb.status, 302);
-  assert.ok(cb.location.indexOf("http://localhost:5173/auth/google/link?ticket=") === 0);
+  assert.ok(cb.location.indexOf("http://localhost:5173/auth/google/link#ticket=") === 0);
+  assert.ok(cb.location.indexOf("?ticket=") === -1);
   assert.ok(cb.location.indexOf("linked-req@gmail.com") === -1);
   assert.ok(cb.location.indexOf("req-sub") === -1);
 });
@@ -720,6 +724,27 @@ test("link endpoints reject requests without the CSRF X-Requested-With header", 
     { xrw: false }
   );
   assert.equal(res.status, 403);
+});
+
+test("completion and verify reject requests without the CSRF X-Requested-With header", async () => {
+  const complete = await post("/google/complete", { ticket: "whatever" }, { xrw: false });
+  assert.equal(complete.status, 403);
+  const verify = await post(
+    "/google/link/verify",
+    { ticket: "whatever", password: "Correct123" },
+    { xrw: false }
+  );
+  assert.equal(verify.status, 403);
+});
+
+test("Google OAuth callback GET does not require the CSRF header", async () => {
+  const res = await request(
+    "GET",
+    "/api/auth/google/callback?error=access_denied",
+    { xrw: false }
+  );
+  assert.equal(res.status, 302);
+  assert.ok(res.location.indexOf("/login?") !== -1);
 });
 
 test("link info rejects a missing ticket with a validation error", async () => {

@@ -1,11 +1,12 @@
 import React, { useEffect, useRef, useState } from "react";
-import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import Input from "../components/common/Input";
 import Button from "../components/common/Button";
 import PageLoader from "../components/common/PageLoader";
 import useAuth from "../hooks/useAuth";
 import { useToast } from "../context/ToastContext";
 import * as authApi from "../api/authApi";
+import { consumeOAuthHash } from "../utils/oauthTicket";
 
 function Icon({ name, className = "" }) {
   return (
@@ -35,7 +36,6 @@ export default function GoogleLinkPage() {
   const { setUser } = useAuth();
   const toast = useToast();
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
 
   const startedRef = useRef(false);
   const [ticket, setTicket] = useState(null);
@@ -54,8 +54,9 @@ export default function GoogleLinkPage() {
   const [recoveryError, setRecoveryError] = useState(null);
   const [resendTimer, setResendTimer] = useState(0);
 
-  // Capture the one-time ticket, then immediately remove it from the address
-  // bar / browser history so it can never be replayed from history.
+  // Capture the one-time ticket from the URL fragment, then immediately
+  // strip it from the address bar / browser history so it cannot be
+  // replayed from history or leaked via referrer.
   useEffect(
     function () {
       if (startedRef.current) {
@@ -63,14 +64,13 @@ export default function GoogleLinkPage() {
       }
       startedRef.current = true;
 
-      const captured = searchParams.get("ticket");
+      const captured = consumeOAuthHash().ticket;
       if (!captured) {
         toast.error("This Google linking link is invalid or has expired.");
         navigate("/login", { replace: true });
         return;
       }
       setTicket(captured);
-      navigate("/auth/google/link", { replace: true });
 
       authApi
         .googleLinkInfo({ ticket: captured })

@@ -190,8 +190,9 @@ test("callback with an existing linked account redirects to the completion page"
   const out = await invoke(controller.googleCallback, {
     query: { code: "code", state: "state" },
   });
-  assert.ok(out.redirect.indexOf("http://localhost:5173/auth/google/complete?") === 0);
+  assert.ok(out.redirect.indexOf("http://localhost:5173/auth/google/complete#") === 0);
   assert.ok(out.redirect.indexOf("ticket=") !== -1);
+  assert.ok(out.redirect.indexOf("?ticket=") === -1);
   assert.equal(createChallengeCalls, 0);
 });
 
@@ -202,7 +203,7 @@ test("callback with an existing password account redirects to the linking screen
   });
   assert.equal(
     out.redirect,
-    "http://localhost:5173/auth/google/link?ticket=challenge-ticket-123"
+    "http://localhost:5173/auth/google/link#ticket=challenge-ticket-123"
   );
   assert.equal(createChallengeCalls, 1);
   // No raw claims (email) in the redirect.
@@ -214,7 +215,7 @@ test("callback with a password-less account redirects to the linking screen", as
   const out = await invoke(controller.googleCallback, {
     query: { code: "code", state: "state" },
   });
-  assert.ok(out.redirect.indexOf("/auth/google/link?ticket=") !== -1);
+  assert.ok(out.redirect.indexOf("/auth/google/link#ticket=") !== -1);
 });
 
 test("googleLinkInfo returns the server-validated email and password requirement", async () => {

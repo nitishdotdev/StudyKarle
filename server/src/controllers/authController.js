@@ -38,19 +38,21 @@ function clientSuccessRedirect(ticket, path) {
   params.set("redirect", googleAuthService.safeRedirectPath(path));
   return (
     env.clientUrl.replace(/\/$/, "") +
-    "/auth/google/complete?" +
+    "/auth/google/complete#" +
     params.toString()
   );
 }
 
 // The linking screen receives ONLY the opaque, single-use ticket. The bound
 // Google email and the destination stay server-side (never raw claims in URLs).
+// The ticket is placed in the URL fragment so it is not sent as a query string
+// (referrers, proxies, and server access logs never see it).
 function clientLinkRedirect(ticket) {
   const params = new URLSearchParams();
   params.set("ticket", ticket);
   return (
     env.clientUrl.replace(/\/$/, "") +
-    "/auth/google/link?" +
+    "/auth/google/link#" +
     params.toString()
   );
 }

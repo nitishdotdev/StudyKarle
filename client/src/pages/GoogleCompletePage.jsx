@@ -1,16 +1,17 @@
 import React, { useEffect, useRef, useState } from "react";
-import { Navigate, useNavigate, useSearchParams } from "react-router-dom";
+import { Navigate, useNavigate } from "react-router-dom";
 import useAuth from "../hooks/useAuth";
 import { useToast } from "../context/ToastContext";
 import * as authApi from "../api/authApi";
 import PageLoader from "../components/common/PageLoader";
+import { consumeOAuthHash } from "../utils/oauthTicket";
 
 export default function GoogleCompletePage() {
   const { isAuthenticated, loading, setUser } = useAuth();
   const toast = useToast();
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
   const [failed, setFailed] = useState(false);
+  const [ticketPresent, setTicketPresent] = useState(true);
   const completionStarted = useRef(false);
 
   useEffect(
@@ -19,9 +20,11 @@ export default function GoogleCompletePage() {
         return;
       }
       completionStarted.current = true;
-      const ticket = searchParams.get("ticket");
-      const redirect = searchParams.get("redirect") || "/dashboard";
+      const captured = consumeOAuthHash();
+      const ticket = captured.ticket;
+      const redirect = captured.redirect || "/dashboard";
       if (!ticket) {
+        setTicketPresent(false);
         toast.error("Google sign-in failed. Please try again.");
         setFailed(true);
         navigate("/login", { replace: true });
@@ -50,7 +53,7 @@ export default function GoogleCompletePage() {
   if (failed) {
     return <Navigate to="/login" replace />;
   }
-  if (!loading && isAuthenticated && !searchParams.get("ticket")) {
+  if (!loading && isAuthenticated && !ticketPresent) {
     return <Navigate to="/dashboard" replace />;
   }
   return <PageLoader />;

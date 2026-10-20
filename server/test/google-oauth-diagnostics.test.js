@@ -56,6 +56,73 @@ test("Google Sign-In uses the separate GOOGLE_OAUTH_* credentials when set", () 
   );
 });
 
+function loadEnv(extra) {
+  const script =
+    "const env=require(process.argv[1]);" +
+    "process.stdout.write(JSON.stringify({" +
+    "authRedirectUri:env.google.authRedirectUri," +
+    "oauthSignInConfigured:env.google.oauthSignInConfigured" +
+    "}))";
+  const envPath = path.join(__dirname, "..", "src", "config", "env.js");
+  const out = execFileSync(process.execPath, ["-e", script, envPath], {
+    env: Object.assign(
+      {
+        PATH: process.env.PATH,
+        JWT_SECRET: "x",
+      },
+      extra || {}
+    ),
+    encoding: "utf8",
+  });
+  return JSON.parse(out);
+}
+
+test("production Google Sign-In is not configured without an explicit HTTPS redirect URI", () => {
+  const missing = loadEnv({
+    NODE_ENV: "production",
+    GOOGLE_OAUTH_CLIENT_ID: "prod-client.apps.googleusercontent.com",
+    GOOGLE_OAUTH_CLIENT_SECRET: "prod-secret",
+  });
+  assert.equal(missing.authRedirectUri, "");
+  assert.equal(missing.oauthSignInConfigured, false);
+
+  const localhost = loadEnv({
+    NODE_ENV: "production",
+    GOOGLE_OAUTH_CLIENT_ID: "prod-client.apps.googleusercontent.com",
+    GOOGLE_OAUTH_CLIENT_SECRET: "prod-secret",
+    GOOGLE_OAUTH_REDIRECT_URI: "http://localhost:5000/api/auth/google/callback",
+  });
+  assert.equal(localhost.oauthSignInConfigured, false);
+});
+
+test("production Google Sign-In is configured when the HTTPS callback URI is set", () => {
+  const configured = loadEnv({
+    NODE_ENV: "production",
+    GOOGLE_OAUTH_CLIENT_ID: "prod-client.apps.googleusercontent.com",
+    GOOGLE_OAUTH_CLIENT_SECRET: "prod-secret",
+    GOOGLE_OAUTH_REDIRECT_URI:
+      "https://studykarle-backend.onrender.com/api/auth/google/callback",
+  });
+  assert.equal(
+    configured.authRedirectUri,
+    "https://studykarle-backend.onrender.com/api/auth/google/callback"
+  );
+  assert.equal(configured.oauthSignInConfigured, true);
+});
+
+test("development Google Sign-In still defaults the redirect URI to localhost", () => {
+  const dev = loadEnv({
+    NODE_ENV: "development",
+    GOOGLE_OAUTH_CLIENT_ID: "dev-client.apps.googleusercontent.com",
+    GOOGLE_OAUTH_CLIENT_SECRET: "dev-secret",
+  });
+  assert.equal(
+    dev.authRedirectUri,
+    "http://localhost:5000/api/auth/google/callback"
+  );
+  assert.equal(dev.oauthSignInConfigured, true);
+});
+
 test("Sign-In falls back to GOOGLE_CLIENT_ID only when GOOGLE_OAUTH_CLIENT_ID is unset", () => {
   const script =
     "const env=require(process.argv[1]);" +

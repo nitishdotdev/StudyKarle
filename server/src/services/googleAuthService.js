@@ -11,7 +11,7 @@ const GOOGLE_ISSUERS = ["https://accounts.google.com", "accounts.google.com"];
 const STATE_TTL_MS = 10 * 60 * 1000;
 
 function oauthConfigured() {
-  return !!(env.google.oauthClientId && env.google.oauthClientSecret);
+  return !!env.google.oauthSignInConfigured;
 }
 
 function getClient() {

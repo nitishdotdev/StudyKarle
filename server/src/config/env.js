@@ -41,6 +41,47 @@ function trustProxyHops() {
   return Number.isInteger(n) && n >= 0 && n <= 5 ? n : 1;
 }
 
+function isLoopbackHostname(hostname) {
+  const host = String(hostname || "").toLowerCase().replace(/^\[|\]$/g, "");
+  return host === "localhost" || host === "127.0.0.1" || host === "::1";
+}
+
+function isValidProductionAuthRedirectUri(uri) {
+  if (!uri || typeof uri !== "string") return false;
+  let parsed;
+  try {
+    parsed = new URL(uri);
+  } catch (err) {
+    return false;
+  }
+  if (parsed.protocol !== "https:") return false;
+  if (!parsed.hostname || isLoopbackHostname(parsed.hostname)) return false;
+  return true;
+}
+
+function googleAuthRedirectUri() {
+  const raw = (process.env.GOOGLE_OAUTH_REDIRECT_URI || "").trim();
+  const production =
+    (process.env.NODE_ENV || "development") === "production";
+  if (production) {
+    return isValidProductionAuthRedirectUri(raw) ? raw : "";
+  }
+  return raw || "http://localhost:5000/api/auth/google/callback";
+}
+
+const googleOauthClientId =
+  process.env.GOOGLE_OAUTH_CLIENT_ID || process.env.GOOGLE_CLIENT_ID || "";
+const googleOauthClientSecret =
+  process.env.GOOGLE_OAUTH_CLIENT_SECRET ||
+  process.env.GOOGLE_CLIENT_SECRET ||
+  "";
+const googleAuthRedirect = googleAuthRedirectUri();
+const googleOauthSignInConfigured = !!(
+  googleOauthClientId &&
+  googleOauthClientSecret &&
+  googleAuthRedirect
+);
+
 module.exports = {
   trustProxyHops: trustProxyHops(),
   nodeEnv: process.env.NODE_ENV || "development",
@@ -59,17 +100,10 @@ module.exports = {
     redirectUri:
       process.env.GOOGLE_REDIRECT_URI || "http://localhost:5000/oauth2callback",
     driveFolderId: process.env.GOOGLE_DRIVE_FOLDER_ID || "",
-    oauthClientId:
-      process.env.GOOGLE_OAUTH_CLIENT_ID ||
-      process.env.GOOGLE_CLIENT_ID ||
-      "",
-    oauthClientSecret:
-      process.env.GOOGLE_OAUTH_CLIENT_SECRET ||
-      process.env.GOOGLE_CLIENT_SECRET ||
-      "",
-    authRedirectUri:
-      process.env.GOOGLE_OAUTH_REDIRECT_URI ||
-      "http://localhost:5000/api/auth/google/callback",
+    oauthClientId: googleOauthClientId,
+    oauthClientSecret: googleOauthClientSecret,
+    authRedirectUri: googleAuthRedirect,
+    oauthSignInConfigured: googleOauthSignInConfigured,
   },
 
   // Google Drive sync scheduler. Interval of 0 disables the periodic run

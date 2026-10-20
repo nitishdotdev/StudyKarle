@@ -364,7 +364,10 @@ module.exports = {
       throw ApiError.unauthorized("Google sign-in failed. Please try again.");
     }
     disposableEmailService.assertNotDisposable(user.email);
-    await oauthLoginTicketModel.consume(record.id);
+    const consumed = await oauthLoginTicketModel.consume(record.id);
+    if (!consumed) {
+      throw ApiError.unauthorized("Google sign-in expired. Please try again.");
+    }
     issueSession(res, user);
     return ApiResponse.ok(res, userModel.publicUser(user));
   }),

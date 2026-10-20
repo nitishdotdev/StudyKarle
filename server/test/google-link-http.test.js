@@ -271,7 +271,8 @@ const oauthLoginTicketModel = {
   },
   async consume(id) {
     const t = loginTickets.get(id);
-    if (t && !t.consumed_at) t.consumed_at = new Date();
+    if (!t || t.consumed_at) return 0;
+    t.consumed_at = new Date();
     return 1;
   },
 };
@@ -509,6 +510,30 @@ test("a completion ticket is single-use", async () => {
   assert.equal(first.status, 200);
   const second = await post("/google/complete", { ticket });
   assert.equal(second.status, 401);
+});
+
+test("concurrent completion of the same ticket issues exactly one session", async () => {
+  const cb = await callback(
+    "n-race",
+    newGooglePayload({ sub: "race-sub", email: "race@gmail.com" })
+  );
+  const ticket = ticketFromLocation(cb.location);
+  const [a, b] = await Promise.all([
+    post("/google/complete", { ticket }),
+    post("/google/complete", { ticket }),
+  ]);
+  const statuses = [a.status, b.status].sort();
+  assert.deepEqual(statuses, [200, 401]);
+  const winners = [a, b].filter(function (res) {
+    return res.status === 200;
+  });
+  assert.equal(winners.length, 1);
+  assert.ok(
+    cookieValue(winners[0].setCookie) &&
+      cookieValue(winners[0].setCookie).indexOf("studykarle_token=") === 0
+  );
+  const loser = a.status === 401 ? a : b;
+  assert.equal(cookieValue(loser.setCookie), null);
 });
 
 // ===========================================================================

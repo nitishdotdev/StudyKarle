@@ -310,8 +310,8 @@ const env = require("../src/config/env");
 const app = express();
 app.set("trust proxy", 1);
 app.use(express.json());
-// codeql[js/missing-token-validation]
 app.use(cookieParser());
+app.get("/api/csrf-token", csrf.issueToken);
 app.use("/api", csrf);
 app.use("/api/auth", authRoutes);
 app.use(errorHandler);
@@ -338,7 +338,25 @@ function newIp() {
   return "203.0.113." + ipCounter;
 }
 
-function request(method, urlPath, opts) {
+let csrfState = null;
+
+function fetchCsrf() {
+  if (csrfState) return Promise.resolve(csrfState);
+  return sendRequest("GET", "/api/csrf-token", {}).then(function (res) {
+    const cookies = (res.setCookie || [])
+      .map(function (c) {
+        return c.split(";")[0];
+      })
+      .join("; ");
+    csrfState = {
+      token: res.json && res.json.data ? res.json.data.csrfToken : null,
+      cookie: cookies,
+    };
+    return csrfState;
+  });
+}
+
+function sendRequest(method, urlPath, opts) {
   opts = opts || {};
   return new Promise(function (resolve, reject) {
     const headers = {
@@ -346,7 +364,11 @@ function request(method, urlPath, opts) {
       "x-forwarded-for": opts.ip || newIp(),
     };
     if (opts.xrw !== false) headers["x-requested-with"] = "XMLHttpRequest";
-    if (opts.cookie) headers.cookie = opts.cookie;
+    const cookies = [];
+    if (opts.cookie) cookies.push(opts.cookie);
+    if (opts.csrfCookie) cookies.push(opts.csrfCookie);
+    if (cookies.length) headers.cookie = cookies.join("; ");
+    if (opts.csrfToken) headers["x-csrf-token"] = opts.csrfToken;
     const r = http.request(
       { port, method, path: urlPath, headers },
       function (res) {
@@ -375,6 +397,23 @@ function request(method, urlPath, opts) {
     r.on("error", reject);
     if (opts.body) r.write(JSON.stringify(opts.body));
     r.end();
+  });
+}
+
+function request(method, urlPath, opts) {
+  opts = opts || {};
+  const mutating =
+    method !== "GET" && method !== "HEAD" && method !== "OPTIONS";
+  if (!mutating) return sendRequest(method, urlPath, opts);
+  return fetchCsrf().then(function (csrfInfo) {
+    return sendRequest(
+      method,
+      urlPath,
+      Object.assign({}, opts, {
+        csrfCookie: csrfInfo.cookie,
+        csrfToken: csrfInfo.token,
+      })
+    );
   });
 }
 

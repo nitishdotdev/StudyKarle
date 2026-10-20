@@ -46,6 +46,7 @@ function isCacheable(config) {
   // Skip highly dynamic / per-request endpoints.
   if (
     url.indexOf("/auth/") !== -1 ||
+    url.indexOf("/csrf-token") !== -1 ||
     url.indexOf("/admin/stats") !== -1 ||
     url.indexOf("/admin/activity") !== -1 ||
     url.indexOf("/admin/view-history") !== -1
@@ -87,15 +88,36 @@ function isUserScoped(url) {
   );
 }
 
+let csrfToken = null;
+let csrfTokenPromise = null;
+
+function isMutating(config) {
+  const method = (config.method || "get").toUpperCase();
+  return method !== "GET" && method !== "HEAD" && method !== "OPTIONS";
+}
+
+function fetchCsrfToken() {
+  if (csrfToken) return Promise.resolve(csrfToken);
+  if (csrfTokenPromise) return csrfTokenPromise;
+  csrfTokenPromise = axiosClient
+    .get("/csrf-token", { skipCache: true })
+    .then(function (res) {
+      csrfToken =
+        res.data && res.data.data ? res.data.data.csrfToken : null;
+      csrfTokenPromise = null;
+      return csrfToken;
+    })
+    .catch(function (err) {
+      csrfTokenPromise = null;
+      return Promise.reject(err);
+    });
+  return csrfTokenPromise;
+}
+
 axiosClient.interceptors.request.use(function (config) {
-  // Mark every request as XHR. The backend rejects state-changing (POST/PUT/
-  // PATCH/DELETE) requests without this header — cross-site CSRF requests
-  // (forms, images, iframes) cannot set it, so this is the CSRF enforcement
-  // boundary. CORS alone is not sufficient protection.
   config.headers = config.headers || {};
   config.headers["X-Requested-With"] = "XMLHttpRequest";
 
-  // Short-circuit repeat GETs straight from the in-memory cache.
   if (isCacheable(config)) {
     const key = buildCacheKey(config);
     const cached = getCached(key);
@@ -104,6 +126,17 @@ axiosClient.interceptors.request.use(function (config) {
         return Promise.resolve(cached);
       };
     }
+  }
+
+  if (
+    isMutating(config) &&
+    !config.headers["X-CSRF-Token"] &&
+    !config.headers["x-csrf-token"]
+  ) {
+    return fetchCsrfToken().then(function (token) {
+      if (token) config.headers["X-CSRF-Token"] = token;
+      return config;
+    });
   }
   return config;
 });
@@ -147,6 +180,10 @@ axiosClient.interceptors.response.use(
     // behaviour consistent instead of scattering `window.location` checks.
     const status = error.response ? error.response.status : 0;
     const url = (config && config.url) || "";
+    if (status === 403) {
+      csrfToken = null;
+      csrfTokenPromise = null;
+    }
     if (status === 401 && url.indexOf("/auth/") === -1) {
       window.dispatchEvent(new CustomEvent("studykarle:unauthorized"));
     }

@@ -78,8 +78,8 @@ const env = require("../src/config/env");
 const app = express();
 app.set("trust proxy", 1);
 app.use(express.json());
-// codeql[js/missing-token-validation]
 app.use(cookieParser());
+app.get("/api/csrf-token", csrf.issueToken);
 app.use("/api", csrf);
 app.use("/api/auth", authRoutes);
 app.use(errorHandler);
@@ -103,14 +103,51 @@ function newIp() {
   return "198.51.100." + ipCounter;
 }
 
-function call(method, url, ip, body, cookie) {
+let csrfState = null;
+
+function fetchCsrf() {
+  if (csrfState) return Promise.resolve(csrfState);
+  return new Promise(function (resolve, reject) {
+    const r = http.request(
+      { port: port, method: "GET", path: "/api/csrf-token" },
+      function (res) {
+        let d = "";
+        res.on("data", function (c) {
+          d += c;
+        });
+        res.on("end", function () {
+          const body = JSON.parse(d);
+          const cookies = (res.headers["set-cookie"] || [])
+            .map(function (c) {
+              return c.split(";")[0];
+            })
+            .join("; ");
+          csrfState = { token: body.data.csrfToken, cookie: cookies };
+          resolve(csrfState);
+        });
+      }
+    );
+    r.on("error", reject);
+    r.end();
+  });
+}
+
+function isMutating(method) {
+  return method !== "GET" && method !== "HEAD" && method !== "OPTIONS";
+}
+
+function send(method, url, ip, body, cookie, csrfInfo) {
   return new Promise((resolve, reject) => {
     const headers = {
       "content-type": "application/json",
       "x-requested-with": "XMLHttpRequest",
       "x-forwarded-for": ip,
     };
-    if (cookie) headers.cookie = cookie;
+    const cookies = [];
+    if (cookie) cookies.push(cookie);
+    if (csrfInfo && csrfInfo.cookie) cookies.push(csrfInfo.cookie);
+    if (cookies.length) headers.cookie = cookies.join("; ");
+    if (csrfInfo && csrfInfo.token) headers["x-csrf-token"] = csrfInfo.token;
     const r = http.request(
       { port, method, path: "/api/auth" + url, headers },
       (res) => {
@@ -129,6 +166,13 @@ function call(method, url, ip, body, cookie) {
     r.on("error", reject);
     if (body) r.write(JSON.stringify(body));
     r.end();
+  });
+}
+
+function call(method, url, ip, body, cookie) {
+  if (!isMutating(method)) return send(method, url, ip, body, cookie, null);
+  return fetchCsrf().then(function (csrfInfo) {
+    return send(method, url, ip, body, cookie, csrfInfo);
   });
 }
 const login = (ip, email, password) =>

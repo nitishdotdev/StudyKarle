@@ -114,13 +114,72 @@ test("POST /api without X-Requested-With is rejected as CSRF", async () => {
   assert.equal(res.body.success, false);
 });
 
-test("POST /api with X-Requested-With is not a CSRF rejection", async () => {
+test("POST /api with X-Requested-With but no CSRF token is rejected", async () => {
   const res = await request(
     "POST",
     "/api/auth/login",
     {
       "content-type": "application/json",
       "x-requested-with": "XMLHttpRequest",
+    },
+    "{}"
+  );
+  assert.equal(res.status, 403);
+  assert.equal(res.body.success, false);
+});
+
+test("GET /api/csrf-token issues a token and a CSRF cookie", async () => {
+  const res = await get("/api/csrf-token");
+  assert.equal(res.status, 200);
+  assert.equal(res.body.success, true);
+  assert.equal(typeof res.body.data.csrfToken, "string");
+  assert.ok(res.body.data.csrfToken.length > 8);
+  const setCookie = res.headers["set-cookie"] || [];
+  assert.ok(
+    setCookie.some(function (c) {
+      return /csrf/i.test(c);
+    }),
+    "expected a CSRF cookie"
+  );
+});
+
+test("POST /api with a mismatched CSRF cookie and header is rejected", async () => {
+  const issued = await get("/api/csrf-token");
+  const cookies = (issued.headers["set-cookie"] || [])
+    .map(function (c) {
+      return c.split(";")[0];
+    })
+    .join("; ");
+  const res = await request(
+    "POST",
+    "/api/auth/login",
+    {
+      "content-type": "application/json",
+      "x-requested-with": "XMLHttpRequest",
+      "x-csrf-token": "not-the-issued-token",
+      cookie: cookies,
+    },
+    "{}"
+  );
+  assert.equal(res.status, 403);
+});
+
+test("POST /api with a valid CSRF token is not a CSRF rejection", async () => {
+  const issued = await get("/api/csrf-token");
+  const token = issued.body.data.csrfToken;
+  const cookies = (issued.headers["set-cookie"] || [])
+    .map(function (c) {
+      return c.split(";")[0];
+    })
+    .join("; ");
+  const res = await request(
+    "POST",
+    "/api/auth/login",
+    {
+      "content-type": "application/json",
+      "x-requested-with": "XMLHttpRequest",
+      "x-csrf-token": token,
+      cookie: cookies,
     },
     "{}"
   );
@@ -132,7 +191,8 @@ test("CORS preflight from an untrusted origin is rejected", async () => {
   const res = await request("OPTIONS", "/api/auth/login", {
     Origin: "https://evil.example",
     "Access-Control-Request-Method": "POST",
-    "Access-Control-Request-Headers": "content-type,x-requested-with",
+    "Access-Control-Request-Headers":
+      "content-type,x-requested-with,x-csrf-token",
   });
   assert.ok(res.status >= 400);
   assert.notEqual(
@@ -145,7 +205,8 @@ test("CORS preflight from a trusted origin is allowed", async () => {
   const res = await request("OPTIONS", "/api/auth/login", {
     Origin: "http://localhost:5173",
     "Access-Control-Request-Method": "POST",
-    "Access-Control-Request-Headers": "content-type,x-requested-with",
+    "Access-Control-Request-Headers":
+      "content-type,x-requested-with,x-csrf-token",
   });
   assert.ok(res.status < 400);
   assert.equal(

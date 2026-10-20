@@ -54,9 +54,14 @@ const corsOptions = {
   credentials: true, // REQUIRED for cookies
   methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
   // Every header the StudyKarle client actually sends. X-Requested-With is the
-  // CSRF marker added by the axios interceptor; omitting it breaks preflight.
+  // CSRF custom-header check; X-CSRF-Token is the double-submit token.
   // Authorization is kept for any future bearer-token flow.
-  allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
+  allowedHeaders: [
+    "Content-Type",
+    "Authorization",
+    "X-Requested-With",
+    "X-CSRF-Token",
+  ],
   // Expose caching / range headers so pdf.js can do partial (page-by-page)
   // loading and the browser can cache PDF previews across origins.
   exposedHeaders: [
@@ -78,11 +83,6 @@ app.use(compression());
 
 app.use(express.json({ limit: "2mb" }));
 app.use(express.urlencoded({ extended: true }));
-// Cookie parsing itself is not CSRF protection. State-changing /api routes
-// are guarded by csrfProtection below (required X-Requested-With header
-// plus the CORS allowlist). CodeQL js/missing-token-validation only
-// recognizes csurf/lusca-style token middleware.
-// codeql[js/missing-token-validation]
 app.use(cookieParser());
 
 if (!env.isProduction) {
@@ -91,10 +91,11 @@ if (!env.isProduction) {
 
 app.get("/health", healthController.health);
 app.get("/api/health", healthController.health);
+app.get("/api/csrf-token", csrfProtection.issueToken);
 
 app.use("/api/auth", proxyDiagnostics);
-app.use("/api", csrfProtection); // CSRF: require X-Requested-With on non-GET /api requests
-app.use("/api", routes); // ← Mounts ALL routes: /api/auth, /api/notes, /api/admin, etc.
+app.use("/api", csrfProtection);
+app.use("/api", routes);
 
 app.use(notFound);
 app.use(errorHandler);

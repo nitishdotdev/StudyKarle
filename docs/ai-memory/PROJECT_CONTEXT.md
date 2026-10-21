@@ -2,157 +2,159 @@
 
 > **Audience**: AI coding agents starting a new session.
 > Read this once; consult `HANDOFF.md` for the current task state.
+> Prefer current source, git, and CI over this file when they disagree.
 
 ---
 
 ## Purpose
 
-StudyKarle is a full-stack study notes platform hosted at https://www.studykarle.me.
-It lets students organize and access study materials, stored as PDFs in Google Drive,
-organized through a flexible folder hierarchy.
+StudyKarle is a study-notes platform at https://www.studykarle.me.
+Students browse a Google Drive library mirrored into PostgreSQL, then
+preview, search, save, and download PDFs.
 
 ---
 
 ## Repository
 
-- **Remote**: https://github.com/nitishdotdev/StudyKarle
-- **GitHub handle**: NitishSolves / nitishdotdev
-- **Default branch**: `main` [VERIFY on checkout — branch policies may have changed]
+- **Remote (verified `git remote`)**: https://github.com/NitishSolves/StudyKarle
+- **Default branch**: `main`
+- **PR that added this memory layer**: #21, merged as `30f7b22`
+
+`nitishdotdev` is the ai-memory *workspace* name in `.ai-memory.toml`.
+It is also the GitHub user on the merged feature-branch fork. It is not
+the `origin` org (`NitishSolves`).
 
 ---
 
-## Application components
+## Layout
 
-### Frontend
+There is **no root `package.json`**. Two packages:
 
-| Property | Value |
-|----------|-------|
-| Framework | React + Vite |
-| Language | TypeScript |
-| Location | `/client` or project root [VERIFY — inspect actual directory] |
-| Build command | `npm run build` |
-| Dev command | `npm run dev` |
+| Path | Role |
+|------|------|
+| `client/` | React 18 + Vite 2 frontend (JavaScript / JSX, not TypeScript) |
+| `server/` | Node.js 20 + Express 4 API |
 
-### Backend / API
-
-| Property | Value |
-|----------|-------|
-| Runtime | Node.js |
-| Framework | Express |
-| Location | `/server` or `/api` [VERIFY — inspect actual directory] |
-| Dev command | `npm run dev` (with nodemon) |
-| API base | `/api/*` (Vercel rewrites proxy to backend) |
-
-### Database
-
-| Property | Value |
-|----------|-------|
-| Engine | PostgreSQL |
-| Provider | Neon (serverless) |
-| Connection | `DATABASE_URL` env var |
-| Schema | Migrations managed in repo [VERIFY location] |
-
-Key tables (confirmed from known issues):
-- `drive_nodes` — flexible arbitrary-depth folder/file hierarchy for Google Drive sync
-  (replaced rigid four-level structure; see `DECISIONS.md`)
-
-### Storage
-
-| Property | Value |
-|----------|-------|
-| Service | Google Drive API |
-| Purpose | PDF storage and organization |
-| Auth | Service account or OAuth credentials via env vars |
-
-### Authentication
-
-Session-based cookie auth.
-
-Critical fix in place:
-- `sameSite: lax` cookies delivered via Vercel rewrite rules to avoid third-party
-  cookie blocking on mobile / incognito browsers.
-- **Do not remove or change this pattern** without understanding the mobile auth consequences.
-
-### Hosting / Deployment
-
-| Layer | Provider | Notes |
-|-------|---------|-------|
-| Frontend + API gateway | Vercel | Rewrite rules proxy `/api/*` to backend |
-| Backend (if separate) | Render or Vercel serverless | [VERIFY current deployment] |
-| Database | Neon | Serverless PostgreSQL |
-| PDF storage | Google Drive | Via API |
+Also: `docs/`, `deploy/ai-memory/`, `scripts/ai-memory/`, `.github/workflows/`.
 
 ---
 
-## Environment variables
+## Frontend (`client/`)
 
-Never put actual values here. Record only the variable name and purpose.
+- React 18, React Router 6, Tailwind 3, Axios
+- Vite 2.9, `client/vite.config.js` (no `tsconfig`)
+- PDF preview: `react-pdf` wrapping `pdfjs-dist` 3.11 (canvas `Page`, not iframe blob URLs) in `client/src/components/notes/PdfPreview.jsx`
+- Dev: `cd client && npm run dev` (port 5173; proxies `/api` to `http://localhost:5000`)
+- Build: `cd client && npm run build`
+- No `lint` or `test` script in `client/package.json`
 
-| Variable | Required | Purpose |
-|----------|---------|---------|
-| `DATABASE_URL` | Yes | Neon PostgreSQL connection string |
-| `GOOGLE_CLIENT_ID` | Yes | Google OAuth / Drive API client ID |
-| `GOOGLE_CLIENT_SECRET` | Yes | Google OAuth / Drive API client secret |
-| `GOOGLE_REDIRECT_URI` | Yes | OAuth callback URL |
-| `SESSION_SECRET` | Yes | Express session signing key |
-| `NODE_ENV` | Yes | `production` in deployed environments |
-| `VITE_API_BASE_URL` | Frontend | Base URL for API calls in Vite build |
+Production host: **Vercel**, `client/vercel.json`:
 
-> [UNVERIFIED — inspect `.env.example` or the actual repository for the full list]
+- `/api/*` rewrites to `https://studykarle-backend.onrender.com/api/$1`
+- SPA fallback to `/index.html`
 
 ---
 
-## Key architecture constraints
+## Backend (`server/`)
 
-1. **Drive sync must handle arbitrary nesting**: the `drive_nodes` table supports
-   any folder depth. Do not reintroduce a fixed-depth hierarchy.
+- Express 4, Knex 2, `pg`, JWT (`jsonwebtoken`) in an HTTP-only cookie
+- Google Drive API (`googleapis`) for library sync
+- Google Sign-In (separate from Drive) plus email-OTP signup (Resend)
+- CSRF (`csrf-csrf`), Helmet, rate limits
+- Dev: `cd server && npm run dev` (nodemon, port 5000)
+- Start: `cd server && npm start`
+- Migrate / seed: `cd server && npm run migrate` / `npm run seed`
+- Tests: `cd server && npm test` (`node --test`; listed in `server/package.json`)
+- Health: `GET /health` and `GET /api/health` (public JSON `{ success, data: { status: "ok" } }`)
 
-2. **PDF preview**: use `pdfjs-dist` canvas renderer. Do not revert to iframe blob URLs —
-   they break on mobile Safari.
-
-3. **Cookie auth**: `sameSite: lax` + Vercel rewrites. Changing cookie policy or proxy
-   configuration can silently break mobile / incognito auth.
-
-4. **Drive sync deduplication**: duplicate folder names under different parents previously
-   caused DB constraint crashes. The current schema handles this — do not regress it.
-
-5. **ai-memory service is separate** from StudyKarle's runtime. Memory failures must
-   never affect study-notes functionality, builds, or deployments.
+Production host: **Render** web service `studykarle-backend.onrender.com`.
+Keep-alive: `.github/workflows/keep-alive.yml` (see `docs/availability.md`).
 
 ---
 
-## Build / test / deployment commands
+## Database
+
+- PostgreSQL via Knex migrations in `server/src/db/migrations/`
+- Connection: split `DB_*` variables and, in production, optional `DATABASE_URL`
+  (see `server/.env.example` and `server/knexfile.js`). Do not copy values here.
+- **Neon is not referenced in application source.** Earlier notes that named
+  Neon as the provider are unverified hosting detail, not code.
+
+### `drive_nodes`
+
+Authoritative Drive mirror. Unique key is **`drive_id`**
+(`server/src/db/migrations/20260808000001_create_drive_sync_tables.js`).
+Parent/child via `parent_drive_id`. Arbitrary depth. Duplicate folder
+*names* under different parents are allowed because uniqueness is the
+Drive id, not `(name, parent)`.
+
+---
+
+## Authentication
+
+JWT in cookie `COOKIE_NAME` (default `studykarle_token`), HttpOnly.
+
+Production cookie flags (`server/src/services/tokenService.js`):
+`SameSite=None; Secure; Partitioned`. Non-production: `SameSite=Lax`.
+
+CSRF cookie follows the same production `none` / non-production `lax` split
+(`server/src/middleware/csrfProtection.js`).
+
+Vercel `/api` rewrites keep browser calls same-origin on `www.studykarle.me`.
+Do not change cookie flags or the rewrite without understanding mobile auth.
+
+There is **no payments implementation** in this repository.
+
+---
+
+## CI
+
+`.github/workflows/ci.yml` on `push`/`pull_request` to `main`:
+
+- `server-tests`: Node 20.20.2, `cd server && npm ci && npm test`
+- `frontend-build`: Node 20.20.2, `cd client && npm ci && npm run build`
+
+No lint job. This environment could not list GitHub Actions run results.
+
+---
+
+## Sensitive configuration
+
+Secrets are supplied through each host's secret store (Vercel, Render, local
+`.env` files that are gitignored). Do not copy values into memory documents,
+commits, or remote memory.
+
+Tracked name lists (values are placeholders only): `server/.env.example`,
+`client/.env.example`. Client public name: `VITE_API_URL`.
+
+---
+
+## ai-memory (dev tooling only)
+
+Separate from the StudyKarle runtime. Failures here must not affect the
+notes app, builds, or production deploys.
+
+- Marker: `.ai-memory.toml` (`workspace = "nitishdotdev"`, `project = "StudyKarle"`)
+- Layer A (authoritative in git): `docs/ai-memory/`
+- Layer B (optional remote): `akitaonrails/ai-memory:2.0.2` — **not deployed**
+- Layer C: `AGENTS.md` / `CLAUDE.md` protocol. Claude Code and Codex MCP/hooks
+  are owner-only. MonkeyCode uses Layer A (see `KNOWN_ISSUES.md` I-005).
+
+---
+
+## Commands cheat-sheet
 
 ```bash
-# Install (verify package manager — npm assumed)
-npm install
-
-# Development
-npm run dev          # starts dev server(s)
-
-# Production build
-npm run build        # compiles frontend + any server transpilation
-
-# Linting
-npm run lint         # ESLint
-
-# Tests
-npm test             # [VERIFY — may not be configured]
-
-# Database migrations
-# [VERIFY — location and command unknown; look for Knex, Prisma, or raw SQL scripts]
+cd server && npm run dev
+cd client && npm run dev
+cd server && npm test
+cd client && npm run build
+cd server && npm run migrate
+bash scripts/ai-memory/validate.sh
 ```
 
----
-
-## Known third-party integrations
-
-- **Google Drive API**: Drive sync and PDF storage
-- **Neon**: database
-- **Vercel**: hosting and edge rewrites
-- **pdfjs-dist**: client-side PDF rendering
+There is no root `npm run lint` / `npm test`.
 
 ---
 
-*Last verified: bootstrapped from repository memory and git history on 2026-10-21.*
-*Mark any outdated section `[STALE]` rather than silently deleting it.*
+*Last verified against the checkout at `30f7b22` on 2026-10-21.*

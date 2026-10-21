@@ -144,13 +144,10 @@ ai-memory server add studykarle-memory \
 ai-memory status --server studykarle-memory
 ```
 
-Then add the profile name to `.ai-memory.toml` so the marker selects it automatically:
-```toml
-server = "studykarle-memory"
-```
-
-Commit `.ai-memory.toml` after adding the `server` line.
-(The marker holds only the profile name — never the URL or token.)
+Do **not** add `server = "studykarle-memory"` to the committed `.ai-memory.toml`.
+That key is machine-local: a shared marker that names a profile missing on
+another checkout fails closed (no capture, no handoff). Register the profile
+in each environment; leave the committed marker as `workspace` + `project` only.
 
 ---
 
@@ -217,22 +214,17 @@ If `CODEX_HOME` is set in your environment, the hooks installer uses that path.
 
 ### Step 8 — MonkeyCode
 
-MonkeyCode (Chaitin) is **not** in ai-memory's support matrix as of v2.0.2.
+MonkeyCode is **not** in ai-memory's support matrix as of v2.0.2.
+Findings from a MonkeyCode session on 2026-10-21 are in `KNOWN_ISSUES.md` I-005:
 
-**Current approach (Layer A fallback)**:
-- `AGENTS.md` in the repo root provides session-start context automatically
-  (assuming MonkeyCode reads it, which is likely but unverified).
-- `docs/ai-memory/` files provide full project context.
+- `AGENTS.md` **is** injected as agent instructions.
+- No `memory_*` MCP tools exist in that runtime.
+- `ai-memory` / `claude` / `codex` CLIs were not installed.
+- Outbound HTTPS to a memory URL was not tested (no remote service; I-004).
 
-**If MonkeyCode runs Claude Code or Codex under the hood**:
-- Configure the underlying agent per Steps 6 or 7 if the platform exposes that configuration.
-
-**Verification checklist for a MonkeyCode session**:
-1. Does the session show awareness of `AGENTS.md` content? (Likely yes if it's read at start)
-2. Can the session make `memory_query` MCP calls? (Requires platform MCP support)
-3. Can outbound HTTPS reach `https://YOUR_SERVICE_URL`? (Requires platform network access)
-
-Record findings in `KNOWN_ISSUES.md` I-005.
+**Required approach**: Layer A only (`docs/ai-memory/`). Do not instruct
+MonkeyCode to call MCP tools that are not present. Re-test MCP only after
+I-004 and after the platform actually exposes those tools.
 
 ---
 
@@ -287,8 +279,8 @@ See `OPERATIONS.md` for detailed troubleshooting.
   Use a 32-byte (64 hex character) random token.
 - TLS is required for remote access. The nginx config in `deploy/ai-memory/nginx.conf`
   handles TLS termination.
-- The `.ai-memory.toml` marker is committed; it contains only the workspace/project names
-  and capture exclusions — no credentials.
+- The `.ai-memory.toml` marker is committed; it contains only workspace/project
+  names and capture exclusions — no credentials and no `server` key.
 - `deploy/ai-memory/.env.example` contains only variable names, no values.
 - `.claude/mcp.json` is gitignored; it may contain the server URL (non-secret) but
   the token is injected from the environment.

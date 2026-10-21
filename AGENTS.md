@@ -3,21 +3,26 @@
 ## Project
 Full-stack study notes platform at https://www.studykarle.me
 
-**Stack**: React + Vite (frontend), Node.js / Express (backend),
-PostgreSQL via Neon, Google Drive API for PDF storage, Vercel hosting.
+**Stack**: React 18 + Vite 2 (JavaScript/JSX, `client/`), Node.js / Express
+(`server/`), PostgreSQL via Knex, Google Drive API, Vercel frontend + Render backend.
+
+There is no root `package.json`. Neon is **not** referenced in application source.
 
 ## Key facts
-- Drive sync uses a flexible `drive_nodes` table (arbitrary nesting depth).
-- PDF preview: `pdfjs-dist` canvas renderer (not iframe blob URLs).
-- Auth cookies: `sameSite: lax` via Vercel rewrite rules (mobile/incognito fix).
+- Drive sync: `drive_nodes` with unique `drive_id` (arbitrary depth). Names are not unique.
+- PDF preview: `react-pdf` / `pdfjs-dist` canvas (`PdfPreview.jsx`), not iframe blob URLs.
+- Auth: JWT in HttpOnly cookie `studykarle_token`. Production `SameSite=None; Secure; Partitioned`; local `SameSite=Lax`. Vercel rewrites `/api/*` to Render.
 
-## Commands (verify against package.json)
+## Commands (run in the package directory)
 ```bash
-npm run dev     # local development
-npm run build   # production build
-npm run lint    # linting
-npm test        # tests, if configured
+cd server && npm run dev
+cd client && npm run dev
+cd server && npm test
+cd client && npm run build
+cd server && npm run migrate
 ```
+
+No root `npm run lint` / `npm test`. Client has no lint or test script.
 
 ## Boundaries
 - Do NOT modify auth, payments, user data, or production DB without explicit approval.
@@ -27,18 +32,25 @@ npm test        # tests, if configured
 
 ## Memory protocol (ai-memory)
 
-Read `workspace = "nitishdotdev"` and `project = "StudyKarle"` from the root
-`.ai-memory.toml` marker. If the remote ai-memory server is configured and reachable:
+Read `workspace = "nitishdotdev"` and `project = "StudyKarle"` from `.ai-memory.toml`.
+Do not add a `server` key to that file.
 
-1. **Session start**: call `memory_handoff_list` to retrieve the latest handoff before
-   reading files or writing code. Also call `memory_briefing` for structured project counts.
-2. **During work**: call `memory_query` before repeating a debugging approach.
-   Write significant findings (decisions, failed experiments, root causes) to memory.
-3. **Session end**: call `memory_handoff_begin` to create a cross-agent handoff.
+**MonkeyCode (this class of runtime)**: there are no `memory_*` MCP tools.
+Use Layer A only:
 
-If the remote server is unavailable:
-- Read `docs/ai-memory/HANDOFF.md` and `docs/ai-memory/KNOWN_ISSUES.md` from the repository.
-- Update those files manually when the work affects future sessions.
-- Do not claim remote memory succeeded when it did not.
+1. Session start: read `docs/ai-memory/HANDOFF.md` and `docs/ai-memory/KNOWN_ISSUES.md`.
+2. During work: read those files before repeating a debugging approach. Update them
+   when a finding should survive this session.
+3. Session end: update `docs/ai-memory/HANDOFF.md`. Do not claim remote memory ran.
 
-See `docs/ai-memory/` for full project context, architecture decisions, and issue history.
+**Claude Code / Codex** (only if MCP tools actually exist in *this* session):
+
+1. Session start: `memory_handoff_list` then `memory_briefing`. If the call fails,
+   fall back to Layer A and say so.
+2. During work: `memory_query` before repeating an approach. Write significant findings.
+3. Session end: `memory_handoff_begin`. If the write fails, update `HANDOFF.md`.
+
+Never claim remote memory succeeded without a successful tool call.
+On conflict, trust current source and CI over any memory note.
+
+See `docs/ai-memory/` for architecture, decisions, and issue history.

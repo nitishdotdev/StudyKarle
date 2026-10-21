@@ -87,6 +87,12 @@ if [[ -f "$MARKER" ]]; then
   else
     pass ".ai-memory.toml contains no credentials"
   fi
+
+  if grep -qE '^[[:space:]]*server[[:space:]]*=' "$MARKER"; then
+    fail ".ai-memory.toml has a server key — remove it (register the profile locally)"
+  else
+    pass ".ai-memory.toml has no server key"
+  fi
 fi
 
 # ── .gitignore validation ─────────────────────────────────────────────────────

@@ -5,7 +5,8 @@
  * Prints ONLY non-secret metadata about the credentials the Drive-sync code
  * actually selects (see src/config/env.js and src/services/driveService.js),
  * and optionally performs a single token refresh to see exactly what Google
- * says. It NEVER prints a client secret, refresh token, or access token.
+ * says. It NEVER prints a client secret, refresh token, access token, client
+ * id, folder id, redirect URI, fingerprint, prefix, or suffix.
  *
  * Usage:
  *   node scripts/diagnose-drive-oauth.js            # metadata only, no network
@@ -14,7 +15,6 @@
  * Exit codes: 0 ok, 1 refresh failed (provider error), 2 missing config.
  */
 
-const crypto = require("crypto");
 const env = require("../src/config/env");
 const {
   formatGoogleOAuthError,
@@ -22,47 +22,27 @@ const {
 
 const DO_REFRESH = process.argv.indexOf("--refresh") !== -1;
 
-function meta(label, value, opts) {
+function meta(label, value) {
   const raw = value == null ? "" : String(value);
   const present = raw.length > 0;
   const leadingWs = /^\s/.test(raw);
   const trailingWs = /\s$/.test(raw);
   const internalWs = /\s/.test(raw.trim());
-  const fingerprint = present
-    ? crypto.createHash("sha256").update(raw).digest("hex").slice(0, 8)
-    : "-";
-  // Only client IDs (non-secret, OAuth public identifiers) may show a suffix.
-  // Secrets, refresh tokens, and folder ids never reveal any characters.
-  const showSuffix = !!(opts && opts.showSuffix);
-  const suffix = present && showSuffix ? "…" + raw.slice(-6) : "-";
-  const shape = present
-    ? raw.indexOf(".apps.googleusercontent.com") !== -1
-      ? "web-client-id"
-      : "other"
-    : "-";
 
   console.log(
     "  " +
       label.padEnd(26) +
       " present=" +
       (present ? "yes" : "NO ") +
-      " len=" +
-      raw.length +
       " leadingWs=" +
       (leadingWs ? "YES" : "no") +
       " trailingWs=" +
       (trailingWs ? "YES" : "no") +
       " internalWs=" +
-      (internalWs ? "YES" : "no") +
-      " shape=" +
-      shape +
-      " fp=" +
-      fingerprint +
-      " suffix=" +
-      suffix
+      (internalWs ? "YES" : "no")
   );
 
-  return { present, value: raw };
+  return { present };
 }
 
 function section(title) {
@@ -70,20 +50,18 @@ function section(title) {
 }
 
 console.log("StudyKarle Google Drive OAuth diagnostic");
-console.log("(no secret values are printed; fingerprints are one-way SHA-256 prefixes)");
+console.log("(credential values are never printed)");
 
 section("Drive-sync credentials (env.google.*, used by driveService.getAuth)");
-const driveId = meta("GOOGLE_CLIENT_ID", env.google.clientId, { showSuffix: true });
+const driveId = meta("GOOGLE_CLIENT_ID", env.google.clientId);
 const driveSecret = meta("GOOGLE_CLIENT_SECRET", env.google.clientSecret);
 const driveRefresh = meta("GOOGLE_REFRESH_TOKEN", env.google.refreshToken);
 meta("GOOGLE_REDIRECT_URI", env.google.redirectUri);
 meta("GOOGLE_DRIVE_FOLDER_ID", env.google.driveFolderId);
 
 section("Google Sign-In credentials (separate flow)");
-const oauthId = meta("GOOGLE_OAUTH_CLIENT_ID", env.google.oauthClientId, {
-  showSuffix: true,
-});
-const oauthSecret = meta("GOOGLE_OAUTH_CLIENT_SECRET", env.google.oauthClientSecret);
+meta("GOOGLE_OAUTH_CLIENT_ID", env.google.oauthClientId);
+meta("GOOGLE_OAUTH_CLIENT_SECRET", env.google.oauthClientSecret);
 meta("GOOGLE_OAUTH_REDIRECT_URI", env.google.authRedirectUri);
 
 section("Cross-checks");
@@ -96,14 +74,6 @@ console.log(
   "  sign-in falls back to GOOGLE_CLIENT_ID: " +
     (!rawOauthIdSet && rawClientIdSet ? "YES (shared client)" : "no")
 );
-const sameClient =
-  driveId.present && oauthId.present && driveId.value === oauthId.value;
-const sameSecret =
-  driveSecret.present &&
-  oauthSecret.present &&
-  driveSecret.value === oauthSecret.value;
-console.log("  Drive client id == Sign-In client id: " + (sameClient ? "YES" : "no"));
-console.log("  Drive secret    == Sign-In secret   : " + (sameSecret ? "YES" : "no"));
 console.log(
   "  Sign-In token flow uses access_type=online (no refresh token issued)"
 );

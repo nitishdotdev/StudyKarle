@@ -86,3 +86,35 @@ export function completeGoogleLogin(payload) {
     return res.data.data;
   });
 }
+
+// Google account linking (existing email/password or password-less account).
+// The ticket is opaque and single-use; the linked email/destination stay
+// server-side and are fetched by ticket. The ticket is delivered in the URL
+// fragment (never as a query string) and posted in the JSON body.
+export function googleLinkInfo(payload) {
+  return axiosClient.post("/auth/google/link/info", payload).then(function (res) {
+    return res.data.data;
+  });
+}
+
+export function googleLinkVerify(payload) {
+  return axiosClient.post("/auth/google/link/verify", payload).then(function (res) {
+    return res.data.data;
+  });
+}
+
+export function googleLinkRecoveryRequest(payload) {
+  return axiosClient
+    .post("/auth/google/link/recovery/request", payload)
+    .then(function (res) {
+      return res.data.data;
+    });
+}
+
+export function googleLinkRecoveryVerify(payload) {
+  return axiosClient
+    .post("/auth/google/link/recovery/verify", payload)
+    .then(function (res) {
+      return res.data.data;
+    });
+}

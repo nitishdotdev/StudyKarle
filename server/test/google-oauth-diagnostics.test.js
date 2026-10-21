@@ -56,6 +56,73 @@ test("Google Sign-In uses the separate GOOGLE_OAUTH_* credentials when set", () 
   );
 });
 
+function loadEnv(extra) {
+  const script =
+    "const env=require(process.argv[1]);" +
+    "process.stdout.write(JSON.stringify({" +
+    "authRedirectUri:env.google.authRedirectUri," +
+    "oauthSignInConfigured:env.google.oauthSignInConfigured" +
+    "}))";
+  const envPath = path.join(__dirname, "..", "src", "config", "env.js");
+  const out = execFileSync(process.execPath, ["-e", script, envPath], {
+    env: Object.assign(
+      {
+        PATH: process.env.PATH,
+        JWT_SECRET: "x",
+      },
+      extra || {}
+    ),
+    encoding: "utf8",
+  });
+  return JSON.parse(out);
+}
+
+test("production Google Sign-In is not configured without an explicit HTTPS redirect URI", () => {
+  const missing = loadEnv({
+    NODE_ENV: "production",
+    GOOGLE_OAUTH_CLIENT_ID: "prod-client.apps.googleusercontent.com",
+    GOOGLE_OAUTH_CLIENT_SECRET: "prod-secret",
+  });
+  assert.equal(missing.authRedirectUri, "");
+  assert.equal(missing.oauthSignInConfigured, false);
+
+  const localhost = loadEnv({
+    NODE_ENV: "production",
+    GOOGLE_OAUTH_CLIENT_ID: "prod-client.apps.googleusercontent.com",
+    GOOGLE_OAUTH_CLIENT_SECRET: "prod-secret",
+    GOOGLE_OAUTH_REDIRECT_URI: "http://localhost:5000/api/auth/google/callback",
+  });
+  assert.equal(localhost.oauthSignInConfigured, false);
+});
+
+test("production Google Sign-In is configured when the HTTPS callback URI is set", () => {
+  const configured = loadEnv({
+    NODE_ENV: "production",
+    GOOGLE_OAUTH_CLIENT_ID: "prod-client.apps.googleusercontent.com",
+    GOOGLE_OAUTH_CLIENT_SECRET: "prod-secret",
+    GOOGLE_OAUTH_REDIRECT_URI:
+      "https://studykarle-backend.onrender.com/api/auth/google/callback",
+  });
+  assert.equal(
+    configured.authRedirectUri,
+    "https://studykarle-backend.onrender.com/api/auth/google/callback"
+  );
+  assert.equal(configured.oauthSignInConfigured, true);
+});
+
+test("development Google Sign-In still defaults the redirect URI to localhost", () => {
+  const dev = loadEnv({
+    NODE_ENV: "development",
+    GOOGLE_OAUTH_CLIENT_ID: "dev-client.apps.googleusercontent.com",
+    GOOGLE_OAUTH_CLIENT_SECRET: "dev-secret",
+  });
+  assert.equal(
+    dev.authRedirectUri,
+    "http://localhost:5000/api/auth/google/callback"
+  );
+  assert.equal(dev.oauthSignInConfigured, true);
+});
+
 test("Sign-In falls back to GOOGLE_CLIENT_ID only when GOOGLE_OAUTH_CLIENT_ID is unset", () => {
   const script =
     "const env=require(process.argv[1]);" +
@@ -270,4 +337,144 @@ test("redact leaves short/absent secrets alone and caps length", () => {
   assert.equal(redact("abc secret-value xyz", ["secret-value"]), "abc [REDACTED] xyz");
   const long = redact("x".repeat(1000), []);
   assert.ok(long.length <= 300);
+});
+
+const DIAGNOSE_SCRIPT = path.join(
+  __dirname,
+  "..",
+  "scripts",
+  "diagnose-drive-oauth.js"
+);
+
+const DIAGNOSE_CREDS = {
+  GOOGLE_CLIENT_ID: "drive-client-UNIQUEID123.apps.googleusercontent.com",
+  GOOGLE_CLIENT_SECRET: "drive-secret-UNIQUE-DO-NOT-LOG-xyz",
+  GOOGLE_REFRESH_TOKEN: "drive-refresh-UNIQUE-DO-NOT-LOG-abc",
+  GOOGLE_REDIRECT_URI: "http://localhost:5000/oauth2callback",
+  GOOGLE_DRIVE_FOLDER_ID: "drive-folder-UNIQUEID789",
+  GOOGLE_OAUTH_CLIENT_ID: "signin-client-UNIQUEID456.apps.googleusercontent.com",
+  GOOGLE_OAUTH_CLIENT_SECRET: "signin-secret-UNIQUE-DO-NOT-LOG-xyz",
+  GOOGLE_OAUTH_REDIRECT_URI: "http://localhost:5000/api/auth/google/callback",
+};
+
+const DIAGNOSE_FORBIDDEN = [
+  DIAGNOSE_CREDS.GOOGLE_CLIENT_ID,
+  DIAGNOSE_CREDS.GOOGLE_CLIENT_SECRET,
+  DIAGNOSE_CREDS.GOOGLE_REFRESH_TOKEN,
+  DIAGNOSE_CREDS.GOOGLE_DRIVE_FOLDER_ID,
+  DIAGNOSE_CREDS.GOOGLE_OAUTH_CLIENT_ID,
+  DIAGNOSE_CREDS.GOOGLE_OAUTH_CLIENT_SECRET,
+  "UNIQUEID123",
+  "UNIQUEID456",
+  "UNIQUEID789",
+  "UNIQUE-DO-NOT-LOG",
+  "fp=",
+  "fingerprint",
+  "sha256",
+  "SHA-256",
+  "len=",
+  "shape=",
+  "suffix=",
+];
+
+function runDiagnose(args, extra) {
+  extra = extra || {};
+  const opts = {
+    env: Object.assign(
+      {
+        PATH: process.env.PATH,
+        NODE_ENV: "test",
+        JWT_SECRET: "x",
+      },
+      DIAGNOSE_CREDS,
+      extra.env || {}
+    ),
+    encoding: "utf8",
+    timeout: 15000,
+  };
+  const argv = extra.preload
+    ? ["-r", extra.preload, DIAGNOSE_SCRIPT].concat(args || [])
+    : [DIAGNOSE_SCRIPT].concat(args || []);
+  try {
+    const stdout = execFileSync(process.execPath, argv, opts);
+    return { status: 0, stdout: stdout, stderr: "" };
+  } catch (err) {
+    return {
+      status: err.status,
+      stdout: err.stdout || "",
+      stderr: err.stderr || "",
+    };
+  }
+}
+
+function assertSafeDiagnoseOutput(text) {
+  const haystack = String(text || "");
+  DIAGNOSE_FORBIDDEN.forEach(function (needle) {
+    assert.equal(
+      haystack.indexOf(needle),
+      -1,
+      "diagnostic output must not contain " + JSON.stringify(needle)
+    );
+  });
+  Object.keys(DIAGNOSE_CREDS).forEach(function (name) {
+    const value = DIAGNOSE_CREDS[name];
+    if (value.length >= 6) {
+      assert.equal(
+        haystack.indexOf(value.slice(-6)),
+        -1,
+        "diagnostic output must not contain a suffix of " + name
+      );
+    }
+  });
+}
+
+test("drive OAuth diagnostic prints presence metadata without credentials, fingerprints, or suffixes", () => {
+  const result = runDiagnose([]);
+  assert.equal(result.status, 0);
+  assertSafeDiagnoseOutput(result.stdout + result.stderr);
+  assert.match(result.stdout, /GOOGLE_CLIENT_ID\s+present=yes/);
+  assert.match(result.stdout, /GOOGLE_CLIENT_SECRET\s+present=yes/);
+  assert.match(result.stdout, /GOOGLE_OAUTH_CLIENT_ID\s+present=yes/);
+  assert.match(result.stdout, /Drive sync credentials are present/);
+});
+
+test("drive OAuth diagnostic --refresh failure stays free of credentials, fingerprints, and suffixes", () => {
+  const fs = require("fs");
+  const os = require("os");
+  const stubDir = fs.mkdtempSync(path.join(os.tmpdir(), "diagnose-oauth-"));
+  const stub = path.join(stubDir, "stub-googleapis.js");
+  fs.writeFileSync(
+    stub,
+    [
+      "const Module = require('module');",
+      "class OAuth2 {",
+      "  setCredentials() {}",
+      "  async getAccessToken() {",
+      "    const err = new Error('Request failed with status code 401');",
+      "    err.response = {",
+      "      status: 401,",
+      "      data: {",
+      "        error: 'invalid_client',",
+      "        error_description: 'The OAuth client was not found.'",
+      "      }",
+      "    };",
+      "    throw err;",
+      "  }",
+      "}",
+      "const fake = { google: { auth: { OAuth2: OAuth2 } } };",
+      "const orig = Module._load;",
+      "Module._load = function (request, parent, isMain) {",
+      "  if (request === 'googleapis') return fake;",
+      "  return orig.apply(this, arguments);",
+      "};",
+    ].join("\n")
+  );
+
+  const result = runDiagnose(["--refresh"], { preload: stub });
+  assert.equal(result.status, 1);
+  const text = result.stdout + result.stderr;
+  assertSafeDiagnoseOutput(text);
+  assert.match(text, /Refresh attempt: FAILED/);
+  assert.match(text, /status=401/);
+  assert.match(text, /invalid_client/);
 });

@@ -121,15 +121,45 @@ function authCookie(user) {
   return "studykarle_token=" + tokenService.signToken(user.id);
 }
 
+let csrfState = null;
+
+async function fetchCsrf() {
+  if (csrfState) return csrfState;
+  const res = await fetch("http://127.0.0.1:" + port + "/api/csrf-token");
+  const json = await res.json();
+  const raw = res.headers.get("set-cookie") || "";
+  const cookies = raw
+    .split(/,(?=\s*[A-Za-z0-9_\-]+=)/)
+    .map(function (c) {
+      return c.split(";")[0].trim();
+    })
+    .filter(Boolean)
+    .join("; ");
+  csrfState = {
+    token: json && json.data ? json.data.csrfToken : null,
+    cookie: cookies,
+  };
+  return csrfState;
+}
+
 async function api(method, path, { user, body, headers } = {}) {
+  const mutating =
+    method !== "GET" && method !== "HEAD" && method !== "OPTIONS";
+  const csrfInfo = mutating ? await fetchCsrf() : null;
+  const cookies = [];
+  if (user) cookies.push(authCookie(user));
+  if (csrfInfo && csrfInfo.cookie) cookies.push(csrfInfo.cookie);
   const requestHeaders = Object.assign(
     {
-      Cookie: user ? authCookie(user) : "",
+      Cookie: cookies.join("; "),
     },
     headers || {}
   );
   if (body !== undefined) {
     requestHeaders["Content-Type"] = "application/json";
+  }
+  if (csrfInfo && csrfInfo.token && !requestHeaders["X-CSRF-Token"]) {
+    requestHeaders["X-CSRF-Token"] = csrfInfo.token;
   }
   const res = await fetch("http://127.0.0.1:" + port + path, {
     method: method,

@@ -16,6 +16,9 @@ const {
   requestPasswordResetValidator,
   verifyPasswordResetOtpValidator,
   resetPasswordValidator,
+  googleLinkTicketValidator,
+  googleLinkVerifyValidator,
+  googleLinkRecoveryVerifyValidator,
 } = require("../validators/authValidators");
 const {
   requestOtpValidator,
@@ -108,6 +111,46 @@ router.post(
 
 router.get("/google", authController.googleStart);
 router.get("/google/callback", authController.googleCallback);
+
+// Google account linking. The linking screen must first fetch the server-bound
+// challenge context (which email / whether a password is required) using the
+// opaque ticket, then submit proof of ownership. All are POST + CSRF protected.
+router.post(
+  "/google/link/info",
+  authIpLimiter,
+  googleLinkTicketValidator,
+  validate,
+  authController.googleLinkInfo
+);
+
+router.post(
+  "/google/link/verify",
+  authIpLimiter,
+  authLimiter,
+  sensitiveActionLimiter,
+  googleLinkVerifyValidator,
+  validate,
+  authController.googleLinkVerify
+);
+
+router.post(
+  "/google/link/recovery/request",
+  otpIpLimiter,
+  otpRequestLimiter,
+  googleLinkTicketValidator,
+  validate,
+  authController.googleLinkRecoveryRequest
+);
+
+router.post(
+  "/google/link/recovery/verify",
+  authIpLimiter,
+  sensitiveActionLimiter,
+  googleLinkRecoveryVerifyValidator,
+  validate,
+  authController.googleLinkRecoveryVerify
+);
+
 router.post(
   "/google/complete",
   authIpLimiter,

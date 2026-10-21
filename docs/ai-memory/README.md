@@ -31,6 +31,10 @@ even before the remote ai-memory service is deployed or reachable.
 When the remote ai-memory service is running:
 - Workspace: `nitishdotdev`
 - Project: `StudyKarle`
-- These files act as a backup and human-readable audit trail.
+- These files remain the git-auditable fallback.
 
-See `SETUP.md` for deployment instructions and `OPERATIONS.md` for operational runbooks.
+MonkeyCode in this class of runtime has no `memory_*` tools (I-005).
+Use these files. Do not claim a remote handoff from MonkeyCode.
+
+See `SETUP.md` and `OPERATIONS.md`. Pin stays `2.0.2` until the owner
+chooses otherwise (D-006).

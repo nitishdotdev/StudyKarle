@@ -3,115 +3,115 @@
 Each entry records a significant decision, the context behind it, alternatives considered,
 and the outcome. Mark entries `[CURRENT]`, `[SUPERSEDED]`, or `[UNVERIFIED]`.
 
+Do not invent historical reasoning from the mere existence of code.
+
+---
+
+## D-006 — Keep ai-memory pin at 2.0.2 until an owner-approved first deploy [CURRENT]
+
+**Date**: 2026-10-21
+
+**Context**:
+PR #21 pinned `akitaonrails/ai-memory:2.0.2`. Upstream latest at audit time is
+`v3.1.2`. 3.0 is a major release: schema migrations V77–V80, removal of 1.x
+user-token commands, forward-only data directories
+(https://github.com/akitaonrails/ai-memory/blob/main/docs/upgrading-to-3.0.md).
+No remote service is deployed yet, so this would be a first install, not an
+in-place upgrade.
+
+**Decision**:
+Leave the repository pin at **2.0.2**. Do not retag Compose or install scripts
+to 3.x without an explicit owner choice. Document that a greenfield deploy
+may start on 3.1.2 instead; that is an owner action.
+
+**Reason**:
+Changing the pin without a live compatibility test would mix unproven 3.x
+server/client/hook behavior into docs that currently describe 2.0.2 artifacts.
+
+**Evidence**: `deploy/ai-memory/docker-compose.yml`; GitHub releases for
+v2.0.2 (2026-09-03) and v3.1.2 (2026-10-20).
+
+---
+
+## D-002 — Auth cookie flags and Vercel `/api` rewrite [CURRENT]
+
+**Date**: [code inspected 2026-10-21; original change date not in this shallow clone]
+
+**Context**:
+The browser origin is Vercel (`www.studykarle.me`); the API host is Render.
+`client/vercel.json` rewrites `/api/*` to the Render backend so the browser
+treats API calls as same-origin.
+
+**Decision (current code)**:
+- Production auth cookie: `SameSite=None; Secure; Partitioned`
+  (`server/src/services/tokenService.js`).
+- Non-production auth cookie: `SameSite=Lax`.
+- CSRF cookie uses the same production `none` / non-production `lax` split.
+
+**Supersedes**: the earlier memory claim that production used `sameSite: lax`
+and that `sameSite: none` had been rejected.
+
+**Verification**: current `tokenService.js` and `csrfProtection.js`. Why the
+code moved from whatever came before is **not** recorded in this shallow
+history (`git rev-list --count HEAD` is 1).
+
 ---
 
 ## D-001 — Drive sync: flexible `drive_nodes` table [CURRENT]
 
-**Date**: [UNVERIFIED — inspect git log for the commit]
+**Date**: [UNVERIFIED — this checkout is a shallow clone of the merge commit]
 
-**Context**:  
-The original architecture used a rigid four-level folder hierarchy for Google Drive sync.
-This broke when content had more or fewer nesting levels than expected.
+**Context**:
+The library UI mirrors Google Drive. A fixed-depth academic hierarchy cannot
+represent arbitrary Drive trees.
 
-**Decision**:  
-Replace the rigid hierarchy with a flexible `drive_nodes` table that supports arbitrary
-nesting depth using a parent-child adjacency model.
+**Decision**:
+Store the tree in `drive_nodes` with parent-child `parent_drive_id` and
+**unique `drive_id`**. No fixed depth.
 
-**Alternatives considered**:  
-- Normalize to four levels by truncating/expanding paths (rejected: data loss, complexity)
-- Nested set model (rejected: expensive updates on large trees)
+**Verification**:
+`server/src/db/migrations/20260808000001_create_drive_sync_tables.js`.
+Root `README.md` describes the same model.
 
-**Reason**:  
-Eliminates structural assumptions about Drive folder depth; accommodates any user's
-real Drive organization.
-
-**Trade-offs**:  
-- Recursive queries needed for tree traversal (handle with CTEs or application-level recursion)
-- Slightly more complex migration from the old schema
-
-**Verification**: Confirmed via repository memory — this architectural rewrite resolved
-Drive sync crashes.
+**Not verified here**: the narrative that a four-level schema was rewritten
+in a specific incident. That story is consistent with comments in the
+migration (`units` dropped `(subject_id, name)` uniqueness) but the old
+production incident itself is not in this git history.
 
 ---
 
-## D-002 — Cookie auth: `sameSite: lax` via Vercel rewrite rules [CURRENT]
+## D-003 — PDF preview: `react-pdf` / `pdfjs-dist` canvas [CURRENT]
 
-**Date**: [UNVERIFIED — inspect git log]
+**Date**: [UNVERIFIED]
 
-**Context**:  
-Session cookies with `sameSite: strict` or cross-origin delivery caused authentication
-failures on mobile browsers and in incognito mode due to third-party cookie blocking.
+**Context**:
+iframe + blob URLs fail on some mobile browsers.
 
-**Decision**:  
-Set cookies with `sameSite: lax` and route API calls through Vercel rewrite rules so that
-the cookie is always delivered same-origin from the client's perspective.
+**Decision**:
+Render with `react-pdf` (`Document` / `Page`) and a `pdfjs-dist` 3.11 worker
+at `/pdf.worker.min.js`. No iframe in `client/src`.
 
-**Alternatives considered**:  
-- Switch to token-based auth (JWT in localStorage) — rejected: scope too large, CSRF risk
-- `sameSite: none` + `Secure` — rejected: requires HTTPS everywhere and still blocked
-  by some browsers when third-party context is detected
-
-**Reason**:  
-Minimal change; preserves session-based auth; fixes mobile and incognito behavior.
-
-**Trade-offs**:  
-Vercel rewrites are a deployment concern — removing or changing them silently breaks auth.
-
-**Verification**: Confirmed via repository memory as a resolved issue.
+**Verification**: `client/src/components/notes/PdfPreview.jsx`,
+`client/package.json`.
 
 ---
 
-## D-003 — PDF preview: `pdfjs-dist` canvas renderer [CURRENT]
+## D-004 — Drive node identity is Drive id, not folder name [CURRENT]
 
-**Date**: [UNVERIFIED — inspect git log]
+**Date**: [UNVERIFIED]
 
-**Context**:  
-The original PDF preview used `<iframe src="blob:...">` URLs. This approach fails on
-mobile Safari and some other mobile browsers due to blob URL security restrictions.
+**Context**:
+Earlier memory claimed a uniqueness fix on `(name, parent_id)`.
 
-**Decision**:  
-Replace the iframe with a `pdfjs-dist` canvas-based renderer that renders PDF pages
-directly onto HTML canvas elements.
+**Decision (current schema)**:
+`drive_nodes.drive_id` is unique. `name` is not unique. Duplicate names under
+different parents are distinct nodes because they have different Drive ids.
 
-**Alternatives considered**:  
-- Direct `<iframe src="https://drive.google.com/...">` — rejected: requires public Drive
-  links; breaks with private files
-- Google Docs viewer embed — rejected: same public link requirement
+**Verification**: `20260808000001_create_drive_sync_tables.js` — unique on
+`drive_id` only. There is **no** unique constraint on `(name, parent_drive_id)`.
 
-**Reason**:  
-Works on mobile; works with authenticated Drive URLs; avoids blob URL restrictions.
-
-**Trade-offs**:  
-- Larger bundle size due to `pdfjs-dist`
-- Canvas rendering is slightly more complex to implement scroll/zoom
-
-**Verification**: Confirmed via repository memory as a resolved issue.
-
----
-
-## D-004 — Drive sync: duplicate folder deduplication [CURRENT]
-
-**Date**: [UNVERIFIED — inspect git log]
-
-**Context**:  
-The Drive sync process crashed when it encountered folders with the same name under
-different parent nodes. A DB constraint was violated because the uniqueness key was
-on name alone rather than on (name, parent_id).
-
-**Decision**:  
-Fix the uniqueness constraint to scope by `(name, parent_id)` — or equivalent — so that
-duplicate folder names under different parents are accepted as distinct nodes.
-
-**Alternatives considered**:  
-- Rename duplicate folders during sync (rejected: modifies Drive data)
-- Skip duplicates silently (rejected: data loss)
-
-**Reason**:  
-Correct data model; real Drive folders can share names at different paths.
-
-**Trade-offs**: None material.
-
-**Verification**: Confirmed via repository memory as a resolved production constraint bug.
+The `(name, parent_id)` wording is therefore **not** the current schema.
+Whether an older table used name uniqueness is not evidenced in this clone.
 
 ---
 
@@ -119,36 +119,24 @@ Correct data model; real Drive folders can share names at different paths.
 
 **Date**: 2026-10-21
 
-**Context**:  
-Development happens across Claude Code, Codex, and MonkeyCode in ephemeral cloud workspaces.
-Each session loses all context from previous sessions.
+**Context**:
+Work happens in Claude Code, Codex, and MonkeyCode. Sessions are ephemeral.
 
-**Decision**:  
-Implement three layers:
-- **Layer A** (GitHub-native): `docs/ai-memory/` markdown files committed to the repo.
-  Always available; no external dependency.
-- **Layer B** (remote service): `akitaonrails/ai-memory` v2.0.2 Docker image on a persistent
-  container host (Render.com recommended). Provides automated capture and cross-agent handoffs.
-- **Layer C** (agent integrations): `CLAUDE.md` + `AGENTS.md` routing blocks; MCP registration;
-  lifecycle hooks for Claude Code and Codex.
+**Decision**:
+- **Layer A** (GitHub-native, **authoritative**): `docs/ai-memory/`.
+- **Layer B** (optional remote): `akitaonrails/ai-memory` v2.0.2 on a
+  persistent host. Not deployed.
+- **Layer C**: `CLAUDE.md` + `AGENTS.md` protocol. MCP/hooks only where the
+  agent actually supports them.
 
-**Alternatives considered**:  
-- Manual copy-paste of context between sessions (rejected: error-prone, tedious)
-- Vercel serverless for the memory service (rejected: no persistent filesystem)
-- Embedding memory service inside StudyKarle's API (rejected: couples dev tooling to
-  production app; memory failure could affect users)
+Remote summaries must not overwrite Layer A. If remote is down, say so and
+use Layer A.
 
-**Reason**:  
-Layer A always works in fresh containers. Layer B gives automated capture when deployed.
-Layer C wires each agent to the same scope without requiring a local machine.
-
-**Trade-offs**:  
-- Layer B requires a separate persistent container host and one-time manual setup by the owner.
-- MonkeyCode is not in ai-memory's support matrix; it falls back to Layer A only.
-
-**Verification**: Architecture implemented; remote service deployment requires owner action.
-See `SETUP.md` → Owner-only checklist.
+**Trade-offs**:
+- Layer B needs owner hosting and tokens.
+- MonkeyCode is not in the upstream support matrix; this runtime has no
+  `memory_*` MCP tools (see I-005).
 
 ---
 
-*Add new decisions above this line. Oldest entries at the bottom.*
+*Add new decisions above this line. Oldest entries toward the bottom.*

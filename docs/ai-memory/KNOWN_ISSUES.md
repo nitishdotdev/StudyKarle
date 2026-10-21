@@ -1,100 +1,128 @@
 # StudyKarle — Known Issues
 
 > Keep confirmed root causes separate from hypotheses.
-> Record symptoms, reproduction steps, affected component, attempts made, and current status.
-> Never record an issue as fixed unless there is verified evidence (CI pass, confirmed in prod).
+> Record symptoms, reproduction steps, affected component, attempts, and status.
+> Never mark an issue fixed without evidence (CI pass, confirmed in prod, or current source).
 
 ---
 
 ## RESOLVED issues (kept for historical reference)
 
-### I-001 — Mobile / incognito authentication failure [RESOLVED]
+### I-001 — Mobile / incognito authentication failure [RESOLVED — current code inspected]
 
-**Symptom**: Users on mobile browsers or in incognito mode were logged out unexpectedly
-or could not log in at all.
+**Symptom (historical)**: Users on mobile browsers or in incognito mode were logged out
+or could not log in.
 
-**Affected component**: Cookie-based session auth; Vercel deployment configuration.
+**Affected component**: JWT cookie auth; Vercel `/api` rewrite.
 
-**Root cause (confirmed)**: Session cookies were blocked by third-party cookie restrictions
-on mobile browsers. The original `sameSite` setting combined with cross-origin delivery
-caused cookies to be rejected.
+**Current code (verified 2026-10-21)**:
+- Auth cookie `studykarle_token` is HttpOnly (`server/src/services/tokenService.js`).
+- Production: `SameSite=None; Secure; Partitioned`.
+- Non-production: `SameSite=Lax`.
+- CSRF cookie uses the same production `none` / non-production `lax` split
+  (`server/src/middleware/csrfProtection.js`).
+- `client/vercel.json` rewrites `/api/*` to `https://studykarle-backend.onrender.com/api/$1`.
 
-**Fix applied**: `sameSite: lax` cookie configuration + Vercel rewrite rules to deliver
-the API same-origin from the client's perspective.
+**Correction**: Earlier memory claimed the production fix was `sameSite: lax`.
+That does **not** match current production cookie flags.
 
-**Status**: RESOLVED. Do not revert the rewrite rules or cookie config.
+**Status**: RESOLVED in current source. Do not revert the Vercel rewrite or
+cookie flags without an explicit auth review.
 
 ---
 
 ### I-002 — PDF preview failure on mobile [RESOLVED]
 
-**Symptom**: PDFs failed to render in mobile browsers.
+**Symptom**: PDFs failed to render in some mobile browsers.
 
-**Affected component**: Frontend PDF viewer component.
+**Affected component**: Frontend PDF viewer.
 
-**Root cause (confirmed)**: `<iframe src="blob:...">` URLs are blocked on mobile Safari
-and some other mobile browsers due to security restrictions on blob URLs in iframes.
+**Current code (verified)**: `client/src/components/notes/PdfPreview.jsx` uses
+`react-pdf` (`Document` / `Page`) and `pdfjs-dist` 3.11 with worker
+`/pdf.worker.min.js`. No iframe in `client/src`.
 
-**Fix applied**: Replaced iframe with `pdfjs-dist` canvas renderer.
+**Historical cause** (iframe + blob URL) is **not** in this shallow clone;
+the current renderer is the evidence that the iframe path is gone.
 
 **Status**: RESOLVED. Do not revert to iframe blob URLs.
 
 ---
 
-### I-003 — Drive sync crash on duplicate folder names [RESOLVED]
+### I-003 — Drive sync uniqueness [RESOLVED — schema inspected]
 
-**Symptom**: Google Drive sync crashed when two folders had the same name but different
-parent folders.
+**Symptom (historical)**: Drive sync failed when two folders shared a name under
+different parents.
 
-**Affected component**: Drive sync service; `drive_nodes` (or equivalent) database table.
+**Affected component**: Drive sync; `drive_nodes` / `units`.
 
-**Root cause (confirmed)**: Uniqueness constraint on folder name alone (not scoped to
-parent), causing constraint violation when syncing Drive folders with shared names
-under different parents.
+**Current schema (verified)**:
+- `drive_nodes.drive_id` is unique. `name` is not unique.
+- Duplicate names under different parents are allowed.
+- `units` dropped constraint `units_subject_id_name_unique` and uses unique
+  `drive_folder_id` where present
+  (`server/src/db/migrations/20260808000001_create_drive_sync_tables.js`).
 
-**Fix applied**: Updated uniqueness constraint to scope to `(name, parent_id)` or
-equivalent. Drive sync rewritten to use flexible `drive_nodes` hierarchy.
+**Correction**: Earlier memory claimed uniqueness was `(name, parent_id)`.
+That is **not** the current `drive_nodes` schema.
 
-**Status**: RESOLVED. Architecture note in `DECISIONS.md` D-001 and D-004.
+**Status**: RESOLVED in current schema. See `DECISIONS.md` D-001 and D-004.
 
 ---
 
 ## OPEN issues
 
-### I-004 — Remote ai-memory service not yet deployed [BLOCKED — owner action required]
+### I-004 — Remote ai-memory service not yet deployed [BLOCKED — owner action]
 
-**Symptom**: Cross-agent handoffs rely on the Layer A (repository files) fallback only.
-Automatic capture and MCP-based memory retrieval are unavailable.
+**Symptom**: Cross-agent MCP handoffs cannot run. Layer A (`docs/ai-memory/`)
+is the only memory that exists in git.
 
-**Affected component**: ai-memory infrastructure (dev tooling only; does not affect
-the StudyKarle application for users).
+**Affected component**: ai-memory infrastructure (dev tooling only).
 
-**Status**: BLOCKED. See `docs/ai-memory/SETUP.md` → Owner-only checklist.
+**Status**: BLOCKED. See `docs/ai-memory/SETUP.md` owner checklist.
 
-**Next step**: Owner must provision the remote service on a persistent container host,
-set the auth token, and register the server profile in each coding environment.
-
----
-
-### I-005 — MonkeyCode ai-memory integration unverified [INVESTIGATING]
-
-**Symptom**: MonkeyCode is not in the ai-memory support matrix. It is unknown whether
-MonkeyCode reads AGENTS.md automatically, supports outbound HTTP to the remote service,
-or allows custom MCP configuration.
-
-**Affected component**: MonkeyCode coding environment.
-
-**Attempts so far**:
-- None yet — requires a MonkeyCode session to test.
-
-**Current best fallback**: AGENTS.md (Layer A) and repository memory files.
-
-**Next step**: In a MonkeyCode session, verify:
-1. Whether `AGENTS.md` is read at session start.
-2. Whether outbound HTTPS to the memory service URL succeeds.
-3. Whether MCP tool calls resolve correctly.
+**Next step**: Owner provisions a persistent host, sets `AI_MEMORY_AUTH_TOKEN`
+in that host's secret store, and registers the profile **locally** in each
+coding environment. Do not commit URL or token. Do not add `server =` to
+`.ai-memory.toml`.
 
 ---
 
-*Add new issues above this line with the next sequential ID (I-006, I-007, ...).*
-*Move resolved issues to the RESOLVED section with the resolution evidence.*
+### I-005 — MonkeyCode uses Layer A only [CONFIRMED in this runtime]
+
+**Date**: 2026-10-21
+
+**Symptom**: MonkeyCode is not in the upstream ai-memory support matrix.
+
+**This runtime (MonkeyCode session on 2026-10-21)**:
+1. `AGENTS.md` **is** injected as agent instructions. Confirmed.
+2. No `memory_*` MCP tools are available. Confirmed.
+3. `ai-memory`, `claude`, and `codex` CLIs are **not** installed. Confirmed.
+4. Outbound HTTPS to a memory service URL was **not** tested because no
+   remote service is deployed (I-004).
+
+**Fallback**: Read and update `docs/ai-memory/` (Layer A). Never claim a
+remote MCP handoff succeeded from MonkeyCode in this environment.
+
+**Next step**: Re-test only after I-004 is done **and** the platform exposes
+MCP. Until then, treat MonkeyCode as Layer A only.
+
+---
+
+### I-006 — Duplicate marker files [OPEN]
+
+**Symptom**: Both `.ai-memory.toml` and `ai-memory.toml` exist at the repo
+root with the same contents.
+
+**Affected component**: ai-memory marker resolution.
+
+**Fact**: Official docs use `.ai-memory.toml`. The undotted `ai-memory.toml`
+is extra. Whether the 2.0.2 CLI also reads the undotted name is
+`[UNVERIFIED]` here (CLI not installed).
+
+**Next step**: Keep both files identical until the owner deletes one.
+Do not add a `server` key to either.
+
+---
+
+*Add new issues above this line with the next sequential ID (I-007, ...).*
+*Move resolved issues to the RESOLVED section with evidence.*

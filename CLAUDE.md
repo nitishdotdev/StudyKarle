@@ -1,32 +1,31 @@
 # StudyKarle — Claude Code Instructions
 
-## Stack (read package.json for the authoritative list)
-- **Frontend**: React + Vite, TypeScript
-- **Backend**: Node.js / Express
-- **Database**: PostgreSQL via Neon (serverless)
-- **Storage**: Google Drive API (PDFs)
-- **Auth**: Session-based; `sameSite: lax` cookies via Vercel rewrites to fix mobile/incognito
-- **Hosting**: Vercel (frontend + API), Neon (database)
+## Stack (read each package.json; there is no root package.json)
+- **Frontend**: React 18 + Vite 2, JavaScript/JSX in `client/` (not TypeScript)
+- **Backend**: Node.js / Express in `server/`
+- **Database**: PostgreSQL via Knex (`DB_*` and optional production `DATABASE_URL`)
+- **Storage**: Google Drive API
+- **Auth**: JWT in HttpOnly cookie `studykarle_token`. Production `SameSite=None; Secure; Partitioned`; local `SameSite=Lax`. Vercel `/api` rewrite to Render.
+- **Hosting**: Vercel (`client/`) + Render (`studykarle-backend.onrender.com`)
 - **Production**: https://www.studykarle.me
 
-## Key commands (verify against package.json before running)
-```bash
-# Frontend (likely in /client or root)
-npm run dev        # local dev
-npm run build      # production build
-npm run lint       # ESLint
+Neon is not referenced in application source.
 
-# Backend (likely in /server or /api)
-npm run dev        # nodemon
-npm test           # tests (if configured)
+## Key commands
+```bash
+cd client && npm run dev
+cd client && npm run build
+cd server && npm run dev
+cd server && npm test
+cd server && npm run migrate
 ```
 
+Client has no lint or test script.
+
 ## Architecture notes
-- Drive sync uses a flexible `drive_nodes` layer supporting arbitrary nesting depth
-  (replaced an older rigid four-level hierarchy).
-- PDF preview uses `pdfjs-dist` canvas renderer — not iframe blob URLs
-  (mobile/Safari compatibility fix).
-- Cookie auth uses Vercel rewrite rules to avoid third-party cookie blocking.
+- Drive sync: `drive_nodes` unique on `drive_id`, arbitrary depth.
+- PDF preview: `react-pdf` / `pdfjs-dist` canvas — not iframe blob URLs.
+- Do not change cookie flags or the Vercel rewrite without an auth review.
 
 ## Boundaries
 - Do NOT modify auth, payments, user data, or production DB schema without explicit approval.
@@ -36,20 +35,19 @@ npm test           # tests (if configured)
 <!-- ai-memory:start -->
 ## Long-term memory (ai-memory)
 
-Read `workspace` and `project` from the nearest `.ai-memory.toml` (`nitishdotdev` / `StudyKarle`).
+Read `workspace` and `project` from `.ai-memory.toml` (`nitishdotdev` / `StudyKarle`).
+Do not add a `server` key there.
 
-**Session start** — before reading files or writing code, call `memory_handoff_list` (or
-`memory_briefing`) to load the latest project state, open tasks, and recent decisions.
-If the remote server is unreachable, read `docs/ai-memory/HANDOFF.md` and
-`docs/ai-memory/KNOWN_ISSUES.md` from the repository instead.
+**Session start** — if MCP tools `memory_handoff_list` / `memory_briefing` exist,
+call them before writing code. If they are missing or the remote server fails,
+read `docs/ai-memory/HANDOFF.md` and `docs/ai-memory/KNOWN_ISSUES.md` and say so.
 
-**During work** — before repeating a debugging approach or architectural decision, call
-`memory_query` to check prior attempts. Record significant findings with a targeted MCP write;
-update `docs/ai-memory/KNOWN_ISSUES.md` when new evidence changes the known status of a bug.
+**During work** — if `memory_query` exists, call it before repeating a debugging
+approach. Always update `docs/ai-memory/KNOWN_ISSUES.md` when evidence changes.
 
-**Session end** — call `memory_handoff_begin` to create a cross-agent handoff.
-If the remote write fails, update `docs/ai-memory/HANDOFF.md` manually and commit it.
-Report any remote-memory failure honestly; do not claim success when none occurred.
+**Session end** — if `memory_handoff_begin` exists, call it. On failure or if the
+tool is absent, update `docs/ai-memory/HANDOFF.md` in git.
 
-Never claim to have read, written, or retrieved remote memory without a successful tool call.
+Never claim remote memory succeeded without a successful tool call.
+On conflict, trust current source and CI over any memory note.
 <!-- ai-memory:end -->

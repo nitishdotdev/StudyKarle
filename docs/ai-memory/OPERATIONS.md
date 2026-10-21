@@ -8,18 +8,22 @@ This runbook covers deployment, configuration, maintenance, and recovery.
 ## Architecture
 
 ```
-Coding agents (Claude Code, Codex)
+Claude Code / Codex (MCP, only after owner deploy + local profile)
+MonkeyCode          (Layer A files only in this runtime; see I-005)
        │
-       │  MCP (HTTPS + bearer token)
+       │  MCP HTTPS + bearer (Claude/Codex)  |  git files (MonkeyCode)
        ▼
-nginx reverse proxy  (port 443 / TLS)
-       │
-       ▼
-ai-memory server     (port 49374, loopback-only)
+nginx reverse proxy  (port 443 / TLS)   [VPS Compose only]
        │
        ▼
-SQLite database + markdown wiki  (persistent volume /data)
+ai-memory server     (port 49374)
+       │
+       ▼
+SQLite + markdown wiki  (persistent volume /data)
 ```
+
+Render deploy is a single container plus disk. nginx and the backup
+profile exist only in the VPS Compose file.
 
 The service runs in a Docker container on a persistent container host
 (Render.com recommended; see `SETUP.md` for deployment instructions).
@@ -63,8 +67,10 @@ ai-memory server add studykarle-memory \
 ai-memory status --server studykarle-memory
 ```
 
-The `.ai-memory.toml` marker does NOT store the server URL or token —
-only the profile name (once you add `server = "studykarle-memory"` to the marker).
+The committed `.ai-memory.toml` marker does NOT store a URL, token, or
+`server` profile name. Register `studykarle-memory` locally in each
+environment. A committed `server` key would fail closed on machines that
+do not have that profile.
 
 ---
 
@@ -154,7 +160,14 @@ current stable release before upgrading.
 ### Version pinned in this repository
 
 `akitaonrails/ai-memory:2.0.2`
-SHA-256 (linux/amd64 binary): `3c39d8d9afad57a34747e6c52a13036b7411de95e4a2b1bbcd11976f4db42823`
+SHA-256 (`ai-memory-linux-x86_64.tar.gz`, official v2.0.2):
+`3c39d8d9afad57a34747e6c52a13036b7411de95e4a2b1bbcd11976f4da31a23`
+SHA-256 (`ai-memory-wrapper`):
+`4b2e5736195f0ac4cd38adf62f25b294922ebf81f5f4802a07803e1abbf9f72d`
+
+Do not retag to 3.x without an owner decision (see `DECISIONS.md` D-006).
+A first deploy on Render is **one** container plus a persistent disk, not
+the multi-service Compose file (nginx + backup). Compose is for a VPS.
 
 ---
 

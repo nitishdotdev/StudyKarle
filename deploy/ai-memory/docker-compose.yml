@@ -1,8 +1,9 @@
 # StudyKarle — ai-memory remote service
 #
 # Pinned release: v2.0.2
-# SHA-256 (linux/amd64): 3c39d8d9afad57a34747e6c52a13036b7411de95e4a2b1bbcd11976f4db42823
-# (above SHA is for the binary tarball; Docker image digest verification below)
+# SHA-256 (ai-memory-linux-x86_64.tar.gz, official v2.0.2 release):
+# 3c39d8d9afad57a34747e6c52a13036b7411de95e4a2b1bbcd11976f4da31a23
+# Wrapper SHA-256 (ai-memory-wrapper): 4b2e5736195f0ac4cd38adf62f25b294922ebf81f5f4802a07803e1abbf9f72d
 #
 # Usage:
 #   cp .env.example .env

@@ -1,0 +1,104 @@
+# StudyKarle — ai-memory remote service
+#
+# Pinned release: v2.0.2
+# SHA-256 (linux/amd64): 3c39d8d9afad57a34747e6c52a13036b7411de95e4a2b1bbcd11976f4db42823
+# (above SHA is for the binary tarball; Docker image digest verification below)
+#
+# Usage:
+#   cp .env.example .env
+#   # Fill in AI_MEMORY_AUTH_TOKEN (and optionally LLM keys) in .env
+#   docker compose up -d
+#
+# On Render.com or Railway, skip docker compose and use their native Docker service +
+# environment variables + persistent disk. See docs/ai-memory/SETUP.md.
+#
+# Never run with `latest` in production — always pin an explicit version.
+
+services:
+  ai-memory:
+    image: docker.io/akitaonrails/ai-memory:2.0.2
+    container_name: ai-memory
+    restart: unless-stopped
+
+    # Bind to loopback only — nginx handles public TLS ingress
+    ports:
+      - "127.0.0.1:49374:49374"
+
+    volumes:
+      - ai-memory-data:/data
+
+    environment:
+      # Required: high-entropy bearer token for all agent connections.
+      # Generate with: openssl rand -hex 32
+      # Set via .env file or your platform's secret management.
+      AI_MEMORY_AUTH_TOKEN: "${AI_MEMORY_AUTH_TOKEN}"
+
+      # Optional: LLM provider for consolidation and embeddings.
+      # Omit both lines for zero-LLM mode (FTS5 search still works).
+      AI_MEMORY_LLM_PROVIDER: "${AI_MEMORY_LLM_PROVIDER:-}"
+      ANTHROPIC_API_KEY: "${ANTHROPIC_API_KEY:-}"
+      OPENAI_API_KEY: "${OPENAI_API_KEY:-}"
+
+    command: ["ai-memory", "serve", "--bind", "0.0.0.0:49374"]
+
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:49374/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  nginx:
+    image: nginx:1.27-alpine
+    container_name: ai-memory-nginx
+    restart: unless-stopped
+    depends_on:
+      - ai-memory
+
+    ports:
+      - "443:443"
+      - "80:80"
+
+    volumes:
+      - ./nginx.conf:/etc/nginx/conf.d/ai-memory.conf:ro
+      # Mount TLS certificates from Certbot/Let's Encrypt or your provider:
+      - /etc/letsencrypt:/etc/letsencrypt:ro
+      # Or use a self-signed cert for internal deployments.
+
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "5m"
+        max-file: "2"
+
+  # Optional: scheduled backup service
+  backup:
+    image: docker.io/akitaonrails/ai-memory:2.0.2
+    container_name: ai-memory-backup
+    restart: "no"
+    profiles: ["backup"]  # Only runs when explicitly invoked: docker compose --profile backup up backup
+
+    volumes:
+      - ai-memory-data:/data:ro
+      - ai-memory-backups:/backups
+
+    environment:
+      AI_MEMORY_AUTH_TOKEN: "${AI_MEMORY_AUTH_TOKEN}"
+
+    command: ["ai-memory", "backup", "snapshot", "--output", "/backups/backup.tar.gz"]
+
+volumes:
+  ai-memory-data:
+    driver: local
+    # On Render.com: mount the Persistent Disk at /data via the dashboard.
+    # On a VPS: this local volume persists as long as the Docker daemon runs.
+    # Back up regularly — see docs/ai-memory/OPERATIONS.md.
+
+  ai-memory-backups:
+    driver: local

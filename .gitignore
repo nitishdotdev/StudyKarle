@@ -14,3 +14,6 @@ build/
 
 # Optional
 .vscode/
+/deploy/ai-memory/data/
+/deploy/ai-memory/.env
+/.claude/mcp.json

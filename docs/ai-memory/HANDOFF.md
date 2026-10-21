@@ -10,91 +10,96 @@
 ## Current session status
 
 **Last updated**: 2026-10-21
-**Updated by**: Claude (initial bootstrap — ai-memory infrastructure setup)
-**Last verified commit SHA**: [NOT YET COMMITTED — changes are staged locally]
-**Branch**: `feat/studykarle-ai-memory` (proposed; confirm on checkout)
+**Updated by**: MonkeyCode (ai-memory audit / Layer A correction)
+**Last verified commit SHA**: `30f7b22eed3e9a063569a7e77aeac3699e306bd6`
+(`30f7b22` — Merge pull request #21 from nitishdotdev/feat/studykarle-ai-memory)
+**Branch**: `261021-chore-ai-memory-sync` (from `origin/main` @ `30f7b22`; Layer A corrections committed on this branch)
+
+Remote ai-memory MCP was **not** used. Layer A files only.
 
 ---
 
 ## High-level objective
 
-Implement persistent AI coding memory infrastructure for StudyKarle so that work started
-in Claude Code, Codex, or MonkeyCode can be resumed in any of those environments
-without losing architectural context, failed-fix history, or task state.
+Audit PR #21 AI-memory against the current StudyKarle tree, fix stale and privacy-risk
+notes, and leave a sustainable Claude / Codex / MonkeyCode sync workflow.
+Do **not** merge, deploy the memory service, or change production infrastructure.
 
 ---
 
 ## What was completed this session
 
-- Created `docs/ai-memory/` directory with all required memory documents:
-  `README.md`, `PROJECT_CONTEXT.md`, `DECISIONS.md`, `HANDOFF.md` (this file),
-  `KNOWN_ISSUES.md`, `OPERATIONS.md`, `SETUP.md`
-- Created `.ai-memory.toml` root marker pinning workspace/project scope
-- Created `CLAUDE.md` with project context and ai-memory routing block
-- Created `AGENTS.md` with project context and ai-memory routing block
-- Created `deploy/ai-memory/` with Docker Compose, nginx config, and `.env.example`
-- Created `scripts/ai-memory/` with `bootstrap.sh`, `validate.sh`, `status.sh`,
-  and `handoff-prep.sh`
-- Created `deploy/ai-memory/README.md` with deployment runbook
+- Fact-checked Layer A docs against `client/`, `server/`, migrations, `vercel.json`,
+  `.env.example`, CI, and official ai-memory marker / support-matrix / v2.0.2 release notes.
+- Corrected `AGENTS.md`, `CLAUDE.md`, `PROJECT_CONTEXT.md`, `DECISIONS.md`,
+  `KNOWN_ISSUES.md`, `SETUP.md`, `OPERATIONS.md`.
+- Tightened `.ai-memory.toml` capture `ignore_paths` (root + nested `.env` forms,
+  credential filenames, `.claude/mcp.json`). No unknown `[capture]` keys.
+- Replaced duplicate `ai-memory.toml` contents with a pointer (official lookup is
+  `.ai-memory.toml` only). Did not commit a `server` key.
+- Fixed linux/amd64 tarball SHA typo `…4db42823` → `…4da31a23` in
+  `deploy/ai-memory/docker-compose.yml` and `OPERATIONS.md` (v2.0.2 release checksum).
+- Restored `deploy/ai-memory/.env.example` (names only) and added `.gitignore`
+  exceptions `!.env.example` / `!**/.env.example` so `.env.*` no longer hides the template.
+- `scripts/ai-memory/validate.sh`: PASS 25, FAIL 0, WARN 3 (no docker compose; no CLI).
 
 ## What was NOT completed
 
-- Remote ai-memory service has NOT been deployed (requires owner action — see SETUP.md)
-- Claude Code MCP registration: NOT configured in cloud workspace (requires owner action)
-- Codex MCP registration: NOT configured (requires owner action)
-- MonkeyCode integration: NOT verifiable (platform not in ai-memory support matrix;
-  falls back to Layer A / AGENTS.md)
-- Cross-agent handoff end-to-end test: BLOCKED pending remote service deployment
-- Existing `CLAUDE.md` and `AGENTS.md`: [UNVERIFIED — if they already exist in the repo,
-  they must be merged rather than replaced; check before pushing]
-- Existing `docs/` structure: [UNVERIFIED — adapt file locations if the repo uses
-  a different documentation convention]
+- Remote ai-memory service has NOT been deployed (owner action — see SETUP.md).
+- Claude Code MCP + hooks: NOT configured in this environment (owner action).
+- Codex MCP + hooks: NOT configured (owner action).
+- MonkeyCode MCP: NOT available this session. `AGENTS.md` **is** read (confirmed).
+  Do not claim cross-agent sync until a real handoff round-trip succeeds.
+- These Layer A edits are on `261021-chore-ai-memory-sync` for review; do not merge without owner approval.
 
 ---
 
-## Changes made (uncommitted)
+## Changes made (this session)
 
-- `.ai-memory.toml` — NEW
-- `CLAUDE.md` — NEW (merge if existing)
-- `AGENTS.md` — NEW (merge if existing)
-- `docs/ai-memory/README.md` — NEW
-- `docs/ai-memory/PROJECT_CONTEXT.md` — NEW
-- `docs/ai-memory/DECISIONS.md` — NEW
-- `docs/ai-memory/HANDOFF.md` — NEW (this file)
-- `docs/ai-memory/KNOWN_ISSUES.md` — NEW
-- `docs/ai-memory/OPERATIONS.md` — NEW
-- `docs/ai-memory/SETUP.md` — NEW
-- `deploy/ai-memory/docker-compose.yml` — NEW
-- `deploy/ai-memory/.env.example` — NEW
-- `deploy/ai-memory/nginx.conf` — NEW
-- `deploy/ai-memory/README.md` — NEW
-- `scripts/ai-memory/bootstrap.sh` — NEW
-- `scripts/ai-memory/validate.sh` — NEW
-- `scripts/ai-memory/status.sh` — NEW
-- `scripts/ai-memory/handoff-prep.sh` — NEW
-- `.gitignore` — UPDATE needed (add ai-memory data exclusions)
+- `AGENTS.md` — stack, hosting, cookies, CSRF, Google linking, commands, no `server` key
+- `CLAUDE.md` — JavaScript not TypeScript; Render backend; CHIPS cookies
+- `.ai-memory.toml` — capture ignores tightened
+- `ai-memory.toml` — pointer only (not a second marker)
+- `docs/ai-memory/PROJECT_CONTEXT.md` — verified architecture
+- `docs/ai-memory/DECISIONS.md` — D-002 corrected; D-006 no committed `server` key
+- `docs/ai-memory/HANDOFF.md` — this file
+- `docs/ai-memory/KNOWN_ISSUES.md` — I-001 cookie flags; I-005 MonkeyCode evidence; I-006 marker
+- `docs/ai-memory/SETUP.md` — do not commit `server`
+- `docs/ai-memory/OPERATIONS.md` — SHA + no committed `server`
+- `deploy/ai-memory/docker-compose.yml` — SHA comment
+- `scripts/ai-memory/validate.sh` — reject committed `server` key; pointer-file check
+- `.gitignore` — un-ignore `**/.env.example`
+- `deploy/ai-memory/.env.example` — NEW (placeholders only; was gitignored by `.env.*`)
+
+No application code, schema, auth, or production config was modified.
 
 ---
 
 ## Commands run and results
 
-No application commands were run this session. All work was file-creation only.
-No application code, database schema, or production configuration was modified.
+- `git submodule` check: no `.gitmodules`
+- `git status` / `git log`: clean tree at `30f7b22` before edits
+- Official docs fetched: marker-file.md, support-matrix.md, v2.0.2 release, deploy.md
+- Source inspected: `client/package.json`, `server/package.json`, `server/.env.example`,
+  `client/.env.example`, `client/vercel.json`, `server/src/services/tokenService.js`,
+  `server/src/config/env.js`, `server/src/middleware/csrfProtection.js`,
+  `server/knexfile.js`, `server/src/db/migrations/20260808000001_create_drive_sync_tables.js`,
+  `.github/workflows/ci.yml`, `README.md`
+- `bash scripts/ai-memory/validate.sh` — run after these edits (see session notes)
+
+No `npm test` / `npm run build` this session (docs/marker only).
 
 ---
 
 ## Immediate next steps (in priority order)
 
-1. **Inspect the repo** before committing:
-   - Does `CLAUDE.md` or `AGENTS.md` already exist? If yes, merge ai-memory blocks.
-   - Does a `docs/` directory exist? Confirm `docs/ai-memory/` fits the convention.
-   - Does `.gitignore` already exclude `.env` files? Add ai-memory data exclusions.
-   - What is the exact directory structure for frontend/backend?
-2. **Create a feature branch** (`feat/studykarle-ai-memory`) and commit the new files.
-3. **Follow the owner-only checklist** in `docs/ai-memory/SETUP.md` to deploy the remote service.
-4. **Register the MCP server** in Claude Code once the remote URL and token are available.
-5. **Register the MCP server** in Codex once the remote URL and token are available.
-6. **Run `scripts/ai-memory/validate.sh`** to confirm no credentials leaked into tracked files.
+1. Owner reviews the PR from `261021-chore-ai-memory-sync` and merges if they agree.
+2. Owner follows `docs/ai-memory/SETUP.md` to deploy Layer B (persistent Docker host,
+   not Vercel). Register `studykarle-memory` per environment; do not commit `server`.
+3. Owner installs Claude Code and Codex MCP + hooks once the URL and token exist.
+4. After Layer B is up, test `memory_handoff_begin` in one agent and
+   `memory_handoff_list` in another. Record the result in KNOWN_ISSUES I-004 / I-005.
+5. Incoming agents: `git log --oneline -5` and `git status` before trusting this file.
 
 ---
 
@@ -108,10 +113,11 @@ No application code, database schema, or production configuration was modified.
 
 ## Hypotheses not yet tested
 
-- Whether MonkeyCode reads `AGENTS.md` automatically (likely yes, but unverified).
-- Whether MonkeyCode supports outbound HTTP to the remote ai-memory service.
-- Exact directory layout of the StudyKarle repository (memory provides the stack;
-  exact file paths require repo inspection).
+- Whether MonkeyCode can call a remote ai-memory MCP server once one exists.
+- Whether MonkeyCode outbound HTTPS to a future memory URL is allowed.
+- End-to-end Claude ↔ Codex handoff (blocked on Layer B).
+
+Confirmed this session: MonkeyCode loads `AGENTS.md`; remote MCP tools are absent here.
 
 ---
 

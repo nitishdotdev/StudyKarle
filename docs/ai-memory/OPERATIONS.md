@@ -63,8 +63,8 @@ ai-memory server add studykarle-memory \
 ai-memory status --server studykarle-memory
 ```
 
-The `.ai-memory.toml` marker does NOT store the server URL or token —
-only the profile name (once you add `server = "studykarle-memory"` to the marker).
+The committed `.ai-memory.toml` marker does NOT store the server URL, token,
+or a `server` profile name. Register `studykarle-memory` per environment.
 
 ---
 
@@ -154,7 +154,10 @@ current stable release before upgrading.
 ### Version pinned in this repository
 
 `akitaonrails/ai-memory:2.0.2`
-SHA-256 (linux/amd64 binary): `3c39d8d9afad57a34747e6c52a13036b7411de95e4a2b1bbcd11976f4db42823`
+SHA-256 (linux/amd64 binary tarball `ai-memory-linux-x86_64.tar.gz`):
+`3c39d8d9afad57a34747e6c52a13036b7411de95e4a2b1bbcd11976f4da31a23`
+(from the [v2.0.2 release](https://github.com/akitaonrails/ai-memory/releases/tag/v2.0.2);
+this is not the Docker image digest.)
 
 ---
 

@@ -10,6 +10,8 @@
 # that only exists on the machine where it was registered).
 # Register the remote server profile locally via:
 #   ai-memory server add studykarle-memory --url <URL> --root <checkout-dir> --auth-token-stdin
+#
+# Official lookup is `.ai-memory.toml` only. Do not add a second `ai-memory.toml`.
 
 workspace = "nitishdotdev"
 project   = "StudyKarle"
@@ -17,16 +19,28 @@ project   = "StudyKarle"
 [capture]
 # Drop sensitive files before they reach memory storage.
 # The [capture] section is strict: unknown keys invalidate the whole section.
+# `**/x` does not match a root-level `x` — list both forms when both matter.
 ignore_paths = [
   ".env",
+  "**/.env",
   ".env.*",
+  "**/.env.*",
   "*.env",
+  "**/*.env",
   "**/secrets/**",
   "**/.secrets/**",
   "**/*.key",
   "**/*.pem",
   "**/*.p12",
   "**/*.pfx",
+  "id_rsa",
+  "**/id_rsa",
+  "id_ed25519",
+  "**/id_ed25519",
+  "credentials.json",
+  "**/credentials.json",
+  "client_secret*.json",
+  "**/client_secret*.json",
   "**/private/**",
   # Build artefacts and caches
   "**/node_modules/**",
@@ -46,4 +60,6 @@ ignore_paths = [
   # ai-memory's own data directory
   "deploy/ai-memory/data/**",
   "deploy/ai-memory/*.db",
+  # Local MCP config may hold a server URL; token must stay in env
+  ".claude/mcp.json",
 ]

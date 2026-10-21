@@ -144,13 +144,11 @@ ai-memory server add studykarle-memory \
 ai-memory status --server studykarle-memory
 ```
 
-Then add the profile name to `.ai-memory.toml` so the marker selects it automatically:
-```toml
-server = "studykarle-memory"
-```
-
-Commit `.ai-memory.toml` after adding the `server` line.
-(The marker holds only the profile name — never the URL or token.)
+Do **not** add `server = "studykarle-memory"` to the committed `.ai-memory.toml`.
+That key selects a machine-local profile; unknown profiles fail-closed on
+MonkeyCode and any checkout that has not run `server add`. Keep the committed
+marker to `workspace`, `project`, and `[capture]` only. The URL and token stay
+in the local profile / environment — never in the marker.
 
 ---
 
@@ -228,11 +226,15 @@ MonkeyCode (Chaitin) is **not** in ai-memory's support matrix as of v2.0.2.
 - Configure the underlying agent per Steps 6 or 7 if the platform exposes that configuration.
 
 **Verification checklist for a MonkeyCode session**:
-1. Does the session show awareness of `AGENTS.md` content? (Likely yes if it's read at start)
-2. Can the session make `memory_query` MCP calls? (Requires platform MCP support)
-3. Can outbound HTTPS reach `https://YOUR_SERVICE_URL`? (Requires platform network access)
+1. Does the session show awareness of `AGENTS.md` content?
+   Confirmed 2026-10-21: yes (agent instructions loaded from repo `AGENTS.md`).
+2. Can the session make `memory_query` MCP calls? Not in the 2026-10-21 session
+   (no remote MCP tools). Requires platform MCP support plus a deployed Layer B.
+3. Can outbound HTTPS reach `https://YOUR_SERVICE_URL`? Untested — no service URL yet.
+   GitHub raw docs were reachable.
 
-Record findings in `KNOWN_ISSUES.md` I-005.
+Record findings in `KNOWN_ISSUES.md` I-005. Do not claim cross-agent sync from
+MonkeyCode until a real handoff round-trip succeeds.
 
 ---
 
@@ -288,7 +290,7 @@ See `OPERATIONS.md` for detailed troubleshooting.
 - TLS is required for remote access. The nginx config in `deploy/ai-memory/nginx.conf`
   handles TLS termination.
 - The `.ai-memory.toml` marker is committed; it contains only the workspace/project names
-  and capture exclusions — no credentials.
+  and capture exclusions — no credentials and no `server` key.
 - `deploy/ai-memory/.env.example` contains only variable names, no values.
 - `.claude/mcp.json` is gitignored; it may contain the server URL (non-secret) but
   the token is injected from the environment.

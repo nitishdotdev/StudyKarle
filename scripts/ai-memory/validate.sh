@@ -87,6 +87,21 @@ if [[ -f "$MARKER" ]]; then
   else
     pass ".ai-memory.toml contains no credentials"
   fi
+
+  if grep -qE '^[[:space:]]*server[[:space:]]*=' "$MARKER"; then
+    fail ".ai-memory.toml contains a server key — do not commit a profile name"
+  else
+    pass ".ai-memory.toml has no server key"
+  fi
+fi
+
+POINTER="${REPO_ROOT}/ai-memory.toml"
+if [[ -f "$POINTER" ]]; then
+  if grep -qE '^[[:space:]]*(workspace|project|server)[[:space:]]*=' "$POINTER"; then
+    fail "ai-memory.toml must not declare workspace/project/server (official marker is .ai-memory.toml)"
+  else
+    pass "ai-memory.toml is a pointer, not a second marker"
+  fi
 fi
 
 # ── .gitignore validation ─────────────────────────────────────────────────────

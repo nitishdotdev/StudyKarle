@@ -13,16 +13,18 @@
 **Symptom**: Users on mobile browsers or in incognito mode were logged out unexpectedly
 or could not log in at all.
 
-**Affected component**: Cookie-based session auth; Vercel deployment configuration.
+**Affected component**: Cookie-based session auth; split Vercel frontend / Render backend.
 
 **Root cause (confirmed)**: Session cookies were blocked by third-party cookie restrictions
-on mobile browsers. The original `sameSite` setting combined with cross-origin delivery
-caused cookies to be rejected.
+when the SPA origin and API origin differed.
 
-**Fix applied**: `sameSite: lax` cookie configuration + Vercel rewrite rules to deliver
-the API same-origin from the client's perspective.
+**Fix applied**: Production auth and CSRF cookies are `SameSite=None; Secure; Partitioned`
+(`server/src/services/tokenService.js`, `server/src/middleware/csrfProtection.js`).
+`client/vercel.json` rewrites `/api/*` to `https://studykarle-backend.onrender.com`.
+Local cookies remain `SameSite=Lax`.
 
-**Status**: RESOLVED. Do not revert the rewrite rules or cookie config.
+**Status**: RESOLVED in code. Do not revert cookie flags or the rewrite.
+Earlier memory notes that claimed production `sameSite: lax` are stale.
 
 ---
 
@@ -35,7 +37,7 @@ the API same-origin from the client's perspective.
 **Root cause (confirmed)**: `<iframe src="blob:...">` URLs are blocked on mobile Safari
 and some other mobile browsers due to security restrictions on blob URLs in iframes.
 
-**Fix applied**: Replaced iframe with `pdfjs-dist` canvas renderer.
+**Fix applied**: Replaced iframe with `pdfjs-dist` / `react-pdf` canvas renderer.
 
 **Status**: RESOLVED. Do not revert to iframe blob URLs.
 
@@ -46,14 +48,13 @@ and some other mobile browsers due to security restrictions on blob URLs in ifra
 **Symptom**: Google Drive sync crashed when two folders had the same name but different
 parent folders.
 
-**Affected component**: Drive sync service; `drive_nodes` (or equivalent) database table.
+**Affected component**: Drive sync service; `drive_nodes` table.
 
 **Root cause (confirmed)**: Uniqueness constraint on folder name alone (not scoped to
-parent), causing constraint violation when syncing Drive folders with shared names
-under different parents.
+parent or Drive id).
 
-**Fix applied**: Updated uniqueness constraint to scope to `(name, parent_id)` or
-equivalent. Drive sync rewritten to use flexible `drive_nodes` hierarchy.
+**Fix applied**: `drive_nodes.drive_id` is unique. Duplicate names under different
+parents are allowed. See migration `20260808000001_create_drive_sync_tables.js`.
 
 **Status**: RESOLVED. Architecture note in `DECISIONS.md` D-001 and D-004.
 
@@ -73,28 +74,46 @@ the StudyKarle application for users).
 
 **Next step**: Owner must provision the remote service on a persistent container host,
 set the auth token, and register the server profile in each coding environment.
+Do not commit `server` into `.ai-memory.toml`.
 
 ---
 
 ### I-005 — MonkeyCode ai-memory integration unverified [INVESTIGATING]
 
-**Symptom**: MonkeyCode is not in the ai-memory support matrix. It is unknown whether
-MonkeyCode reads AGENTS.md automatically, supports outbound HTTP to the remote service,
-or allows custom MCP configuration.
+**Symptom**: MonkeyCode is not in the ai-memory v2.0.2 support matrix. It is unknown whether
+MonkeyCode can call remote MCP tools or reach an owner-deployed memory URL.
 
 **Affected component**: MonkeyCode coding environment.
 
 **Attempts so far**:
-- None yet — requires a MonkeyCode session to test.
+- This MonkeyCode session reads `AGENTS.md` (confirmed: agent instructions from `/workspace/AGENTS.md`).
+- Remote MCP tools (`memory_handoff_list`, `memory_briefing`) are not available in this session.
+- Outbound HTTPS to GitHub raw docs succeeded; no memory service URL exists to probe.
 
 **Current best fallback**: AGENTS.md (Layer A) and repository memory files.
+Do not claim cross-agent sync from MonkeyCode until a real handoff round-trip succeeds.
 
-**Next step**: In a MonkeyCode session, verify:
-1. Whether `AGENTS.md` is read at session start.
-2. Whether outbound HTTPS to the memory service URL succeeds.
-3. Whether MCP tool calls resolve correctly.
+**Next step**: After the owner deploys Layer B, retry MCP from a MonkeyCode session and
+record whether `memory_handoff_list` resolves.
 
 ---
 
-*Add new issues above this line with the next sequential ID (I-006, I-007, ...).*
+### I-006 — Duplicate root marker `ai-memory.toml` [RESOLVED in this change set]
+
+**Symptom**: Repo root had both `.ai-memory.toml` (the official marker name) and
+`ai-memory.toml` with identical contents. Official docs only search for `.ai-memory.toml`.
+The un-dotted file is unused and can drift.
+
+**Affected component**: ai-memory marker / capture policy.
+
+**Fix applied**: Keep `.ai-memory.toml` as the only real marker. Replace
+`ai-memory.toml` with a pointer comment (no `workspace` / `project` / `server`
+keys) so it cannot be mistaken for a second marker.
+
+**Status**: RESOLVED in this change set. Owner may delete the pointer
+file later if desired.
+
+---
+
+*Add new issues above this line with the next sequential ID (I-007, I-008, ...).*
 *Move resolved issues to the RESOLVED section with the resolution evidence.*

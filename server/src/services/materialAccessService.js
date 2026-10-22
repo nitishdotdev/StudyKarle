@@ -17,9 +17,9 @@ function authorizeMaterial(user, node, entitlement) {
     return {
       protected: false,
       canPreview: true,
-      canDownload: true,
+      canDownload: false,
       bypassReason: null,
-      code: null,
+      code: "DOWNLOAD_DISABLED",
     };
   }
 

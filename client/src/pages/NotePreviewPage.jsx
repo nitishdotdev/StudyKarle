@@ -12,6 +12,7 @@ import useFetch from "../hooks/useFetch";
 import { fetchNote, downloadNoteFile } from "../api/notesApi";
 import { saveNote, unsaveNote } from "../api/savedApi";
 import { useToast } from "../context/ToastContext";
+import useAuth from "../hooks/useAuth";
 import { paymentAccessPath, paymentAccessPathFromError } from "../utils/paymentRedirect";
 
 // pdf.js is heavy — only load it on this page, and only once the user is
@@ -25,6 +26,7 @@ export default function NotePreviewPage() {
   const { noteId } = useParams();
   const navigate = useNavigate();
   const toast = useToast();
+  const { isAdmin } = useAuth();
   const {
     data: note,
     loading,
@@ -106,7 +108,7 @@ export default function NotePreviewPage() {
     );
   }
 
-  const canDownload = note ? !!note.canDownload : false;
+  const canDownload = !!(isAdmin && note && note.canDownload);
   const isProtected = note ? !!note.protected : false;
   const canPreview = note ? note.canPreview !== false : true;
 

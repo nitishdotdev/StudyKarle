@@ -80,13 +80,36 @@ test("approved unexpired students can preview but not download protected materia
   assert.equal(decision.canDownload, false);
 });
 
-test("unprotected materials keep existing student preview and download behaviour", function () {
+test("unprotected materials stay previewable but students cannot download them", function () {
   const student = { id: 2, role: "student" };
   const decision = access.authorizeMaterial(student, unprotectedNode, {
     hasAccess: false,
     status: "unpaid",
   });
   assert.equal(decision.canPreview, true);
-  assert.equal(decision.canDownload, true);
+  assert.equal(decision.canDownload, false);
   assert.equal(decision.protected, false);
+});
+
+test("approved students still cannot download unprotected materials", function () {
+  const student = { id: 2, role: "student" };
+  const decision = access.authorizeMaterial(student, unprotectedNode, {
+    hasAccess: true,
+    status: "approved",
+    endsAt: new Date("2099-12-31"),
+  });
+  assert.equal(decision.canPreview, true);
+  assert.equal(decision.canDownload, false);
+  assert.equal(decision.protected, false);
+});
+
+test("admins can still download unprotected materials", function () {
+  const admin = { id: 1, role: "admin" };
+  const decision = access.authorizeMaterial(admin, unprotectedNode, {
+    hasAccess: false,
+    status: "unpaid",
+  });
+  assert.equal(decision.canPreview, true);
+  assert.equal(decision.canDownload, true);
+  assert.equal(decision.bypassReason, "admin");
 });

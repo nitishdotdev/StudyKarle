@@ -260,7 +260,7 @@ export default function AccessPage() {
                 </h2>
                 <p className="text-body-sm text-text-secondary">
                   Approved students can open PDFs in the StudyKarle viewer, including text
-                  selection and copy. Downloads of Year 1 and Year 2 files are removed.
+                  selection and copy. Student downloads are disabled for every file.
                   Browser viewing cannot stop screenshots.
                 </p>
                 <Link to="/dashboard" className="inline-flex mt-4 text-primary font-semibold">

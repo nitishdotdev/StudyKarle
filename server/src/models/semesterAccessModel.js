@@ -2,13 +2,18 @@ const db = require("../config/db");
 
 const TABLE = "semester_access";
 
+function query(trx) {
+  return trx || db;
+}
+
 module.exports = {
-  async findByUserId(userId) {
-    return db(TABLE).where({ user_id: userId }).first();
+  async findByUserId(userId, trx) {
+    return query(trx)(TABLE).where({ user_id: userId }).first();
   },
 
-  async upsertForUser(userId, data) {
-    const existing = await this.findByUserId(userId);
+  async upsertForUser(userId, data, trx) {
+    const q = query(trx);
+    const existing = await q(TABLE).where({ user_id: userId }).first();
     const patch = {
       payment_request_id: data.payment_request_id,
       ends_at: data.ends_at,
@@ -16,13 +21,13 @@ module.exports = {
       updated_at: new Date(),
     };
     if (existing) {
-      const rows = await db(TABLE)
+      const rows = await q(TABLE)
         .where({ user_id: userId })
         .update(patch)
         .returning("*");
       return rows[0];
     }
-    const rows = await db(TABLE)
+    const rows = await q(TABLE)
       .insert({
         user_id: userId,
         payment_request_id: patch.payment_request_id,

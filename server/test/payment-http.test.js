@@ -309,8 +309,29 @@ const semesterAccessModel = {
   },
 };
 
-stubRel("config/db.js", function () {
-  throw new Error("database must not be touched in payment-http tests");
+stubRel("config/db.js", {
+  async transaction(work) {
+    const paySnap = paymentRequests.map(function (row) {
+      return Object.assign({}, row);
+    });
+    const entSnap = new Map();
+    entitlements.forEach(function (row, userId) {
+      entSnap.set(userId, Object.assign({}, row));
+    });
+    try {
+      return await work({});
+    } catch (err) {
+      paymentRequests.length = 0;
+      paySnap.forEach(function (row) {
+        paymentRequests.push(row);
+      });
+      entitlements.clear();
+      entSnap.forEach(function (row, userId) {
+        entitlements.set(userId, row);
+      });
+      throw err;
+    }
+  },
 });
 stubRel("models/userModel.js", userModel);
 stubRel("models/driveNodeModel.js", driveNodeModel);
@@ -741,14 +762,105 @@ test("admin can preview and download protected material without paying", async f
   assert.equal(streamedFiles.length, 2);
 });
 
-test("unprotected Drive files remain previewable and downloadable for unpaid students", async function () {
+test("unprotected Drive files remain previewable but not downloadable for unpaid students", async function () {
   const student = await createStudent("FreeFile");
   const preview = await authedGet(student, "/api/drive/files/y3-pdf/preview");
   assert.equal(preview.status, 200);
   const download = await authedGet(student, "/api/drive/files/y3-pdf/download");
-  assert.equal(download.status, 200);
+  assert.equal(download.status, 403);
+  assert.equal(streamedFiles.length, 1);
   const misnamed = await authedGet(student, "/api/drive/files/misc-pdf/preview");
   assert.equal(misnamed.status, 200);
+});
+
+test("unpaid student cannot download an unprotected Drive file", async function () {
+  const student = await createStudent("Year3Dl");
+  const res = await authedGet(student, "/api/drive/files/y3-pdf/download");
+  assert.equal(res.status, 403);
+  assert.equal(streamedFiles.length, 0);
+});
+
+test("pending student cannot download unprotected material", async function () {
+  const student = await createStudent("PendingDl");
+  await paymentRequestModel.create({
+    user_id: student.id,
+    payment_reference: "SK-PENDDL",
+    amount_rupees: 9,
+    status: "pending",
+  });
+  const res = await authedGet(student, "/api/drive/files/y3-pdf/download");
+  assert.equal(res.status, 403);
+  assert.equal(streamedFiles.length, 0);
+});
+
+test("rejected student cannot download unprotected material", async function () {
+  const student = await createStudent("RejectDl");
+  await paymentRequestModel.create({
+    user_id: student.id,
+    payment_reference: "SK-REJDL",
+    amount_rupees: 9,
+    status: "rejected",
+  });
+  const res = await authedGet(student, "/api/drive/files/y3-pdf/download");
+  assert.equal(res.status, 403);
+  assert.equal(streamedFiles.length, 0);
+});
+
+test("expired student cannot download unprotected material", async function () {
+  const student = await createStudent("ExpiredDl");
+  const pay = await paymentRequestModel.create({
+    user_id: student.id,
+    payment_reference: "SK-OLDDL",
+    amount_rupees: 9,
+    status: "approved",
+  });
+  await semesterAccessModel.upsertForUser(student.id, {
+    payment_request_id: pay.id,
+    ends_at: new Date("2020-01-01T00:00:00.000Z"),
+  });
+  const res = await authedGet(student, "/api/drive/files/y3-pdf/download");
+  assert.equal(res.status, 403);
+  assert.equal(streamedFiles.length, 0);
+});
+
+test("approved student cannot download unprotected material", async function () {
+  const student = await createStudent("ApprovedFreeDl");
+  const pay = await paymentRequestModel.create({
+    user_id: student.id,
+    payment_reference: "SK-OKFREE",
+    amount_rupees: 9,
+    status: "approved",
+  });
+  await semesterAccessModel.upsertForUser(student.id, {
+    payment_request_id: pay.id,
+    ends_at: new Date("2099-12-31T18:30:00.000Z"),
+  });
+  const res = await authedGet(student, "/api/drive/files/y3-pdf/download");
+  assert.equal(res.status, 403);
+  assert.equal(streamedFiles.length, 0);
+});
+
+test("admin can download unprotected material", async function () {
+  const admin = await createAdmin();
+  const res = await authedGet(admin, "/api/drive/files/y3-pdf/download");
+  assert.equal(res.status, 200);
+  assert.equal(streamedFiles[0], "y3-pdf");
+});
+
+test("students cannot download protected or unprotected notes", async function () {
+  const student = await createStudent("NoteDl");
+  const protectedDl = await authedGet(student, "/api/notes/11/download");
+  assert.equal(protectedDl.status, 402);
+  const freeDl = await authedGet(student, "/api/notes/33/download");
+  assert.equal(freeDl.status, 403);
+  assert.equal(streamedFiles.length, 0);
+});
+
+test("admin can download unprotected notes", async function () {
+  const admin = await createAdmin();
+  const res = await authedGet(admin, "/api/notes/33/download");
+  assert.equal(res.status, 200);
+  assert.equal(streamedFiles[0], "note-y3");
 });
 
 test("unpaid student cannot preview a protected legacy note", async function () {
@@ -882,6 +994,8 @@ test("admin can list pending payments and approve using server expiry", async fu
     status: "pending",
     proof_bytes: Buffer.from([0xff, 0xd8, 0xff, 0xe0]),
     proof_mime_type: "image/jpeg",
+    proof_size_bytes: 4,
+    submitted_at: new Date(),
   });
   const list = await authedGet(admin, "/api/admin/payments?status=pending");
   assert.equal(list.status, 200);
@@ -957,6 +1071,7 @@ test("Drive listing marks Year 1 files as locked for unpaid students", async fun
   });
   assert.equal(y3 && y3.protected, false);
   assert.equal(y3 && y3.canPreview, true);
+  assert.equal(y3 && y3.canDownload, false);
 
   const root = await authedGet(student, "/api/drive");
   assert.equal(root.status, 200);
@@ -965,6 +1080,7 @@ test("Drive listing marks Year 1 files as locked for unpaid students", async fun
   });
   assert.equal(misc && misc.protected, false);
   assert.equal(misc && misc.canPreview, true);
+  assert.equal(misc && misc.canDownload, false);
 });
 
 test("search results include access flags for unpaid students", async function () {
@@ -980,8 +1096,10 @@ test("search results include access flags for unpaid students", async function (
   });
   assert.equal(y1 && y1.protected, true);
   assert.equal(y1 && y1.canPreview, false);
+  assert.equal(y1 && y1.canDownload, false);
   assert.equal(y3 && y3.protected, false);
   assert.equal(y3 && y3.canPreview, true);
+  assert.equal(y3 && y3.canDownload, false);
 });
 
 test("saved listings include access flags for unpaid students", async function () {
@@ -1003,10 +1121,114 @@ test("saved listings include access flags for unpaid students", async function (
   });
   assert.equal(y1Note && y1Note.protected, true);
   assert.equal(y1Note && y1Note.canPreview, false);
+  assert.equal(y1Note && y1Note.canDownload, false);
   assert.equal(y1File && y1File.protected, true);
   assert.equal(y1File && y1File.canPreview, false);
+  assert.equal(y1File && y1File.canDownload, false);
   assert.equal(y3File && y3File.protected, false);
   assert.equal(y3File && y3File.canPreview, true);
+  assert.equal(y3File && y3File.canDownload, false);
+});
+
+test("admins cannot start student checkout", async function () {
+  const admin = await createAdmin();
+  const res = await mutating(admin, "POST", "/api/payments/checkout", {});
+  assert.equal(res.status, 403);
+  assert.equal(paymentRequests.length, 0);
+});
+
+test("admins cannot submit payment proof", async function () {
+  const admin = await createAdmin();
+  const res = await mutating(admin, "POST", "/api/payments/submit", { utr: "ABC123" });
+  assert.equal(res.status, 403);
+});
+
+test("admin cannot approve a pending payment that has no screenshot", async function () {
+  const student = await createStudent("NoProof");
+  const admin = await createAdmin();
+  const pay = await paymentRequestModel.create({
+    user_id: student.id,
+    payment_reference: "SK-NOPROOF",
+    amount_rupees: 9,
+    status: "pending",
+  });
+  const approve = await mutating(admin, "POST", "/api/admin/payments/" + pay.id + "/approve", {});
+  assert.equal(approve.status, 400);
+  const row = await paymentRequestModel.findById(pay.id);
+  assert.equal(row.status, "pending");
+  assert.equal(await semesterAccessModel.findByUserId(student.id), null);
+});
+
+test("repeat approval of an already approved payment is safe", async function () {
+  const student = await createStudent("RepeatOk");
+  const admin = await createAdmin();
+  const pay = await paymentRequestModel.create({
+    user_id: student.id,
+    payment_reference: "SK-REPEATOK",
+    amount_rupees: 9,
+    status: "pending",
+    proof_bytes: Buffer.from([0xff, 0xd8, 0xff, 0xe0]),
+    proof_mime_type: "image/jpeg",
+    proof_size_bytes: 4,
+    submitted_at: new Date(),
+  });
+  const first = await mutating(admin, "POST", "/api/admin/payments/" + pay.id + "/approve", {});
+  assert.equal(first.status, 200);
+  const ent = await semesterAccessModel.findByUserId(student.id);
+  assert.ok(ent);
+  const endsAt = ent.ends_at;
+  const second = await mutating(admin, "POST", "/api/admin/payments/" + pay.id + "/approve", {});
+  assert.equal(second.status, 200);
+  const row = await paymentRequestModel.findById(pay.id);
+  assert.equal(row.status, "approved");
+  const again = await semesterAccessModel.findByUserId(student.id);
+  assert.equal(again.id, ent.id);
+  assert.equal(String(again.ends_at), String(endsAt));
+  assert.equal(again.payment_request_id, pay.id);
+});
+
+test("approval does not persist when entitlement write fails", async function () {
+  const student = await createStudent("TxnFail");
+  const admin = await createAdmin();
+  const pay = await paymentRequestModel.create({
+    user_id: student.id,
+    payment_reference: "SK-TXNFAIL",
+    amount_rupees: 9,
+    status: "pending",
+    proof_bytes: Buffer.from([0xff, 0xd8, 0xff, 0xe0]),
+    proof_mime_type: "image/jpeg",
+    proof_size_bytes: 4,
+    submitted_at: new Date(),
+  });
+  const originalUpsert = semesterAccessModel.upsertForUser;
+  semesterAccessModel.upsertForUser = async function () {
+    throw new Error("entitlement write failed");
+  };
+  try {
+    const approve = await mutating(admin, "POST", "/api/admin/payments/" + pay.id + "/approve", {});
+    assert.ok(approve.status >= 500);
+    const row = await paymentRequestModel.findById(pay.id);
+    assert.equal(row.status, "pending");
+    assert.equal(row.reviewed_by, null);
+    assert.equal(await semesterAccessModel.findByUserId(student.id), null);
+  } finally {
+    semesterAccessModel.upsertForUser = originalUpsert;
+  }
+});
+
+test("students cannot create downloadable share links that bypass the download ban", async function () {
+  const student = await createStudent("ShareBypass");
+  const created = await mutating(student, "POST", "/api/drive/files/y3-pdf/share", {
+    permission: "download",
+  });
+  if (created.status === 201) {
+    const token = created.json.data.token;
+    const download = await sendRequest("GET", "/api/drive/shares/" + token + "/download", {});
+    assert.notEqual(download.status, 200);
+    assert.equal(streamedFiles.length, 0);
+  } else {
+    assert.ok(created.status === 403 || created.status === 402);
+  }
 });
 
 test("access status for an approved student reports active entitlement", async function () {

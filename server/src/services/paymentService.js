@@ -1,4 +1,5 @@
 const crypto = require("crypto");
+const db = require("../config/db");
 const paymentRequestModel = require("../models/paymentRequestModel");
 const semesterAccessModel = require("../models/semesterAccessModel");
 const accessEntitlementService = require("./accessEntitlementService");
@@ -6,6 +7,12 @@ const paymentConfig = require("../config/paymentConfig");
 const { validatePaymentProof } = require("./paymentProofService");
 const ApiError = require("../utils/ApiError");
 const logger = require("../utils/logger");
+
+function hasSubmittedProof(row) {
+  if (!row || !row.submitted_at) return false;
+  if (row.proof_bytes && row.proof_bytes.length) return true;
+  return Number(row.proof_size_bytes) > 0;
+}
 
 async function qrDataUrl(upiUri) {
   try {
@@ -218,26 +225,42 @@ async function adminScreenshot(id) {
 
 async function approve(adminUser, id) {
   const cfg = requireAvailableConfig();
-  const row = await paymentRequestModel.findById(id);
-  if (!row) throw ApiError.notFound("Payment not found");
-  if (row.status === "approved") {
-    const existing = await semesterAccessModel.findByUserId(row.user_id);
-    return { payment: row, entitlement: existing };
-  }
+  return db.transaction(async function (trx) {
+    const row = await paymentRequestModel.findById(id, trx);
+    if (!row) throw ApiError.notFound("Payment not found");
+    if (row.status === "approved") {
+      const existing = await semesterAccessModel.findByUserId(row.user_id, trx);
+      return { payment: row, entitlement: existing };
+    }
+    if (row.status !== "pending") {
+      throw ApiError.badRequest("Only pending payments can be approved.");
+    }
+    if (!hasSubmittedProof(row)) {
+      throw ApiError.badRequest("Payment screenshot is required before approval.");
+    }
 
-  const updated = await paymentRequestModel.update(id, {
-    status: "approved",
-    reviewed_at: new Date(),
-    reviewed_by: adminUser.id,
+    const updated = await paymentRequestModel.update(
+      id,
+      {
+        status: "approved",
+        reviewed_at: new Date(),
+        reviewed_by: adminUser.id,
+      },
+      trx
+    );
+
+    const entitlement = await semesterAccessModel.upsertForUser(
+      row.user_id,
+      {
+        payment_request_id: updated.id,
+        ends_at: cfg.accessEndsAt,
+        starts_at: new Date(),
+      },
+      trx
+    );
+
+    return { payment: updated, entitlement: entitlement };
   });
-
-  const entitlement = await semesterAccessModel.upsertForUser(row.user_id, {
-    payment_request_id: updated.id,
-    ends_at: cfg.accessEndsAt,
-    starts_at: new Date(),
-  });
-
-  return { payment: updated, entitlement: entitlement };
 }
 
 async function reject(adminUser, id, note) {

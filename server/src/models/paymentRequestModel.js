@@ -2,6 +2,10 @@ const db = require("../config/db");
 
 const TABLE = "payment_requests";
 
+function query(trx) {
+  return trx || db;
+}
+
 const PUBLIC_COLUMNS = [
   "id",
   "user_id",
@@ -24,8 +28,8 @@ const PUBLIC_COLUMNS = [
 ];
 
 module.exports = {
-  async create(data) {
-    const rows = await db(TABLE)
+  async create(data, trx) {
+    const rows = await query(trx)(TABLE)
       .insert({
         user_id: data.user_id,
         payment_reference: data.payment_reference,
@@ -45,8 +49,8 @@ module.exports = {
     return rows[0];
   },
 
-  async findById(id) {
-    return db(TABLE).where({ id: id }).first();
+  async findById(id, trx) {
+    return query(trx)(TABLE).where({ id: id }).first();
   },
 
   async findByReference(ref) {
@@ -82,9 +86,9 @@ module.exports = {
     return query;
   },
 
-  async update(id, patch) {
+  async update(id, patch, trx) {
     const data = Object.assign({}, patch, { updated_at: new Date() });
-    const rows = await db(TABLE).where({ id: id }).update(data).returning("*");
+    const rows = await query(trx)(TABLE).where({ id: id }).update(data).returning("*");
     return rows[0] || null;
   },
 };

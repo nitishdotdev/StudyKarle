@@ -10,7 +10,7 @@ function paymentError(decision) {
     PAYMENT_PENDING: "Your payment is being verified. Access will unlock after approval.",
     PAYMENT_REJECTED: "Your payment was not approved. You can resubmit proof from the access page.",
     PAYMENT_EXPIRED: "Your semester access has expired.",
-    DOWNLOAD_DISABLED: "Downloads are disabled for Year 1 and Year 2 materials.",
+    DOWNLOAD_DISABLED: "Downloads are disabled for students.",
   };
   const status = decision.code === "DOWNLOAD_DISABLED" ? 403 : 402;
   return new ApiError(status, messages[decision.code] || messages.PAYMENT_REQUIRED, {

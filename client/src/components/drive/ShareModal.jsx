@@ -3,6 +3,7 @@ import Modal from "../common/Modal";
 import Button from "../common/Button";
 import Spinner from "../common/Spinner";
 import { useToast } from "../../context/ToastContext";
+import useAuth from "../../hooks/useAuth";
 import {
   listDriveShares,
   createDriveShare,
@@ -20,10 +21,11 @@ function shareUrlForToken(token) {
 
 export default function ShareModal({ open, onClose, nodeId, fileName }) {
   const toast = useToast();
+  const { isAdmin } = useAuth();
   const [shares, setShares] = useState([]);
   const [loading, setLoading] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [permission, setPermission] = useState("download");
+  const [permission, setPermission] = useState("preview");
   const [expiresInDays, setExpiresInDays] = useState("");
 
   function load() {
@@ -43,7 +45,7 @@ export default function ShareModal({ open, onClose, nodeId, fileName }) {
   useEffect(
     function () {
       if (open && nodeId) {
-        setPermission("download");
+        setPermission(isAdmin ? "download" : "preview");
         setExpiresInDays("");
         load();
       }
@@ -129,7 +131,7 @@ export default function ShareModal({ open, onClose, nodeId, fileName }) {
                   }}
                   className="w-full rounded-lg border border-border-subtle bg-white px-3 py-2 text-body-sm focus:outline-none focus:ring-2 focus:ring-primary"
                 >
-                  <option value="download">View + Download</option>
+                  {isAdmin ? <option value="download">View + Download</option> : null}
                   <option value="preview">Preview only</option>
                 </select>
                 <p className="text-body-xs text-text-muted mt-1.5">

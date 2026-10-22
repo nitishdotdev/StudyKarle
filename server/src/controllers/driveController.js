@@ -106,6 +106,10 @@ module.exports = {
     if (permission !== undefined && ["preview", "download"].indexOf(permission) === -1) {
       throw ApiError.badRequest("permission must be 'preview' or 'download'");
     }
+    const resolvedPermission = permission || "download";
+    if (req.user.role !== "admin" && resolvedPermission === "download") {
+      throw ApiError.forbidden("Students cannot create downloadable share links.");
+    }
 
     let expiresInDays = null;
     if (req.body && req.body.expiresInDays !== undefined && req.body.expiresInDays !== null && req.body.expiresInDays !== "") {
@@ -118,7 +122,7 @@ module.exports = {
     const share = await driveShareService.createShare({
       driveId: req.params.nodeId,
       createdBy: req.user.id,
-      permission: permission || "download",
+      permission: resolvedPermission,
       expiresInDays: expiresInDays,
     });
 

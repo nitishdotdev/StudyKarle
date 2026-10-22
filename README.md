@@ -22,7 +22,7 @@ StudyKarle solves one problem: students waste time hunting for reliable study ma
 - **Library dashboard** — the Dashboard is a live mirror of the root of the content library, showing real folders and files exactly as they exist
 - **Folder/file browsing** — navigate the full content tree at any depth; folders and files are addressed by stable node IDs, so navigation and "Back" always work correctly
 - **Search** — full-text search across notes, subjects, and topics with debounced, paginated results
-- **PDF preview & download** — fast, range-request streaming with caching, so large PDFs load page-by-page. Year 1 and Year 2 files are preview-only for paying students
+- **PDF preview** — fast, range-request streaming with caching, so large PDFs load page-by-page. Students can preview in the viewer; downloads are disabled. Admins can still download.
 - **Semester access** — students pay a fixed ₹9 (UPI) for Year 1 and Year 2 materials until the configured semester end date; access starts only after admin approval
 - **Saved files** — bookmark files for later and manage them from the Saved page
 - **Accounts & security** — email-OTP signup, secure login, profile management, and password change
@@ -34,7 +34,7 @@ StudyKarle solves one problem: students waste time hunting for reliable study ma
 - **Notes management** — upload (single or bulk), edit, and delete notes
 - **Subject management** — create and organize subjects
 - **User management** — manage users and roles
-- **Payment review** — approve or reject ₹9 semester-access screenshots (`/admin/payments`)
+- **Payment review** — approve or reject ₹9 semester-access screenshots (`/admin/payments`). Screenshots are stored in PostgreSQL as bytea, not on the Render disk.
 - **Analytics & view history** — monitor activity and recently viewed materials
 
 ## Tech Stack

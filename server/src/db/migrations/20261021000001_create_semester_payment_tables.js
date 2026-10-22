@@ -5,8 +5,8 @@
  * approve a payment request; the entitlement end date is taken from server
  * configuration (PAYMENT_ACCESS_ENDS_AT) at approval time.
  *
- * Payment screenshots are stored in PostgreSQL (bytea) so they survive
- * ephemeral Render filesystems.
+ * Payment screenshots are stored in PostgreSQL as bytea, not on the Render
+ * disk. Do not assume unverified backup or filesystem persistence.
  */
 exports.up = async function (knex) {
   const hasPayments = await knex.schema.hasTable("payment_requests");

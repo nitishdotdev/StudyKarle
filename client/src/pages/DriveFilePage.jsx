@@ -11,6 +11,7 @@ import { formatBytes } from "../utils/formatBytes";
 import { formatDate } from "../utils/formatDate";
 import useFetch from "../hooks/useFetch";
 import { useToast } from "../context/ToastContext";
+import useAuth from "../hooks/useAuth";
 import ShareModal from "../components/drive/ShareModal";
 import {
   fetchDriveFile,
@@ -30,6 +31,7 @@ export default function DriveFilePage() {
   const { nodeId } = useParams();
   const navigate = useNavigate();
   const toast = useToast();
+  const { isAdmin } = useAuth();
   const { data, loading, error, errorStatus, errorDetails, reload } = useFetch(
     function () {
       return fetchDriveFile(nodeId);
@@ -97,7 +99,7 @@ export default function DriveFilePage() {
   const node = data.node;
   const access = data.access || {};
   const canPreview = node.canPreview !== false && access.canPreview !== false;
-  const canDownload = !!(node.canDownload || access.canDownload);
+  const canDownload = !!(isAdmin && (node.canDownload || access.canDownload));
   const isProtected = !!(node.protected || access.protected);
 
   if (isProtected && !canPreview) {

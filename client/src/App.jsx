@@ -54,6 +54,9 @@ const SavedNotesPage = lazy(function () {
 const ProfilePage = lazy(function () {
   return import("./pages/ProfilePage");
 });
+const AccessPage = lazy(function () {
+  return import("./pages/AccessPage");
+});
 const NotFoundPage = lazy(function () {
   return import("./pages/NotFoundPage");
 });
@@ -96,6 +99,9 @@ const AdminAnalyticsPage = lazy(function () {
 });
 const AdminViewHistoryPage = lazy(function () {
   return import("./pages/admin/AdminViewHistoryPage");
+});
+const AdminPaymentsPage = lazy(function () {
+  return import("./pages/admin/AdminPaymentsPage");
 });
 
 function SuspenseRoute({ children }) {
@@ -190,10 +196,26 @@ export default function App() {
         }
       />
       <Route
+        path="/access"
+        element={
+          <ProtectedRoute>
+            <SuspenseRoute><AccessPage /></SuspenseRoute>
+          </ProtectedRoute>
+        }
+      />
+      <Route
         path="/admin"
         element={
           <AdminRoute>
             <SuspenseRoute><AdminOverviewPage /></SuspenseRoute>
+          </AdminRoute>
+        }
+      />
+      <Route
+        path="/admin/payments"
+        element={
+          <AdminRoute>
+            <SuspenseRoute><AdminPaymentsPage /></SuspenseRoute>
           </AdminRoute>
         }
       />

@@ -1,6 +1,7 @@
 const express = require("express");
 const multer = require("multer");
 const adminController = require("../controllers/adminController");
+const paymentController = require("../controllers/paymentController");
 const authenticate = require("../middleware/authenticate");
 const authorize = require("../middleware/authorize");
 const validate = require("../middleware/validate");
@@ -96,5 +97,11 @@ router.delete(
   validate,
   adminController.deleteUser
 );
+
+router.get("/payments", paymentController.adminList);
+router.get("/payments/:id", paymentController.adminGet);
+router.get("/payments/:id/screenshot", paymentController.adminScreenshot);
+router.post("/payments/:id/approve", paymentController.adminApprove);
+router.post("/payments/:id/reject", paymentController.adminReject);
 
 module.exports = router;

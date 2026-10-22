@@ -8,6 +8,7 @@ const driveRoutes = require('./driveRoutes');
 const savedRoutes = require('./savedRoutes');
 const searchRoutes = require('./searchRoutes');
 const adminRoutes = require('./adminRoutes');
+const paymentRoutes = require('./paymentRoutes');
 
 const router = express.Router();
 
@@ -18,6 +19,7 @@ router.use('/users', userRoutes);
 // intercepted by the global `authenticate` middleware in the note/year/search
 // routers (which are path-agnostic inside their own mount).
 router.use('/', driveRoutes);
+router.use('/', paymentRoutes);
 router.use('/', yearRoutes);
 router.use('/', noteRoutes);
 router.use('/saved', savedRoutes);

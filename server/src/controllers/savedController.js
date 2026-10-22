@@ -2,9 +2,36 @@ const savedNoteModel = require('../models/savedNoteModel');
 const savedFileModel = require('../models/savedFileModel');
 const noteModel = require('../models/noteModel');
 const driveNodeModel = require('../models/driveNodeModel');
+const materialGate = require('../services/materialGateService');
 const asyncHandler = require('../middleware/asyncHandler');
 const ApiResponse = require('../utils/ApiResponse');
 const ApiError = require('../utils/ApiError');
+
+async function decorateNotes(user, notes) {
+  const rows = notes || [];
+  for (let i = 0; i < rows.length; i++) {
+    const decision = await materialGate.authorizeNote(user, rows[i]);
+    rows[i].protected = decision.protected;
+    rows[i].canPreview = decision.canPreview;
+    rows[i].canDownload = decision.canDownload;
+    rows[i].accessCode = decision.code || null;
+  }
+  return rows;
+}
+
+async function decorateFiles(user, files) {
+  const rows = files || [];
+  for (let i = 0; i < rows.length; i++) {
+    const raw = await driveNodeModel.findFileById(rows[i].driveId);
+    if (!raw) continue;
+    const decision = await materialGate.authorizeDriveNode(user, raw);
+    rows[i].protected = decision.protected;
+    rows[i].canPreview = decision.canPreview;
+    rows[i].canDownload = decision.canDownload;
+    rows[i].accessCode = decision.code || null;
+  }
+  return rows;
+}
 
 module.exports = {
   list: asyncHandler(async function (req, res) {
@@ -12,6 +39,8 @@ module.exports = {
       savedNoteModel.findByUser(req.user.id),
       savedFileModel.findByUser(req.user.id),
     ]);
+    await decorateNotes(req.user, notes);
+    await decorateFiles(req.user, files);
     return ApiResponse.ok(res, { notes: notes, files: files });
   }),
 

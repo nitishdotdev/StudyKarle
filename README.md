@@ -22,7 +22,8 @@ StudyKarle solves one problem: students waste time hunting for reliable study ma
 - **Library dashboard** — the Dashboard is a live mirror of the root of the content library, showing real folders and files exactly as they exist
 - **Folder/file browsing** — navigate the full content tree at any depth; folders and files are addressed by stable node IDs, so navigation and "Back" always work correctly
 - **Search** — full-text search across notes, subjects, and topics with debounced, paginated results
-- **PDF preview & download** — fast, range-request streaming with caching, so large PDFs load page-by-page
+- **PDF preview & download** — fast, range-request streaming with caching, so large PDFs load page-by-page. Year 1 and Year 2 files are preview-only for paying students
+- **Semester access** — students pay a fixed ₹9 (UPI) for Year 1 and Year 2 materials until the configured semester end date; access starts only after admin approval
 - **Saved files** — bookmark files for later and manage them from the Saved page
 - **Accounts & security** — email-OTP signup, secure login, profile management, and password change
 
@@ -33,6 +34,7 @@ StudyKarle solves one problem: students waste time hunting for reliable study ma
 - **Notes management** — upload (single or bulk), edit, and delete notes
 - **Subject management** — create and organize subjects
 - **User management** — manage users and roles
+- **Payment review** — approve or reject ₹9 semester-access screenshots (`/admin/payments`)
 - **Analytics & view history** — monitor activity and recently viewed materials
 
 ## Tech Stack
@@ -116,6 +118,9 @@ cp client/.env.example client/.env
 | `OTP_IP_RATE_LIMIT_WINDOW_MS`, `OTP_IP_RATE_LIMIT_MAX` | OTP sends per IP (default 20 / hour) |
 | `SESSION_RATE_LIMIT_WINDOW_MS`, `SESSION_RATE_LIMIT_MAX` | `GET /api/auth/me` (default 120 / 60 s, cookie-hash or IP) |
 | `TRUST_PROXY_HOPS` | Trusted proxy hops for `req.ip` (default 1; raise only after proxy-diag) |
+| `PAYMENT_UPI_ID` | UPI ID shown at checkout (placeholder only in git; never commit a real ID) |
+| `PAYMENT_PAYEE_NAME` | Payee name on the UPI QR (default StudyKarle) |
+| `PAYMENT_ACCESS_ENDS_AT` | ISO-8601 instant when current-semester access expires. Checkout fails closed if missing, invalid, or past. Amount is always ₹9 in code and cannot be overridden. |
 
 **`client/.env`**
 

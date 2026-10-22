@@ -1,5 +1,5 @@
 import React, { lazy, Suspense, useEffect, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { Navigate, useNavigate, useParams } from "react-router-dom";
 import AppShell from "../components/layout/AppShell";
 import Button from "../components/common/Button";
 import Skeleton from "../components/common/Skeleton";
@@ -12,6 +12,7 @@ import useFetch from "../hooks/useFetch";
 import { fetchNote, downloadNoteFile } from "../api/notesApi";
 import { saveNote, unsaveNote } from "../api/savedApi";
 import { useToast } from "../context/ToastContext";
+import { paymentAccessPath, paymentAccessPathFromError } from "../utils/paymentRedirect";
 
 // pdf.js is heavy — only load it on this page, and only once the user is
 // actually looking at the note preview (the PDF itself starts loading
@@ -28,6 +29,8 @@ export default function NotePreviewPage() {
     data: note,
     loading,
     error,
+    errorStatus,
+    errorDetails,
     reload,
   } = useFetch(
     function () {
@@ -71,6 +74,10 @@ export default function NotePreviewPage() {
         toast.success("Downloading " + (result.filename || "file"));
       })
       .catch(function (err) {
+        if (err.status === 402) {
+          navigate(paymentAccessPathFromError(err), { replace: true });
+          return;
+        }
         toast.error(err.message);
       })
       .finally(function () {
@@ -88,6 +95,23 @@ export default function NotePreviewPage() {
       navigator.clipboard.writeText(shareUrl);
       toast.success("Link copied to clipboard");
     }
+  }
+
+  if (errorStatus === 402) {
+    return (
+      <Navigate
+        to={paymentAccessPathFromError({ status: errorStatus, details: errorDetails })}
+        replace
+      />
+    );
+  }
+
+  const canDownload = note ? !!note.canDownload : false;
+  const isProtected = note ? !!note.protected : false;
+  const canPreview = note ? note.canPreview !== false : true;
+
+  if (note && isProtected && !canPreview) {
+    return <Navigate to={paymentAccessPath(note.accessCode)} replace />;
   }
 
   return (
@@ -131,15 +155,17 @@ export default function NotePreviewPage() {
           ) : null}
         </div>
         <div className="flex flex-wrap gap-3 w-full md:w-auto">
-          <Button
-            variant="secondary"
-            icon="share"
-            onClick={handleShare}
-            disabled={!note}
-            className="flex-1 md:flex-none"
-          >
-            Share
-          </Button>
+          {!isProtected ? (
+            <Button
+              variant="secondary"
+              icon="share"
+              onClick={handleShare}
+              disabled={!note}
+              className="flex-1 md:flex-none"
+            >
+              Share
+            </Button>
+          ) : null}
           <Button
             variant="secondary"
             icon="bookmark"
@@ -150,15 +176,17 @@ export default function NotePreviewPage() {
           >
             {saved ? "Saved" : "Save"}
           </Button>
-          <Button
-            icon="download"
-            onClick={handleDownload}
-            loading={downloadBusy}
-            disabled={!note}
-            className="w-full md:w-auto"
-          >
-            Download
-          </Button>
+          {canDownload ? (
+            <Button
+              icon="download"
+              onClick={handleDownload}
+              loading={downloadBusy}
+              disabled={!note}
+              className="w-full md:w-auto"
+            >
+              Download
+            </Button>
+          ) : null}
         </div>
       </div>
 
@@ -169,7 +197,13 @@ export default function NotePreviewPage() {
           {/* min-w-0 prevents the grid column from refusing to shrink on mobile */}
           <div className="xl:col-span-8 min-w-0">
             <Suspense fallback={<PageLoader label="Loading PDF viewer..." />}>
-              <PdfPreview noteId={noteId} title={note ? note.title : "Note"} />
+              <PdfPreview
+                noteId={noteId}
+                title={note ? note.title : "Note"}
+                onAccessDenied={function (err) {
+                  navigate(paymentAccessPathFromError(err), { replace: true });
+                }}
+              />
             </Suspense>
           </div>
 

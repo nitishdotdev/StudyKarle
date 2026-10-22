@@ -89,7 +89,7 @@ if [[ -f "$MARKER" ]]; then
   fi
 
   if grep -qE '^[[:space:]]*server[[:space:]]*=' "$MARKER"; then
-    fail ".ai-memory.toml contains a server key — do not commit a profile name"
+    fail ".ai-memory.toml has a server key — remove it (register the profile locally)"
   else
     pass ".ai-memory.toml has no server key"
   fi

@@ -3,151 +3,115 @@
 Each entry records a significant decision, the context behind it, alternatives considered,
 and the outcome. Mark entries `[CURRENT]`, `[SUPERSEDED]`, or `[UNVERIFIED]`.
 
+Do not invent historical reasoning from the mere existence of code.
+
 ---
 
-## D-006 — Committed `.ai-memory.toml` must not contain `server` [CURRENT]
+## D-006 — Keep ai-memory pin at 2.0.2 until an owner-approved first deploy [CURRENT]
 
 **Date**: 2026-10-21
 
 **Context**:
-Official marker docs allow `server = "<profile-name>"` so hooks route capture to a
-locally registered profile. That profile exists only on machines where
-`ai-memory server add` has been run. MonkeyCode, fresh cloud containers, and
-teammate checkouts do not have that profile. A committed `server` key fail-closes
-hooks on those machines (unknown profile → no capture, no handoff).
+PR #21 pinned `akitaonrails/ai-memory:2.0.2`. Upstream latest at audit time is
+`v3.1.2`. 3.0 is a major release: schema migrations V77–V80, removal of 1.x
+user-token commands, forward-only data directories
+(https://github.com/akitaonrails/ai-memory/blob/main/docs/upgrading-to-3.0.md).
+No remote service is deployed yet, so this would be a first install, not an
+in-place upgrade.
 
 **Decision**:
-Keep the committed marker to `workspace` + `project` + `[capture].ignore_paths`.
-Register `studykarle-memory` per environment; do not commit `server`.
-
-**Alternatives considered**:
-- Commit `server = "studykarle-memory"` after owner deploys (rejected: breaks
-  environments that have not registered the profile; SETUP originally recommended this)
-- Per-checkout untracked overlay (unnecessary if hooks use the install-default server)
+Leave the repository pin at **2.0.2**. Do not retag Compose or install scripts
+to 3.x without an explicit owner choice. Document that a greenfield deploy
+may start on 3.1.2 instead; that is an owner action.
 
 **Reason**:
-Layer A must work in any clone. Profile routing is machine-local.
+Changing the pin without a live compatibility test would mix unproven 3.x
+server/client/hook behavior into docs that currently describe 2.0.2 artifacts.
 
-**Verification**: Official `docs/marker-file.md` — marker can only choose among
-servers the operator registered; unknown profile fail-closes.
+**Evidence**: `deploy/ai-memory/docker-compose.yml`; GitHub releases for
+v2.0.2 (2026-09-03) and v3.1.2 (2026-10-20).
+
+---
+
+## D-002 — Auth cookie flags and Vercel `/api` rewrite [CURRENT]
+
+**Date**: [code inspected 2026-10-21; original change date not in this shallow clone]
+
+**Context**:
+The browser origin is Vercel (`www.studykarle.me`); the API host is Render.
+`client/vercel.json` rewrites `/api/*` to the Render backend so the browser
+treats API calls as same-origin.
+
+**Decision (current code)**:
+- Production auth cookie: `SameSite=None; Secure; Partitioned`
+  (`server/src/services/tokenService.js`).
+- Non-production auth cookie: `SameSite=Lax`.
+- CSRF cookie uses the same production `none` / non-production `lax` split.
+
+**Supersedes**: the earlier memory claim that production used `sameSite: lax`
+and that `sameSite: none` had been rejected.
+
+**Verification**: current `tokenService.js` and `csrfProtection.js`. Why the
+code moved from whatever came before is **not** recorded in this shallow
+history (`git rev-list --count HEAD` is 1).
 
 ---
 
 ## D-001 — Drive sync: flexible `drive_nodes` table [CURRENT]
 
-**Date**: 2026-08-08 (migration `20260808000001_create_drive_sync_tables.js`)
+**Date**: [UNVERIFIED — this checkout is a shallow clone of the merge commit]
 
 **Context**:
-The original architecture used a rigid four-level folder hierarchy for Google Drive sync.
-This broke when content had more or fewer nesting levels than expected.
+The library UI mirrors Google Drive. A fixed-depth academic hierarchy cannot
+represent arbitrary Drive trees.
 
 **Decision**:
-Replace the rigid hierarchy with a flexible `drive_nodes` table that supports arbitrary
-nesting depth using a parent-child adjacency model (`parent_drive_id`).
+Store the tree in `drive_nodes` with parent-child `parent_drive_id` and
+**unique `drive_id`**. No fixed depth.
 
-**Alternatives considered**:
-- Normalize to four levels by truncating/expanding paths (rejected: data loss, complexity)
-- Nested set model (rejected: expensive updates on large trees)
+**Verification**:
+`server/src/db/migrations/20260808000001_create_drive_sync_tables.js`.
+Root `README.md` describes the same model.
 
-**Reason**:
-Eliminates structural assumptions about Drive folder depth; accommodates any user's
-real Drive organization.
-
-**Trade-offs**:
-- Recursive queries needed for tree traversal (handle with CTEs or application-level recursion)
-- Slightly more complex migration from the old schema
-
-**Verification**: Confirmed in `server/src/db/migrations/20260808000001_create_drive_sync_tables.js`
-and `README.md` architecture section.
+**Not verified here**: the narrative that a four-level schema was rewritten
+in a specific incident. That story is consistent with comments in the
+migration (`units` dropped `(subject_id, name)` uniqueness) but the old
+production incident itself is not in this git history.
 
 ---
 
-## D-002 — Cookie auth: production CHIPS cookies + Vercel `/api` rewrite [CURRENT]
+## D-003 — PDF preview: `react-pdf` / `pdfjs-dist` canvas [CURRENT]
 
-**Date**: verified 2026-10-21 in `server/src/services/tokenService.js`
+**Date**: [UNVERIFIED]
 
 **Context**:
-The SPA is on Vercel (`www.studykarle.me`) and the API is on Render
-(`studykarle-backend.onrender.com`). Cross-site cookies are blocked unless they
-are `SameSite=None; Secure` and, under CHIPS, `Partitioned`. An earlier note that
-production cookies are Lax-only is wrong.
+iframe + blob URLs fail on some mobile browsers.
 
 **Decision**:
-- Production auth and CSRF cookies: `SameSite=None; Secure; Partitioned`
-- Local cookies: `SameSite=Lax`
-- `client/vercel.json` rewrites `/api/*` to the Render backend so relative `/api`
-  calls can stay on the frontend origin when `VITE_API_URL` is unset
+Render with `react-pdf` (`Document` / `Page`) and a `pdfjs-dist` 3.11 worker
+at `/pdf.worker.min.js`. No iframe in `client/src`.
 
-**Alternatives considered**:
-- Switch to token-based auth (JWT in localStorage) — rejected: scope too large, XSS risk
-- Production `SameSite=Lax` only — rejected: Lax cookies are not sent on cross-site
-  XHR/fetch to the Render host
-- Serve API on Vercel serverless — rejected: Express + Drive + Postgres is a long-running Node service
-
-**Reason**:
-Preserves HTTP-only cookie sessions across two production hosts; CHIPS `Partitioned`
-is required as third-party cookies are phased out.
-
-**Trade-offs**:
-Removing `Partitioned`, `Secure`, or the Vercel rewrite can silently break mobile /
-incognito / Chrome auth.
-
-**Verification**: `server/src/services/tokenService.js`, `server/src/middleware/csrfProtection.js`,
-`client/vercel.json`.
+**Verification**: `client/src/components/notes/PdfPreview.jsx`,
+`client/package.json`.
 
 ---
 
-## D-003 — PDF preview: `pdfjs-dist` canvas renderer [CURRENT]
+## D-004 — Drive node identity is Drive id, not folder name [CURRENT]
 
-**Date**: [UNVERIFIED exact commit — present in `client/package.json`]
-
-**Context**:
-The original PDF preview used `<iframe src="blob:...">` URLs. This approach fails on
-mobile Safari and some other mobile browsers due to blob URL security restrictions.
-
-**Decision**:
-Replace the iframe with a `pdfjs-dist` / `react-pdf` canvas-based renderer that renders
-PDF pages directly onto HTML canvas elements.
-
-**Alternatives considered**:
-- Direct `<iframe src="https://drive.google.com/...">` — rejected: requires public Drive
-  links; breaks with private files
-- Google Docs viewer embed — rejected: same public link requirement
-
-**Reason**:
-Works on mobile; works with authenticated Drive URLs; avoids blob URL restrictions.
-
-**Trade-offs**:
-- Larger bundle size due to `pdfjs-dist`
-- Canvas rendering is slightly more complex to implement scroll/zoom
-
-**Verification**: `client/package.json` depends on `pdfjs-dist` and `react-pdf`.
-
----
-
-## D-004 — Drive sync: uniqueness by Drive id, not folder name [CURRENT]
-
-**Date**: 2026-08-08 (migration `20260808000001_create_drive_sync_tables.js`)
+**Date**: [UNVERIFIED]
 
 **Context**:
-The Drive sync process crashed when it encountered folders with the same name under
-different parent nodes. A DB constraint was violated because uniqueness was on name.
+Earlier memory claimed a uniqueness fix on `(name, parent_id)`.
 
-**Decision**:
-`drive_nodes.drive_id` is unique. Duplicate folder names under different parents are
-distinct nodes. Units dropped `(subject_id, name)` uniqueness in favor of Drive folder id.
+**Decision (current schema)**:
+`drive_nodes.drive_id` is unique. `name` is not unique. Duplicate names under
+different parents are distinct nodes because they have different Drive ids.
 
-**Alternatives considered**:
-- Rename duplicate folders during sync (rejected: modifies Drive data)
-- Skip duplicates silently (rejected: data loss)
-- Unique on `(name, parent_id)` only (weaker than Drive id; names can still collide on moves)
+**Verification**: `20260808000001_create_drive_sync_tables.js` — unique on
+`drive_id` only. There is **no** unique constraint on `(name, parent_drive_id)`.
 
-**Reason**:
-Drive file ids are the stable identity. Real Drive folders can share names at different paths.
-
-**Trade-offs**: None material.
-
-**Verification**: `drive_nodes.drive_id` unique in `20260808000001_create_drive_sync_tables.js`.
+The `(name, parent_id)` wording is therefore **not** the current schema.
+Whether an older table used name uniqueness is not evidenced in this clone.
 
 ---
 
@@ -156,36 +120,23 @@ Drive file ids are the stable identity. Real Drive folders can share names at di
 **Date**: 2026-10-21
 
 **Context**:
-Development happens across Claude Code, Codex, and MonkeyCode in ephemeral cloud workspaces.
-Each session loses all context from previous sessions.
+Work happens in Claude Code, Codex, and MonkeyCode. Sessions are ephemeral.
 
 **Decision**:
-Implement three layers:
-- **Layer A** (GitHub-native): `docs/ai-memory/` markdown files committed to the repo.
-  Always available; no external dependency.
-- **Layer B** (remote service): `akitaonrails/ai-memory` v2.0.2 Docker image on a persistent
-  container host (Render.com recommended). Provides automated capture and cross-agent handoffs.
-  Not Vercel serverless (no persistent filesystem).
-- **Layer C** (agent integrations): `CLAUDE.md` + `AGENTS.md` routing blocks; MCP registration;
-  lifecycle hooks for Claude Code and Codex. MonkeyCode stays on Layer A until MCP is proven.
+- **Layer A** (GitHub-native, **authoritative**): `docs/ai-memory/`.
+- **Layer B** (optional remote): `akitaonrails/ai-memory` v2.0.2 on a
+  persistent host. Not deployed.
+- **Layer C**: `CLAUDE.md` + `AGENTS.md` protocol. MCP/hooks only where the
+  agent actually supports them.
 
-**Alternatives considered**:
-- Manual copy-paste of context between sessions (rejected: error-prone, tedious)
-- Vercel serverless for the memory service (rejected: no persistent filesystem)
-- Embedding memory service inside StudyKarle's API (rejected: couples dev tooling to
-  production app; memory failure could affect users)
-
-**Reason**:
-Layer A always works in fresh containers. Layer B gives automated capture when deployed.
-Layer C wires each agent to the same scope without requiring a local machine.
+Remote summaries must not overwrite Layer A. If remote is down, say so and
+use Layer A.
 
 **Trade-offs**:
-- Layer B requires a separate persistent container host and one-time manual setup by the owner.
-- MonkeyCode is not in ai-memory's support matrix; it falls back to Layer A only.
-
-**Verification**: Architecture implemented in-repo (`d96ff40` / PR #21); remote service
-deployment still requires owner action. See `SETUP.md` → Owner-only checklist.
+- Layer B needs owner hosting and tokens.
+- MonkeyCode is not in the upstream support matrix; this runtime has no
+  `memory_*` MCP tools (see I-005).
 
 ---
 
-*Add new decisions above this line. Oldest entries at the bottom.*
+*Add new decisions above this line. Oldest entries toward the bottom.*

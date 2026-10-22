@@ -11,15 +11,13 @@
 # Register the remote server profile locally via:
 #   ai-memory server add studykarle-memory --url <URL> --root <checkout-dir> --auth-token-stdin
 #
-# Official lookup is `.ai-memory.toml` only. Do not add a second `ai-memory.toml`.
+# [capture] accepts only ignore_paths. Unknown keys invalidate the section.
+# `**/` matches one or more directories (not zero). List root and nested forms.
 
 workspace = "nitishdotdev"
 project   = "StudyKarle"
 
 [capture]
-# Drop sensitive files before they reach memory storage.
-# The [capture] section is strict: unknown keys invalidate the whole section.
-# `**/x` does not match a root-level `x` — list both forms when both matter.
 ignore_paths = [
   ".env",
   "**/.env",
@@ -27,11 +25,24 @@ ignore_paths = [
   "**/.env.*",
   "*.env",
   "**/*.env",
+  "client/.env",
+  "server/.env",
+  "deploy/ai-memory/.env",
   "**/secrets/**",
+  "secrets/**",
   "**/.secrets/**",
+  ".secrets/**",
+  "**/private/**",
+  "private/**",
+  "*.key",
   "**/*.key",
+  "*.pem",
   "**/*.pem",
+  "*.p8",
+  "**/*.p8",
+  "*.p12",
   "**/*.p12",
+  "*.pfx",
   "**/*.pfx",
   "id_rsa",
   "**/id_rsa",
@@ -39,27 +50,39 @@ ignore_paths = [
   "**/id_ed25519",
   "credentials.json",
   "**/credentials.json",
-  "client_secret*.json",
   "**/client_secret*.json",
-  "**/private/**",
-  # Build artefacts and caches
+  "**/service-account*.json",
+  "**/google-credentials*.json",
+  ".npmrc",
+  "**/.npmrc",
+  ".claude/mcp.json",
+  "**/.claude/mcp.json",
+  "node_modules/**",
   "**/node_modules/**",
+  "dist/**",
   "**/dist/**",
+  "build/**",
   "**/build/**",
+  ".next/**",
   "**/.next/**",
+  ".vite/**",
   "**/.vite/**",
+  ".turbo/**",
   "**/.turbo/**",
+  ".cache/**",
   "**/.cache/**",
+  "*.log",
   "**/*.log",
-  # Database dumps and user data
+  "*.sql",
   "**/*.sql",
+  "*.dump",
   "**/*.dump",
+  "*.db",
   "**/*.db",
+  "uploads/**",
   "**/uploads/**",
+  "tmp/**",
   "**/tmp/**",
-  # ai-memory's own data directory
   "deploy/ai-memory/data/**",
   "deploy/ai-memory/*.db",
-  # Local MCP config may hold a server URL; token must stay in env
-  ".claude/mcp.json",
 ]

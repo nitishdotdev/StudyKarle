@@ -3,37 +3,26 @@
 ## Project
 Full-stack study notes platform at https://www.studykarle.me
 
-**Stack**: React 18 + Vite 2 (JavaScript) in `client/`, Node.js / Express in
-`server/`, PostgreSQL via Neon (Knex migrations), Google Drive API for PDF
-storage. Frontend on Vercel; backend on Render
-(`https://studykarle-backend.onrender.com`).
+**Stack**: React 18 + Vite 2 (JavaScript/JSX, `client/`), Node.js / Express
+(`server/`), PostgreSQL via Knex, Google Drive API, Vercel frontend + Render backend.
+
+There is no root `package.json`. Neon is **not** referenced in application source.
 
 ## Key facts
-- Drive sync uses a flexible `drive_nodes` table (arbitrary nesting depth;
-  uniqueness is `drive_id`, not folder name).
-- PDF preview: `pdfjs-dist` / `react-pdf` canvas renderer (not iframe blob URLs).
-- Auth cookies: production `SameSite=None; Secure; Partitioned`; local
-  `SameSite=Lax`. Vercel rewrites `/api/*` to the Render backend.
-- CSRF: `X-Requested-With: XMLHttpRequest` plus signed double-submit
-  `csrf` cookie / `X-CSRF-Token` header.
-- Google Sign-In OAuth is distinct from Drive API credentials.
-  Production `GOOGLE_OAUTH_REDIRECT_URI` must be explicit HTTPS (no localhost
-  fallback). Linking uses `google_link_challenges`
-  (`20261013000001_create_google_link_challenges.js`).
+- Drive sync: `drive_nodes` with unique `drive_id` (arbitrary depth). Names are not unique.
+- PDF preview: `react-pdf` / `pdfjs-dist` canvas (`PdfPreview.jsx`), not iframe blob URLs.
+- Auth: JWT in HttpOnly cookie `studykarle_token`. Production `SameSite=None; Secure; Partitioned`; local `SameSite=Lax`. Vercel rewrites `/api/*` to Render.
 
-## Commands (no root package.json — run in `client/` or `server/`)
+## Commands (run in the package directory)
 ```bash
-# Frontend (client/)
-npm run dev
-npm run build
-npm run preview
-
-# Backend (server/)
-npm run dev
-npm start
-npm test
-npm run migrate
+cd server && npm run dev
+cd client && npm run dev
+cd server && npm test
+cd client && npm run build
+cd server && npm run migrate
 ```
+
+No root `npm run lint` / `npm test`. Client has no lint or test script.
 
 ## Boundaries
 - Do NOT modify auth, payments, user data, or production DB without explicit approval.
@@ -43,20 +32,25 @@ npm run migrate
 
 ## Memory protocol (ai-memory)
 
-Read `workspace = "nitishdotdev"` and `project = "StudyKarle"` from the root
-`.ai-memory.toml` marker. Do not add a `server` key to that committed marker.
+Read `workspace = "nitishdotdev"` and `project = "StudyKarle"` from `.ai-memory.toml`.
+Do not add a `server` key to that file.
 
-If the remote ai-memory server is configured and reachable:
+**MonkeyCode (this class of runtime)**: there are no `memory_*` MCP tools.
+Use Layer A only:
 
-1. **Session start**: call `memory_handoff_list` to retrieve the latest handoff before
-   reading files or writing code. Also call `memory_briefing` for structured project counts.
-2. **During work**: call `memory_query` before repeating a debugging approach.
-   Write significant findings (decisions, failed experiments, root causes) to memory.
-3. **Session end**: call `memory_handoff_begin` to create a cross-agent handoff.
+1. Session start: read `docs/ai-memory/HANDOFF.md` and `docs/ai-memory/KNOWN_ISSUES.md`.
+2. During work: read those files before repeating a debugging approach. Update them
+   when a finding should survive this session.
+3. Session end: update `docs/ai-memory/HANDOFF.md`. Do not claim remote memory ran.
 
-If the remote server is unavailable (MonkeyCode default until MCP is proven):
-- Read `docs/ai-memory/HANDOFF.md` and `docs/ai-memory/KNOWN_ISSUES.md` from the repository.
-- Update those files manually when the work affects future sessions.
-- Do not claim remote memory succeeded when it did not.
+**Claude Code / Codex** (only if MCP tools actually exist in *this* session):
 
-See `docs/ai-memory/` for full project context, architecture decisions, and issue history.
+1. Session start: `memory_handoff_list` then `memory_briefing`. If the call fails,
+   fall back to Layer A and say so.
+2. During work: `memory_query` before repeating an approach. Write significant findings.
+3. Session end: `memory_handoff_begin`. If the write fails, update `HANDOFF.md`.
+
+Never claim remote memory succeeded without a successful tool call.
+On conflict, trust current source and CI over any memory note.
+
+See `docs/ai-memory/` for architecture, decisions, and issue history.

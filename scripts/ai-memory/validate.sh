@@ -95,6 +95,15 @@ if [[ -f "$MARKER" ]]; then
   fi
 fi
 
+POINTER="${REPO_ROOT}/ai-memory.toml"
+if [[ -f "$POINTER" ]]; then
+  if grep -qE '^[[:space:]]*(workspace|project|server)[[:space:]]*=' "$POINTER"; then
+    fail "ai-memory.toml must not declare workspace/project/server (official marker is .ai-memory.toml)"
+  else
+    pass "ai-memory.toml is a pointer, not a second marker"
+  fi
+fi
+
 # ── .gitignore validation ─────────────────────────────────────────────────────
 
 section ".gitignore coverage"

@@ -221,59 +221,70 @@ export default function ProfilePage() {
                   </Button>
                 </form>
               </div>
-
-              {profileData.user.has_password !== false ? (
-              <div className="bg-white rounded-xl shadow-sm border border-border-subtle p-8">
-                <h3 className="font-headline-md text-headline-md text-text-primary mb-6">
-                  Change Password
-                </h3>
-                <form
-                  className="space-y-stack-md"
-                  onSubmit={handlePasswordSubmit}
-                  noValidate
-                >
-                  <Input
-                    id="currentPassword"
-                    name="currentPassword"
-                    type="password"
-                    label="Current Password"
-                    value={pwForm.currentPassword}
-                    onChange={handlePwChange}
-                    error={pwErrors.currentPassword}
-                    autoComplete="current-password"
-                  />
-                  <Input
-                    id="newPassword"
-                    name="newPassword"
-                    type="password"
-                    label="New Password"
-                    value={pwForm.newPassword}
-                    onChange={handlePwChange}
-                    error={pwErrors.newPassword}
-                    autoComplete="new-password"
-                  />
-                  <Button
-                    type="submit"
-                    variant="secondary"
-                    loading={savingPassword}
-                  >
-                    Update Password
-                  </Button>
-                </form>
-              </div>
-              ) : (
-              <div className="bg-white rounded-xl shadow-sm border border-border-subtle p-8">
-                <h3 className="font-headline-md text-headline-md text-text-primary mb-2">
-                  Password
-                </h3>
-                <p className="text-body-sm text-text-secondary">
-                  This account uses Google sign-in. Password recovery is not
-                  available for Google-only accounts.
-                </p>
-              </div>
-              )}
             </div>
           </div>
+
+          {profileData.user.has_password !== false ? (
+          <form
+            className="mt-gutter bg-white rounded-xl shadow-sm border border-border-subtle p-6 sm:p-8"
+            onSubmit={handlePasswordSubmit}
+            noValidate
+          >
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+              <div>
+                <h3 className="font-headline-md text-headline-md text-text-primary mb-1">
+                  Change Password
+                </h3>
+                <p className="text-body-sm text-text-secondary">
+                  Update the password you use to sign in.
+                </p>
+              </div>
+              <Button
+                type="submit"
+                variant="secondary"
+                size="md"
+                loading={savingPassword}
+                className="w-full sm:w-auto justify-center shrink-0"
+              >
+                Update Password
+              </Button>
+            </div>
+            <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <Input
+                id="currentPassword"
+                name="currentPassword"
+                type="password"
+                label="Current Password"
+                value={pwForm.currentPassword}
+                onChange={handlePwChange}
+                error={pwErrors.currentPassword}
+                autoComplete="current-password"
+              />
+              <Input
+                id="newPassword"
+                name="newPassword"
+                type="password"
+                label="New Password"
+                value={pwForm.newPassword}
+                onChange={handlePwChange}
+                error={pwErrors.newPassword}
+                autoComplete="new-password"
+              />
+            </div>
+          </form>
+          ) : (
+          <div className="mt-gutter bg-white rounded-xl shadow-sm border border-border-subtle p-6 sm:p-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div>
+              <h3 className="font-headline-md text-headline-md text-text-primary mb-1">
+                Password
+              </h3>
+              <p className="text-body-sm text-text-secondary">
+                This account uses Google sign-in. Password recovery is not
+                available for Google-only accounts.
+              </p>
+            </div>
+          </div>
+          )}
 
           <div className="mt-gutter bg-white rounded-xl shadow-sm border border-border-subtle p-6 sm:p-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div>

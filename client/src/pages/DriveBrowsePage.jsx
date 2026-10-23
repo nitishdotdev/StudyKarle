@@ -7,7 +7,7 @@ import ErrorState from "../components/common/ErrorState";
 import EmptyState from "../components/common/EmptyState";
 import NotFoundState from "../components/common/NotFoundState";
 import FolderGrid from "../components/drive/FolderGrid";
-import FileList from "../components/drive/FileList";
+import MaterialGrid from "../components/drive/MaterialGrid";
 import useFetch from "../hooks/useFetch";
 import { fetchDriveRoot, fetchDriveFolder } from "../api/driveApi";
 
@@ -133,7 +133,7 @@ export default function DriveBrowsePage() {
               <h3 className="font-headline-sm text-headline-sm text-text-primary mb-4">
                 Files
               </h3>
-              <FileList files={files} />
+              <MaterialGrid files={files} />
             </div>
           )}
         </div>

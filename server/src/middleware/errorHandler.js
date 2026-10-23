@@ -2,6 +2,13 @@ const env = require('../config/env');
 const logger = require('../utils/logger');
 
 module.exports = function errorHandler(err, req, res, next) {
+  if (err && err.code === "LIMIT_FILE_SIZE") {
+    return res.status(400).json({
+      success: false,
+      message: "Payment screenshot must be 5MB or smaller.",
+    });
+  }
+
   const statusCode = err.statusCode && err.statusCode >= 400 ? err.statusCode : 500;
   const isOperational = err.isOperational === true;
 

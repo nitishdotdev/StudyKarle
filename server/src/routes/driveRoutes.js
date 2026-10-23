@@ -37,6 +37,7 @@ router.use(authenticatedActionLimiter);
 router.get("/drive", driveController.listRoot);
 router.get("/drive/nodes/:nodeId", driveController.listFolder);
 router.get("/drive/files/:nodeId", driveController.getFile);
+router.get("/drive/files/:nodeId/thumbnail", driveController.thumbnail);
 router.get("/drive/files/:nodeId/preview", driveController.preview);
 router.get("/drive/files/:nodeId/download", driveController.download);
 

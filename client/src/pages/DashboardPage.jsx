@@ -2,7 +2,7 @@ import React from "react";
 import { Link } from "react-router-dom";
 import AppShell from "../components/layout/AppShell";
 import FolderGrid from "../components/drive/FolderGrid";
-import FileList from "../components/drive/FileList";
+import MaterialGrid from "../components/drive/MaterialGrid";
 import Skeleton from "../components/common/Skeleton";
 import ErrorState from "../components/common/ErrorState";
 import EmptyState from "../components/common/EmptyState";
@@ -137,7 +137,7 @@ export default function DashboardPage() {
                 <h3 className="font-headline-sm text-headline-sm text-text-primary mb-4">
                   Files
                 </h3>
-                <FileList files={files} />
+                <MaterialGrid files={files} />
               </div>
             )}
           </div>

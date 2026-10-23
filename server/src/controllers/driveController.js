@@ -20,6 +20,8 @@ const driveShareModel = require("../models/driveShareModel");
 const driveShareService = require("../services/driveShareService");
 const driveService = require("../services/driveService");
 const pdfActivityService = require("../services/pdfActivityService");
+const materialGate = require("../services/materialGateService");
+const thumbnailService = require("../services/thumbnailService");
 const asyncHandler = require("../middleware/asyncHandler");
 const ApiResponse = require("../utils/ApiResponse");
 const ApiError = require("../utils/ApiError");
@@ -27,22 +29,41 @@ const ApiError = require("../utils/ApiError");
 module.exports = {
   listRoot: asyncHandler(async function (req, res) {
     const data = await driveNodeService.listRoot();
+    await decorateListing(req.user, data);
     return ApiResponse.ok(res, data);
   }),
 
   listFolder: asyncHandler(async function (req, res) {
     const data = await driveNodeService.listFolder(req.params.nodeId);
+    await decorateListing(req.user, data);
     return ApiResponse.ok(res, data);
   }),
 
   getFile: asyncHandler(async function (req, res) {
-    await requireLibraryFile(req);
+    const node = await requireLibraryFile(req);
     const data = await driveNodeService.getFile(req.params.nodeId);
+    const decision = await materialGate.authorizeDriveNode(req.user, node);
+    data.access = toAccessView(decision);
+    if (data.node) {
+      data.node.protected = decision.protected;
+      data.node.canPreview = decision.canPreview;
+      data.node.canDownload = decision.canDownload;
+    }
     return ApiResponse.ok(res, data);
+  }),
+
+  thumbnail: asyncHandler(async function (req, res) {
+    const node = await requireLibraryFile(req);
+    const thumb = await thumbnailService.getThumbnail(node);
+    res.setHeader("Content-Type", thumb.mimeType);
+    res.setHeader("Cache-Control", "private, max-age=3600");
+    res.setHeader("Content-Disposition", "inline");
+    return res.status(200).end(thumb.bytes);
   }),
 
   preview: asyncHandler(async function (req, res) {
     const node = await requireLibraryFile(req);
+    await materialGate.assertDrivePreview(req.user, node);
     await streamFileNode(node, res, req, "inline");
     // Record AFTER the stream completes (or a cached 304 is served) so the
     // event reflects a real open. The service never rejects, so a logging
@@ -52,6 +73,7 @@ module.exports = {
 
   download: asyncHandler(async function (req, res) {
     const node = await requireLibraryFile(req);
+    await materialGate.assertDriveDownload(req.user, node);
     await streamFileNode(node, res, req, "attachment");
     // Only record once the download stream succeeded. If the Drive stream
     // throws, the error handler responds 500 and no download event is written.
@@ -76,10 +98,17 @@ module.exports = {
 
   createShare: asyncHandler(async function (req, res) {
     const node = await requireLibraryFile(req);
+    if (await materialGate.classifyDriveNode(node)) {
+      materialGate.denyProtectedShare();
+    }
 
     const permission = req.body && req.body.permission;
     if (permission !== undefined && ["preview", "download"].indexOf(permission) === -1) {
       throw ApiError.badRequest("permission must be 'preview' or 'download'");
+    }
+    const resolvedPermission = permission || "download";
+    if (req.user.role !== "admin" && resolvedPermission === "download") {
+      throw ApiError.forbidden("Students cannot create downloadable share links.");
     }
 
     let expiresInDays = null;
@@ -93,7 +122,7 @@ module.exports = {
     const share = await driveShareService.createShare({
       driveId: req.params.nodeId,
       createdBy: req.user.id,
-      permission: permission || "download",
+      permission: resolvedPermission,
       expiresInDays: expiresInDays,
     });
 
@@ -114,6 +143,9 @@ module.exports = {
     const permission = req.body && req.body.permission;
     if (permission !== undefined && ["preview", "download"].indexOf(permission) === -1) {
       throw ApiError.badRequest("permission must be 'preview' or 'download'");
+    }
+    if (permission === "download" && req.user.role !== "admin") {
+      throw ApiError.forbidden("Students cannot create downloadable share links.");
     }
 
     const patch = {};
@@ -150,6 +182,7 @@ module.exports = {
   getSharedFile: asyncHandler(async function (req, res) {
     const share = await driveShareService.resolveActiveToken(req.params.token);
     const node = await findFileOrThrow(share.drive_id);
+    await denyProtectedPublicShare(node);
     return ApiResponse.ok(res, {
       node: {
         nodeId: node.drive_id,
@@ -166,16 +199,13 @@ module.exports = {
   previewShared: asyncHandler(async function (req, res) {
     const share = await driveShareService.resolveActiveToken(req.params.token);
     const node = await findFileOrThrow(share.drive_id);
+    await denyProtectedPublicShare(node);
     return streamFileNode(node, res, req, "inline");
   }),
 
   downloadShared: asyncHandler(async function (req, res) {
-    const share = await driveShareService.resolveActiveToken(req.params.token);
-    if (share.permission !== "download") {
-      throw ApiError.forbidden("You are not authorized to access this resource");
-    }
-    const node = await findFileOrThrow(share.drive_id);
-    return streamFileNode(node, res, req, "attachment");
+    await driveShareService.resolveActiveToken(req.params.token);
+    throw ApiError.forbidden("Public share links cannot download files.");
   }),
 };
 
@@ -210,6 +240,44 @@ async function requireManageableShare(req) {
     req.user.id,
     isAdmin
   );
+}
+
+async function denyProtectedPublicShare(node) {
+  if (await materialGate.classifyDriveNode(node)) {
+    throw ApiError.notFound("Share link is invalid or has expired");
+  }
+}
+
+function toAccessView(decision) {
+  return {
+    protected: !!decision.protected,
+    canPreview: !!decision.canPreview,
+    canDownload: !!decision.canDownload,
+    code: decision.code || null,
+  };
+}
+
+async function decorateListing(user, data) {
+  const items = []
+    .concat(data.folders || [])
+    .concat(data.files || []);
+  for (let i = 0; i < items.length; i++) {
+    const item = items[i];
+    const raw = await driveNodeModel.findById(item.nodeId);
+    if (!raw) continue;
+    raw.ancestors = data.ancestors || [];
+    if (data.node) {
+      raw.ancestors = (data.ancestors || []).concat([
+        { name: data.node.name, nodeId: data.node.nodeId },
+      ]);
+    }
+    const decision = await materialGate.authorizeDriveNode(user, raw);
+    item.protected = decision.protected;
+    item.canPreview = decision.canPreview;
+    item.canDownload = decision.canDownload;
+    item.accessCode = decision.code || null;
+  }
+  return data;
 }
 
 async function findFileOrThrow(nodeId) {

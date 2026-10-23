@@ -12,6 +12,7 @@ There is no root `package.json`. Neon is **not** referenced in application sourc
 - Drive sync: `drive_nodes` with unique `drive_id` (arbitrary depth). Names are not unique.
 - PDF preview: `react-pdf` / `pdfjs-dist` canvas (`PdfPreview.jsx`), not iframe blob URLs.
 - Auth: JWT in HttpOnly cookie `studykarle_token`. Production `SameSite=None; Secure; Partitioned`; local `SameSite=Lax`. Vercel rewrites `/api/*` to Render.
+- Semester access: students pay a fixed ₹9 (not env-overridable) for Year 1/Year 2 after admin approval. Env: `PAYMENT_UPI_ID`, `PAYMENT_PAYEE_NAME`, `PAYMENT_ACCESS_ENDS_AT`. Protected student downloads/shares are blocked; 402 codes are `PAYMENT_REQUIRED` | `PAYMENT_PENDING` | `PAYMENT_REJECTED` | `PAYMENT_EXPIRED`.
 
 ## Commands (run in the package directory)
 ```bash

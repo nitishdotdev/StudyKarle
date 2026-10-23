@@ -15,6 +15,7 @@ export const SUBJECT_COLORS = {
 
 export const NAV_ITEMS = [
   { label: "Dashboard", icon: "dashboard", path: "/dashboard" },
+  { label: "Access", icon: "lock_open", path: "/access" },
   { label: "Search", icon: "search", path: "/search" },
   { label: "Saved", icon: "bookmark", path: "/saved" },
   { label: "Profile", icon: "person", path: "/profile" },
@@ -22,6 +23,7 @@ export const NAV_ITEMS = [
 
 export const ADMIN_NAV_ITEMS = [
   { label: "Overview", icon: "dashboard", path: "/admin" },
+  { label: "Payments", icon: "payments", path: "/admin/payments" },
   { label: "Upload Notes", icon: "cloud_upload", path: "/admin/upload" },
   { label: "All Notes", icon: "description", path: "/admin/notes" },
   { label: "Manage Subjects", icon: "category", path: "/admin/subjects" },

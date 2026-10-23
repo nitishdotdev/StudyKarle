@@ -4,6 +4,7 @@ import { formatBytes } from '../../utils/formatBytes';
 import { formatDate } from '../../utils/formatDate';
 import Button from '../common/Button';
 import { prefetchNote } from '../../api/notesApi';
+import { paymentAccessPath } from '../../utils/paymentRedirect';
 
 export default function NoteListItem({ note }) {
   return (
@@ -43,16 +44,20 @@ export default function NoteListItem({ note }) {
 
       <div className="shrink-0">
         <Link
-          to={'/notes/' + note.id}
+          to={
+            note.protected && !note.canPreview
+              ? paymentAccessPath(note.accessCode)
+              : "/notes/" + note.id
+          }
           onMouseEnter={function () {
-            prefetchNote(note.id);
+            if (!note.protected || note.canPreview) prefetchNote(note.id);
           }}
           onFocus={function () {
-            prefetchNote(note.id);
+            if (!note.protected || note.canPreview) prefetchNote(note.id);
           }}
         >
           <Button variant="primary" size="md">
-            Preview
+            {note.protected && !note.canPreview ? "Unlock" : "Preview"}
           </Button>
         </Link>
       </div>

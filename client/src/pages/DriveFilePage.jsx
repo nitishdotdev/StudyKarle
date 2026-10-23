@@ -1,5 +1,5 @@
 import React, { lazy, Suspense, useEffect, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { Navigate, useNavigate, useParams } from "react-router-dom";
 import AppShell from "../components/layout/AppShell";
 import Button from "../components/common/Button";
 import Skeleton from "../components/common/Skeleton";
@@ -11,6 +11,7 @@ import { formatBytes } from "../utils/formatBytes";
 import { formatDate } from "../utils/formatDate";
 import useFetch from "../hooks/useFetch";
 import { useToast } from "../context/ToastContext";
+import useAuth from "../hooks/useAuth";
 import ShareModal from "../components/drive/ShareModal";
 import {
   fetchDriveFile,
@@ -20,6 +21,7 @@ import {
   saveDriveFile,
   unsaveDriveFile,
 } from "../api/driveApi";
+import { paymentAccessPath, paymentAccessPathFromError } from "../utils/paymentRedirect";
 
 const PdfPreview = lazy(function () {
   return import("../components/notes/PdfPreview");
@@ -29,7 +31,8 @@ export default function DriveFilePage() {
   const { nodeId } = useParams();
   const navigate = useNavigate();
   const toast = useToast();
-  const { data, loading, error, errorStatus, reload } = useFetch(
+  const { isAdmin } = useAuth();
+  const { data, loading, error, errorStatus, errorDetails, reload } = useFetch(
     function () {
       return fetchDriveFile(nodeId);
     },
@@ -76,6 +79,9 @@ export default function DriveFilePage() {
   }
 
   if (error) {
+    if (errorStatus === 402) {
+      return <Navigate to={paymentAccessPathFromError({ status: errorStatus, details: errorDetails })} replace />;
+    }
     if (errorStatus === 404) {
       return (
         <AppShell>
@@ -91,6 +97,19 @@ export default function DriveFilePage() {
   }
 
   const node = data.node;
+  const access = data.access || {};
+  const canPreview = node.canPreview !== false && access.canPreview !== false;
+  const canDownload = !!(isAdmin && (node.canDownload || access.canDownload));
+  const isProtected = !!(node.protected || access.protected);
+
+  if (isProtected && !canPreview) {
+    return (
+      <Navigate
+        to={paymentAccessPath(node.accessCode || access.code)}
+        replace
+      />
+    );
+  }
 
   function handleToggleSave() {
     setSavingBusy(true);
@@ -115,6 +134,10 @@ export default function DriveFilePage() {
         toast.success("Downloading " + (result.filename || "file"));
       })
       .catch(function (err) {
+        if (err.status === 402) {
+          navigate(paymentAccessPathFromError(err), { replace: true });
+          return;
+        }
         toast.error(err.message);
       })
       .finally(function () {
@@ -124,14 +147,16 @@ export default function DriveFilePage() {
 
   return (
     <AppShell>
-      <ShareModal
-        open={shareOpen}
-        onClose={function () {
-          setShareOpen(false);
-        }}
-        nodeId={nodeId}
-        fileName={node.name}
-      />
+      {!isProtected ? (
+        <ShareModal
+          open={shareOpen}
+          onClose={function () {
+            setShareOpen(false);
+          }}
+          nodeId={nodeId}
+          fileName={node.name}
+        />
+      ) : null}
       <div className="flex items-center gap-3 mb-4">
         <button
           type="button"
@@ -162,16 +187,18 @@ export default function DriveFilePage() {
           </div>
         </div>
         <div className="flex flex-wrap gap-3 w-full md:w-auto">
-          <Button
-            variant="secondary"
-            icon="share"
-            onClick={function () {
-              setShareOpen(true);
-            }}
-            className="flex-1 md:flex-none"
-          >
-            Share
-          </Button>
+          {!isProtected ? (
+            <Button
+              variant="secondary"
+              icon="share"
+              onClick={function () {
+                setShareOpen(true);
+              }}
+              className="flex-1 md:flex-none"
+            >
+              Share
+            </Button>
+          ) : null}
           <Button
             variant="secondary"
             icon="bookmark"
@@ -182,14 +209,16 @@ export default function DriveFilePage() {
           >
             {saved ? "Saved" : "Save"}
           </Button>
-          <Button
-            icon="download"
-            onClick={handleDownload}
-            loading={downloadBusy}
-            className="flex-1 md:flex-none"
-          >
-            Download
-          </Button>
+          {canDownload ? (
+            <Button
+              icon="download"
+              onClick={handleDownload}
+              loading={downloadBusy}
+              className="flex-1 md:flex-none"
+            >
+              Download
+            </Button>
+          ) : null}
         </div>
       </div>
 
@@ -201,6 +230,9 @@ export default function DriveFilePage() {
               title={node.name}
               previewUrl={getDrivePreviewUrl(nodeId)}
               fallbackUrl={"/drive/files/" + nodeId + "/preview"}
+              onAccessDenied={function (err) {
+                navigate(paymentAccessPathFromError(err), { replace: true });
+              }}
             />
           </Suspense>
         </div>

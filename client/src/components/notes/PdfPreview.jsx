@@ -62,7 +62,7 @@ const PdfPage = React.memo(function PdfPage({
   );
 });
 
-export default function PdfPreview({ noteId, title, previewUrl, fallbackUrl }) {
+export default function PdfPreview({ noteId, title, previewUrl, fallbackUrl, onAccessDenied }) {
   const [file, setFile] = useState(function () {
     return previewUrl || getPreviewUrl(noteId);
   });
@@ -212,14 +212,18 @@ export default function PdfPreview({ noteId, title, previewUrl, fallbackUrl }) {
             setNumPages(null);
             setFile({ data: new Uint8Array(res.data) });
           })
-          .catch(function () {
-            setError(err.message || 'Failed to load preview');
+          .catch(function (fallbackErr) {
+            if (fallbackErr && fallbackErr.status === 402 && onAccessDenied) {
+              onAccessDenied(fallbackErr);
+              return;
+            }
+            setError((fallbackErr && fallbackErr.message) || err.message || 'Failed to load preview');
           });
         return;
       }
       setError(err.message || 'Failed to render PDF');
     },
-    [noteId]
+    [noteId, fallbackUrl, onAccessDenied]
   );
 
   const handlePageRenderSuccess = useCallback(function (page) {

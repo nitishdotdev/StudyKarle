@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { formatBytes } from '../../utils/formatBytes';
 import { formatDate } from '../../utils/formatDate';
 import Button from '../common/Button';
+import { paymentAccessPath } from '../../utils/paymentRedirect';
 
 export default function SavedFileItem({ file }) {
   return (
@@ -37,9 +38,15 @@ export default function SavedFileItem({ file }) {
       </div>
 
       <div className="shrink-0">
-        <Link to={'/drive/file/' + encodeURIComponent(file.driveId)}>
+        <Link
+          to={
+            file.protected && !file.canPreview
+              ? paymentAccessPath(file.accessCode)
+              : "/drive/file/" + encodeURIComponent(file.driveId)
+          }
+        >
           <Button variant="primary" size="md">
-            Preview
+            {file.protected && !file.canPreview ? "Unlock" : "Preview"}
           </Button>
         </Link>
       </div>

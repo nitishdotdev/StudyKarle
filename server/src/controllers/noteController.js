@@ -2,6 +2,7 @@ const noteModel = require("../models/noteModel");
 const viewHistoryModel = require("../models/viewHistoryModel");
 const driveService = require("../services/driveService");
 const pdfActivityService = require("../services/pdfActivityService");
+const materialGate = require("../services/materialGateService");
 const asyncHandler = require("../middleware/asyncHandler");
 const ApiResponse = require("../utils/ApiResponse");
 const ApiError = require("../utils/ApiError");
@@ -12,14 +13,17 @@ module.exports = {
     if (!note || note.status !== "published") {
       throw ApiError.notFound("Note not found");
     }
+    const decision = await materialGate.authorizeNote(req.user, note);
+    note.protected = decision.protected;
+    note.canPreview = decision.canPreview;
+    note.canDownload = decision.canDownload;
+    note.accessCode = decision.code || null;
     return ApiResponse.ok(res, note);
   }),
 
   preview: asyncHandler(async function (req, res) {
-    const note = await noteModel.findRawById(req.params.noteId);
-    if (!note || note.status !== "published") {
-      throw ApiError.notFound("Note not found");
-    }
+    const note = await loadPublishedNote(req.params.noteId);
+    await materialGate.assertNotePreview(req.user, note);
 
     // Don't block the PDF stream on the view-history write.
     viewHistoryModel.record(req.user.id, note.id).catch(function () {});
@@ -51,10 +55,8 @@ module.exports = {
   }),
 
   download: asyncHandler(async function (req, res) {
-    const note = await noteModel.findRawById(req.params.noteId);
-    if (!note || note.status !== "published") {
-      throw ApiError.notFound("Note not found");
-    }
+    const note = await loadPublishedNote(req.params.noteId);
+    await materialGate.assertNoteDownload(req.user, note);
     const etag = '"' + note.drive_file_id + ":" + driveVersion(note) + '"';
     res.setHeader("Content-Type", "application/pdf");
     res.setHeader(
@@ -75,6 +77,15 @@ module.exports = {
     await pdfActivityService.recordDownload(req.user.id, "note", String(note.id), note.title);
   }),
 };
+
+async function loadPublishedNote(noteId) {
+  const note = await noteModel.findById(noteId);
+  if (!note || note.status !== "published") {
+    throw ApiError.notFound("Note not found");
+  }
+  const raw = await noteModel.findRawById(noteId);
+  return Object.assign({}, raw, note);
+}
 
 // Stable, content-aware version string used in the ETag.
 function driveVersion(note) {

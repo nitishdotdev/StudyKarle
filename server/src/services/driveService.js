@@ -121,6 +121,55 @@ module.exports = {
     return response.data.files || [];
   },
 
+  async getThumbnail(fileId) {
+    const drive = getDriveClient();
+    try {
+      const response = await drive.files.get(
+        {
+          fileId: fileId,
+          alt: "media",
+        },
+        {
+          responseType: "arraybuffer",
+          headers: { Range: "bytes=0-0" },
+        }
+      );
+      void response;
+    } catch (err) {
+      logger.error("Drive thumbnail range probe failed for " + fileId, err);
+    }
+
+    try {
+      const meta = await drive.files.get({
+        fileId: fileId,
+        fields: "thumbnailLink, hasThumbnail, mimeType",
+      });
+      const link = meta.data && meta.data.thumbnailLink;
+      if (link) {
+        const oauth2 = getAuth();
+        const token = await oauth2.getAccessToken();
+        const accessToken = token && token.token ? token.token : token;
+        const thumbUrl = String(link).replace(/=s\d+$/, "=s400");
+        const res = await fetch(thumbUrl, {
+          headers: accessToken
+            ? { Authorization: "Bearer " + accessToken }
+            : {},
+        });
+        if (res.ok) {
+          const arrayBuf = await res.arrayBuffer();
+          const mime =
+            res.headers.get("content-type") || "image/png";
+          if (String(mime).indexOf("image/") === 0) {
+            return { mimeType: mime, buffer: Buffer.from(arrayBuf) };
+          }
+        }
+      }
+    } catch (err) {
+      logger.error("Drive thumbnailLink fetch failed for " + fileId, err);
+    }
+    return null;
+  },
+
   async getFileMetadata(fileId) {
     const drive = getDriveClient();
     const response = await drive.files.get({

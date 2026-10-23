@@ -19,6 +19,7 @@ router.use(authenticatedActionLimiter);
 router.get("/payments/offer", paymentController.offer);
 router.get("/payments/access", paymentController.access);
 router.get("/payments/me", paymentController.me);
+router.get("/payments/checkout", authorize("student"), paymentController.previewCheckout);
 router.post("/payments/checkout", authorize("student"), paymentController.checkout);
 router.post("/payments/submit", authorize("student"), upload.single("screenshot"), paymentController.submit);
 router.get("/payments/:id", paymentController.getMine);

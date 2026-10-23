@@ -32,8 +32,14 @@ module.exports = {
     });
   }),
 
+  previewCheckout: asyncHandler(async function (req, res) {
+    const data = await paymentService.previewCheckout(req.user);
+    return ApiResponse.ok(res, data);
+  }),
+
   checkout: asyncHandler(async function (req, res) {
-    const data = await paymentService.checkout(req.user);
+    const requestedReference = req.body && req.body.paymentReference;
+    const data = await paymentService.checkout(req.user, requestedReference);
     if (data.reused || data.alreadyActive) {
       return ApiResponse.ok(res, data);
     }

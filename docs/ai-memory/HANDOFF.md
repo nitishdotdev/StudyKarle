@@ -8,43 +8,41 @@
 
 ## Current session status
 
-**Last updated**: 2026-10-22
-**Updated by**: MonkeyCode (feat/semester-payment-access PR)
-**Working branch**: `feat/semester-payment-access`
+**Last updated**: 2026-10-23
+**Updated by**: MonkeyCode (payment page layout, FAQ, checkout persist-on-complete)
+**Working branch**: local uncommitted changes on Access / payment checkout
 **Remote memory**: not configured (Layer A only)
 
 ---
 
 ## High-level objective
 
-Production-ready student-only ₹9 semester payment and Year 1/Year 2 material
-access. Backend and client wiring are complete on this branch.
+Payment-page UX: no draft checkout until "I have paid — complete setup",
+FAQ accordions, support footer, layout refresh.
 
 ---
 
 ## What was completed
 
-- Routes: `/access` (ProtectedRoute), `/admin/payments` (AdminRoute).
-- Nav: student Access, admin Payments.
-- Catalogue: `MaterialGrid` / `MaterialCard` on dashboard and browse.
-- 402 redirects on Drive/Note pages and PDF fallback; hide download/share on
-  protected student files.
-- Authenticated blob loading for Drive thumbnails and admin screenshots.
-- Search/saved APIs attach `protected` / `canPreview` / `canDownload`.
-- README + AGENTS payment env notes. Amount remains fixed ₹9 in code.
+- GET `/payments/checkout` previews UPI details without inserting a row.
+- POST `/payments/checkout` persists only on "I have paid — complete setup".
+- Offer page: removed end-date line and screenshot-disclaimer copy.
+- Offer FAQ accordion + pending "Payment problems?" accordion.
+- Subtle `@nitishdotdev` support footer on all access stages.
+- Layout: cards, spacing, single primary CTA.
 
 ## Verification
 
-- `cd server && npm test`: 215 pass, 0 fail.
+- `cd server && npm test`: 238 pass, 0 fail.
 - `cd client && npm run build`: success.
 - `git diff --check`: clean.
 - Do not merge or deploy from this session.
 
 ## Immediate next steps
 
-1. Owner reviews the PR (do not merge from agent session).
+1. Owner reviews uncommitted Access / checkout changes.
 2. Owner sets production `PAYMENT_UPI_ID`, `PAYMENT_PAYEE_NAME`,
-   `PAYMENT_ACCESS_ENDS_AT` (never commit real UPI). Run migration on deploy.
+   `PAYMENT_ACCESS_ENDS_AT` (never commit real UPI).
 
 ---
 

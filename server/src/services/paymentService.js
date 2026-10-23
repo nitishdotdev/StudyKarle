@@ -61,41 +61,95 @@ function requireAvailableConfig() {
   return cfg;
 }
 
-async function checkout(user) {
-  const cfg = requireAvailableConfig();
-  const state = await accessEntitlementService.getEntitlementState(user.id);
-  if (state.hasAccess) {
-    return {
-      alreadyActive: true,
-      hasAccess: true,
-      status: "approved",
-      endsAt: state.endsAt,
-      amountRupees: cfg.amountRupees,
-      paymentReference: state.payment ? state.payment.payment_reference : null,
-    };
-  }
+function alreadyActivePayload(cfg, state) {
+  return {
+    alreadyActive: true,
+    hasAccess: true,
+    persisted: true,
+    status: "approved",
+    endsAt: state.endsAt,
+    amountRupees: cfg.amountRupees,
+    paymentReference: state.payment ? state.payment.payment_reference : null,
+  };
+}
 
-  if (state.payment && state.payment.status === "pending") {
-    const upiUri = paymentConfig.buildUpiUri(cfg, state.payment.payment_reference);
-    return {
-      reused: true,
+async function checkoutPayload(cfg, reference, extras) {
+  const upiUri = paymentConfig.buildUpiUri(cfg, reference);
+  return Object.assign(
+    {
+      reused: false,
       hasAccess: false,
-      status: "pending",
+      persisted: false,
+      status: "unpaid",
       amountRupees: cfg.amountRupees,
       amountFormatted: cfg.amountFormatted,
       currency: cfg.currency,
       upiId: cfg.upiId,
       payeeName: cfg.payeeName,
-      paymentReference: state.payment.payment_reference,
+      paymentReference: reference,
       accessEndsAt: cfg.accessEndsAt,
       upiUri: upiUri,
       qrDataUrl: await qrDataUrl(upiUri),
       supportUrl: cfg.supportUrl,
-      submitted: !!(state.payment.submitted_at || state.payment.proof_size_bytes),
-    };
+      submitted: false,
+    },
+    extras || {}
+  );
+}
+
+function sanitizeReference(value) {
+  const ref = String(value || "").trim().toUpperCase();
+  if (!/^SK-[A-Z0-9]{4,16}$/.test(ref)) return null;
+  return ref;
+}
+
+async function pendingCheckoutPayload(cfg, payment) {
+  return checkoutPayload(cfg, payment.payment_reference, {
+    reused: true,
+    persisted: true,
+    status: "pending",
+    submitted: !!(payment.submitted_at || payment.proof_size_bytes),
+  });
+}
+
+async function previewCheckout(user) {
+  const cfg = requireAvailableConfig();
+  const state = await accessEntitlementService.getEntitlementState(user.id);
+  if (state.hasAccess) {
+    return alreadyActivePayload(cfg, state);
+  }
+  if (state.payment && state.payment.status === "pending") {
+    return pendingCheckoutPayload(cfg, state.payment);
+  }
+  const reference = await uniqueReference();
+  return checkoutPayload(cfg, reference, {
+    reused: false,
+    persisted: false,
+    status: "unpaid",
+    submitted: false,
+  });
+}
+
+async function checkout(user, requestedReference) {
+  const cfg = requireAvailableConfig();
+  const state = await accessEntitlementService.getEntitlementState(user.id);
+  if (state.hasAccess) {
+    return alreadyActivePayload(cfg, state);
   }
 
-  const reference = await uniqueReference();
+  if (state.payment && state.payment.status === "pending") {
+    return pendingCheckoutPayload(cfg, state.payment);
+  }
+
+  let reference = sanitizeReference(requestedReference);
+  if (reference) {
+    const existing = await paymentRequestModel.findByReference(reference);
+    if (existing) reference = null;
+  }
+  if (!reference) {
+    reference = await uniqueReference();
+  }
+
   await paymentRequestModel.create({
     user_id: user.id,
     payment_reference: reference,
@@ -106,23 +160,12 @@ async function checkout(user) {
     status: "pending",
   });
 
-  const upiUri = paymentConfig.buildUpiUri(cfg, reference);
-  return {
+  return checkoutPayload(cfg, reference, {
     reused: false,
-    hasAccess: false,
+    persisted: true,
     status: "pending",
-    amountRupees: cfg.amountRupees,
-    amountFormatted: cfg.amountFormatted,
-    currency: cfg.currency,
-    upiId: cfg.upiId,
-    payeeName: cfg.payeeName,
-    paymentReference: reference,
-    accessEndsAt: cfg.accessEndsAt,
-    upiUri: upiUri,
-    qrDataUrl: await qrDataUrl(upiUri),
-    supportUrl: cfg.supportUrl,
     submitted: false,
-  };
+  });
 }
 
 async function submitProof(user, file, utr) {
@@ -282,6 +325,7 @@ async function reject(adminUser, id, note) {
 }
 
 module.exports = {
+  previewCheckout,
   checkout,
   submitProof,
   listMine,

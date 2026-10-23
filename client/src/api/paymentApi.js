@@ -12,8 +12,15 @@ export function fetchPaymentAccess() {
   });
 }
 
-export function startCheckout() {
-  return axiosClient.post("/payments/checkout", {}).then(function (res) {
+export function previewCheckout() {
+  return axiosClient.get("/payments/checkout", { skipCache: true }).then(function (res) {
+    return res.data.data;
+  });
+}
+
+export function startCheckout(paymentReference) {
+  const body = paymentReference ? { paymentReference: paymentReference } : {};
+  return axiosClient.post("/payments/checkout", body).then(function (res) {
     return res.data.data;
   });
 }

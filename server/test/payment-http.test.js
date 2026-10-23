@@ -957,10 +957,39 @@ test("checkout returns a unique reference, ₹9 amount, and server UPI details",
   const data = res.json.data;
   assert.equal(data.amountRupees, 9);
   assert.equal(data.upiId, "studykarle@oksbi");
+  assert.equal(data.persisted, true);
   assert.ok(data.paymentReference);
   assert.ok(data.upiUri.indexOf("am=9.00") !== -1);
   assert.ok(data.upiUri.indexOf(data.paymentReference) !== -1);
   assert.ok(data.upiUri.indexOf("studykarle@oksbi") !== -1);
+});
+
+test("preview checkout does not save a payment request", async function () {
+  const student = await createStudent("Preview");
+  const res = await authedGet(student, "/api/payments/checkout");
+  assert.equal(res.status, 200);
+  const data = res.json.data;
+  assert.equal(data.persisted, false);
+  assert.equal(data.amountRupees, 9);
+  assert.ok(data.paymentReference);
+  assert.ok(data.upiUri.indexOf(data.paymentReference) !== -1);
+  assert.equal(paymentRequests.length, 0);
+});
+
+test("complete setup persists the previewed payment reference", async function () {
+  const student = await createStudent("Complete");
+  const preview = await authedGet(student, "/api/payments/checkout");
+  assert.equal(preview.status, 200);
+  assert.equal(paymentRequests.length, 0);
+  const ref = preview.json.data.paymentReference;
+  const saved = await mutating(student, "POST", "/api/payments/checkout", {
+    paymentReference: ref,
+  });
+  assert.equal(saved.status, 201);
+  assert.equal(saved.json.data.persisted, true);
+  assert.equal(saved.json.data.paymentReference, ref);
+  assert.equal(paymentRequests.length, 1);
+  assert.equal(paymentRequests[0].payment_reference, ref);
 });
 
 test("students can only read their own payment records", async function () {
@@ -1061,6 +1090,16 @@ test("repeated checkout while pending reuses the same payment reference", async 
     return r.user_id === student.id && r.status === "pending";
   });
   assert.equal(pending.length, 1);
+});
+
+test("preview checkout reuses a pending payment without creating another", async function () {
+  const student = await createStudent("PreviewPending");
+  const first = await mutating(student, "POST", "/api/payments/checkout", {});
+  const preview = await authedGet(student, "/api/payments/checkout");
+  assert.equal(preview.status, 200);
+  assert.equal(preview.json.data.persisted, true);
+  assert.equal(preview.json.data.paymentReference, first.json.data.paymentReference);
+  assert.equal(paymentRequests.length, 1);
 });
 
 test("thumbnail endpoint returns an image, not the original PDF", async function () {

@@ -1,4 +1,4 @@
-import React, { lazy, Suspense, useState } from "react";
+import React, { lazy, Suspense } from "react";
 import { useParams, Link } from "react-router-dom";
 import Button from "../components/common/Button";
 import Badge from "../components/common/Badge";
@@ -9,11 +9,9 @@ import PageLoader from "../components/common/PageLoader";
 import { formatBytes } from "../utils/formatBytes";
 import { formatDate } from "../utils/formatDate";
 import useFetch from "../hooks/useFetch";
-import { useToast } from "../context/ToastContext";
 import {
   fetchDriveShare,
   getDriveSharePreviewUrl,
-  downloadSharedDriveFile,
 } from "../api/driveApi";
 
 // Public share viewer. Access is gated by the cryptographically random share
@@ -25,8 +23,6 @@ const PdfPreview = lazy(function () {
 
 export default function DriveSharePage() {
   const { token } = useParams();
-  const toast = useToast();
-  const [downloadBusy, setDownloadBusy] = useState(false);
   const { data, loading, error, errorStatus } = useFetch(
     function () {
       return fetchDriveShare(token);
@@ -68,21 +64,6 @@ export default function DriveSharePage() {
   }
 
   const node = data.node;
-  const canDownload = data.permission === "download";
-
-  function handleDownload() {
-    setDownloadBusy(true);
-    downloadSharedDriveFile(token)
-      .then(function (result) {
-        toast.success("Downloading " + (result.filename || "file"));
-      })
-      .catch(function (err) {
-        toast.error(err.message);
-      })
-      .finally(function () {
-        setDownloadBusy(false);
-      });
-  }
 
   return (
     <div className="min-h-screen bg-background">
@@ -119,22 +100,12 @@ export default function DriveSharePage() {
             </h1>
             <div className="flex items-center gap-3 mt-2">
               <Badge variant="primary">PDF</Badge>
-              {!canDownload ? <Badge variant="neutral">Preview only</Badge> : null}
+              <Badge variant="neutral">Preview only</Badge>
             </div>
           </div>
-          {canDownload ? (
-            <Button
-              icon="download"
-              onClick={handleDownload}
-              loading={downloadBusy}
-            >
-              Download
-            </Button>
-          ) : (
-            <span className="text-body-sm text-text-muted">
-              Download disabled by the owner
-            </span>
-          )}
+          <span className="text-body-sm text-text-muted">
+            Downloads are disabled on shared links
+          </span>
         </div>
 
         <div className="grid grid-cols-1 xl:grid-cols-12 gap-8 items-start">

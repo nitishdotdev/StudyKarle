@@ -266,6 +266,12 @@ async function approve(adminUser, id) {
 async function reject(adminUser, id, note) {
   const row = await paymentRequestModel.findById(id);
   if (!row) throw ApiError.notFound("Payment not found");
+  if (row.status === "rejected") {
+    return { payment: row };
+  }
+  if (row.status !== "pending") {
+    throw ApiError.badRequest("Only pending payments can be rejected.");
+  }
   const updated = await paymentRequestModel.update(id, {
     status: "rejected",
     reviewed_at: new Date(),

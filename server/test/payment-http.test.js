@@ -221,8 +221,19 @@ const driveShareModel = {
   async findManageableByDriveId() {
     return [];
   },
-  async findManageableByDriveIdAndId() {
-    return null;
+  async findManageableByDriveIdAndId(driveId, shareId, userId, isAdmin) {
+    const row = shares.get("id:" + Number(shareId));
+    if (!row || row.drive_id !== driveId) return null;
+    if (!isAdmin && row.created_by !== userId) return null;
+    return row;
+  },
+  async update(id, data) {
+    const row = shares.get("id:" + Number(id));
+    if (!row) return null;
+    if (data.permission !== undefined) row.permission = data.permission;
+    if (data.expiresAt !== undefined) row.expires_at = data.expiresAt;
+    if (data.revokedAt !== undefined) row.revoked_at = data.revokedAt;
+    return row;
   },
 };
 
@@ -406,12 +417,19 @@ stubRel("services/driveShareService.js", {
   async createShare(opts) {
     const crypto = require("crypto");
     const token = crypto.randomBytes(16).toString("hex");
-    return driveShareModel.create({
+    const row = await driveShareModel.create({
       driveId: opts.driveId,
       token: token,
       permission: opts.permission || "download",
       createdBy: opts.createdBy,
     });
+    return {
+      shareId: row.id,
+      token: row.token,
+      permission: row.permission,
+      expiresAt: row.expires_at,
+      createdAt: row.created_at,
+    };
   },
   async resolveActiveToken(token) {
     const share = await driveShareModel.findByToken(token);
@@ -1229,6 +1247,83 @@ test("students cannot create downloadable share links that bypass the download b
   } else {
     assert.ok(created.status === 403 || created.status === 402);
   }
+});
+
+test("students cannot promote a preview share to download", async function () {
+  const student = await createStudent("SharePromote");
+  const created = await mutating(student, "POST", "/api/drive/files/y3-pdf/share", {
+    permission: "preview",
+  });
+  assert.equal(created.status, 201);
+  const shareId = created.json.data.shareId;
+  const token = created.json.data.token;
+  const updated = await mutating(
+    student,
+    "PATCH",
+    "/api/drive/files/y3-pdf/share/" + shareId,
+    { permission: "download" }
+  );
+  assert.equal(updated.status, 403);
+  const row = await driveShareModel.findByToken(token);
+  assert.equal(row.permission, "preview");
+});
+
+test("existing download-enabled share tokens cannot download files", async function () {
+  const admin = await createAdmin();
+  const created = await mutating(admin, "POST", "/api/drive/files/y3-pdf/share", {
+    permission: "download",
+  });
+  assert.equal(created.status, 201);
+  const token = created.json.data.token;
+  const download = await sendRequest("GET", "/api/drive/shares/" + token + "/download", {});
+  assert.notEqual(download.status, 200);
+  assert.equal(streamedFiles.length, 0);
+  const student = await createStudent("ShareViewer");
+  const asStudent = await authedGet(student, "/api/drive/shares/" + token + "/download");
+  assert.notEqual(asStudent.status, 200);
+  assert.equal(streamedFiles.length, 0);
+});
+
+test("admin direct downloads continue to work after public share download is blocked", async function () {
+  const admin = await createAdmin();
+  const created = await mutating(admin, "POST", "/api/drive/files/y3-pdf/share", {
+    permission: "download",
+  });
+  assert.equal(created.status, 201);
+  const token = created.json.data.token;
+  const publicDl = await sendRequest("GET", "/api/drive/shares/" + token + "/download", {});
+  assert.notEqual(publicDl.status, 200);
+  const direct = await authedGet(admin, "/api/drive/files/y3-pdf/download");
+  assert.equal(direct.status, 200);
+  assert.equal(streamedFiles[0], "y3-pdf");
+});
+
+test("rejecting an approved payment does not leave an active entitlement", async function () {
+  const student = await createStudent("RevokeAccess");
+  const admin = await createAdmin();
+  const pay = await paymentRequestModel.create({
+    user_id: student.id,
+    payment_reference: "SK-REVOKE",
+    amount_rupees: 9,
+    status: "pending",
+    proof_bytes: Buffer.from([0xff, 0xd8, 0xff, 0xe0]),
+    proof_mime_type: "image/jpeg",
+    proof_size_bytes: 4,
+    submitted_at: new Date(),
+  });
+  const approve = await mutating(admin, "POST", "/api/admin/payments/" + pay.id + "/approve", {});
+  assert.equal(approve.status, 200);
+  assert.ok(await semesterAccessModel.findByUserId(student.id));
+  const reject = await mutating(admin, "POST", "/api/admin/payments/" + pay.id + "/reject", {
+    note: "mistake",
+  });
+  assert.ok(reject.status === 400 || reject.status === 409);
+  const row = await paymentRequestModel.findById(pay.id);
+  assert.equal(row.status, "approved");
+  const ent = await semesterAccessModel.findByUserId(student.id);
+  assert.ok(ent);
+  const access = await authedGet(student, "/api/payments/access");
+  assert.equal(access.json.data.hasAccess, true);
 });
 
 test("access status for an approved student reports active entitlement", async function () {

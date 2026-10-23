@@ -144,6 +144,9 @@ module.exports = {
     if (permission !== undefined && ["preview", "download"].indexOf(permission) === -1) {
       throw ApiError.badRequest("permission must be 'preview' or 'download'");
     }
+    if (permission === "download" && req.user.role !== "admin") {
+      throw ApiError.forbidden("Students cannot create downloadable share links.");
+    }
 
     const patch = {};
     if (permission !== undefined) patch.permission = permission;
@@ -201,13 +204,8 @@ module.exports = {
   }),
 
   downloadShared: asyncHandler(async function (req, res) {
-    const share = await driveShareService.resolveActiveToken(req.params.token);
-    if (share.permission !== "download") {
-      throw ApiError.forbidden("You are not authorized to access this resource");
-    }
-    const node = await findFileOrThrow(share.drive_id);
-    await denyProtectedPublicShare(node);
-    return streamFileNode(node, res, req, "attachment");
+    await driveShareService.resolveActiveToken(req.params.token);
+    throw ApiError.forbidden("Public share links cannot download files.");
   }),
 };
 

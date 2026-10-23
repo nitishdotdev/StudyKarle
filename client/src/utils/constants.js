@@ -15,7 +15,6 @@ export const SUBJECT_COLORS = {
 
 export const NAV_ITEMS = [
   { label: "Dashboard", icon: "dashboard", path: "/dashboard" },
-  { label: "Access", icon: "lock_open", path: "/access" },
   { label: "Search", icon: "search", path: "/search" },
   { label: "Saved", icon: "bookmark", path: "/saved" },
   { label: "Profile", icon: "person", path: "/profile" },

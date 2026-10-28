@@ -290,6 +290,11 @@ stubRel("models/passwordResetAuthorizationModel.js", {
   consumeAllForUser: async () => 1,
 });
 stubRel("models/otpVerificationModel.js", {});
+stubRel("services/pdfActivityService.js", {
+  recordLogin: async function () {
+    return false;
+  },
+});
 stubRel("services/emailService.js", {
   sendEmail: async function (msg) {
     sentEmails.push(msg);

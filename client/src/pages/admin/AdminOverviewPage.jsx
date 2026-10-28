@@ -11,6 +11,7 @@ import { formatBytes } from '../../utils/formatBytes';
 import { formatRelativeTime, formatDateTime } from '../../utils/formatDate';
 import useFetch from '../../hooks/useFetch';
 import { useToast } from '../../context/ToastContext';
+import Badge from '../../components/common/Badge';
 import {
   fetchAdminStats,
   fetchDriveSyncStatus,
@@ -23,6 +24,10 @@ const ACTIVITY_VERBS = {
   pdf_downloaded: 'downloaded',
   pdf_shared: 'shared',
 };
+
+function activityDisplayName(activity) {
+  return activity.userName || activity.userEmail || 'Unknown user';
+}
 
 // The PDF title opens the same preview route normal users use — the stable
 // Drive node id (/drive/file/:nodeId) or the legacy note id (/notes/:noteId).
@@ -248,20 +253,45 @@ export default function AdminOverviewPage() {
               ) : (
                 <ul className="space-y-3">
                   {pdfActivity.map(function (activity) {
+                    const isLogin = activity.activityType === 'user_login';
                     const verb =
                       ACTIVITY_VERBS[activity.activityType] ||
                       activity.activityType;
+                    const when = formatDateTime(activity.createdAt);
                     return (
                       <li
                         key={activity.id}
                         className="text-body-sm text-text-secondary border-b border-border-subtle last:border-0 pb-3 last:pb-0"
                       >
-                        <span className="font-medium text-text-primary">
-                          {activity.userName || 'Unknown user'}
-                        </span>{' '}
-                        {verb} <ActivityPdfName item={activity} />
-                        <span className="block text-text-muted text-[12px] mt-0.5">
-                          {formatDateTime(activity.createdAt)}
+                        {isLogin ? (
+                          <div>
+                            <Badge variant="primary">User Login</Badge>
+                            <p className="mt-1.5">
+                              <span className="font-medium text-text-primary">
+                                {activityDisplayName(activity)}
+                              </span>{' '}
+                              logged in
+                              {activity.userName && activity.userEmail ? (
+                                <span className="text-text-muted">
+                                  {' '}
+                                  ({activity.userEmail})
+                                </span>
+                              ) : null}
+                            </p>
+                          </div>
+                        ) : (
+                          <p>
+                            <span className="font-medium text-text-primary">
+                              {activityDisplayName(activity)}
+                            </span>{' '}
+                            {verb} <ActivityPdfName item={activity} />
+                          </p>
+                        )}
+                        <span
+                          className="block text-text-muted text-[12px] mt-0.5"
+                          title={when}
+                        >
+                          {when}
                         </span>
                       </li>
                     );

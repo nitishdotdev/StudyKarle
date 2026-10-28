@@ -412,6 +412,10 @@ stubRel("services/pdfActivityService.js", {
   async recordOpen() {},
   async recordDownload() {},
   async recordShare() {},
+  async recordLogin() {},
+  async recent() {
+    return [];
+  },
 });
 stubRel("services/driveShareService.js", {
   async createShare(opts) {

@@ -42,6 +42,11 @@ let oauthNotConfigured = false;
 stub("services/authService.js", {});
 stub("services/otpService.js", {});
 stub("services/passwordResetService.js", {});
+stub("services/pdfActivityService.js", {
+  recordLogin: async function () {
+    return false;
+  },
+});
 stub("services/disposableEmailService.js", { assertNotDisposable: function () {} });
 stub("models/oauthLoginTicketModel.js", { create: async function () { return {}; } });
 

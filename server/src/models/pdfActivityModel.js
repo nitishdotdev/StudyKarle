@@ -2,15 +2,22 @@ const db = require("../config/db");
 
 const TABLE = "pdf_activity";
 
-const ACTIVITY_TYPES = ["pdf_opened", "pdf_downloaded", "pdf_shared"];
+const ACTIVITY_TYPES = [
+  "pdf_opened",
+  "pdf_downloaded",
+  "pdf_shared",
+  "user_login",
+];
 const RESOURCE_TYPES = ["drive", "note"];
 
 const DEFAULT_OPEN_DEDUP_WINDOW_MINUTES = 60;
+const DEFAULT_LOGIN_DEDUP_WINDOW_MINUTES = 1;
 
 module.exports = {
   ACTIVITY_TYPES: ACTIVITY_TYPES.slice(),
   RESOURCE_TYPES: RESOURCE_TYPES.slice(),
   DEFAULT_OPEN_DEDUP_WINDOW_MINUTES,
+  DEFAULT_LOGIN_DEDUP_WINDOW_MINUTES,
 
   /**
    * Insert one activity row. Returns true when a row was inserted and false
@@ -25,10 +32,46 @@ module.exports = {
    */
   async record(data) {
     const activityType = String(data.activityType || "").toLowerCase();
-    const resourceType = String(data.resourceType || "").toLowerCase();
     if (ACTIVITY_TYPES.indexOf(activityType) === -1) return false;
+    if (!data.userId) return false;
+
+    if (activityType === "user_login") {
+      const rawWindow = data.dedupWindowMinutes;
+      const windowMinutes =
+        rawWindow === undefined || rawWindow === null
+          ? DEFAULT_LOGIN_DEDUP_WINDOW_MINUTES
+          : Number(rawWindow);
+      const cutoff = new Date(Date.now() - windowMinutes * 60 * 1000);
+      const lockKey = advisoryLockKey(data.userId, "login", "session");
+
+      return db.transaction(async function (trx) {
+        await trx.raw("select pg_advisory_xact_lock(?)", [lockKey]);
+
+        const recentLogin = await trx(TABLE)
+          .where({
+            user_id: data.userId,
+            activity_type: "user_login",
+          })
+          .andWhere("created_at", ">", cutoff)
+          .first("id");
+        if (recentLogin) return false;
+
+        const inserted = await trx(TABLE)
+          .insert({
+            user_id: data.userId,
+            activity_type: activityType,
+            resource_type: null,
+            pdf_id: null,
+            pdf_name: null,
+          })
+          .returning("id");
+        return Array.isArray(inserted) && inserted.length > 0;
+      });
+    }
+
+    const resourceType = String(data.resourceType || "").toLowerCase();
     if (RESOURCE_TYPES.indexOf(resourceType) === -1) return false;
-    if (!data.userId || !data.pdfId) return false;
+    if (!data.pdfId) return false;
 
     const pdfId = String(data.pdfId);
     const pdfName = String(data.pdfName || "").slice(0, 255);
@@ -103,7 +146,8 @@ module.exports = {
         "pdf_activity.pdf_id",
         "pdf_activity.pdf_name",
         "pdf_activity.created_at",
-        "users.name as user_name"
+        "users.name as user_name",
+        "users.email as user_email"
       )
       .orderBy("pdf_activity.created_at", "desc");
 
@@ -119,8 +163,11 @@ module.exports = {
     const driveIds = [];
     const noteIds = [];
     rows.forEach(function (row) {
-      if (row.resource_type === "drive") driveIds.push(row.pdf_id);
-      else noteIds.push(Number(row.pdf_id));
+      if (row.resource_type === "drive" && row.pdf_id) {
+        driveIds.push(row.pdf_id);
+      } else if (row.resource_type === "note" && row.pdf_id) {
+        noteIds.push(Number(row.pdf_id));
+      }
     });
 
     const existingDrive = new Set();
@@ -145,11 +192,14 @@ module.exports = {
       const pdfExists =
         row.resource_type === "drive"
           ? existingDrive.has(row.pdf_id)
-          : existingNote.has(row.pdf_id);
+          : row.resource_type === "note"
+            ? existingNote.has(row.pdf_id)
+            : false;
       return {
         id: row.id,
         userId: row.user_id,
         userName: row.user_name || null,
+        userEmail: row.user_email || null,
         activityType: row.activity_type,
         resourceType: row.resource_type,
         pdfId: row.pdf_id,

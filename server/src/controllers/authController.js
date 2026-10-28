@@ -9,6 +9,7 @@ const passwordResetService = require("../services/passwordResetService");
 const disposableEmailService = require("../services/disposableEmailService");
 const userModel = require("../models/userModel");
 const oauthLoginTicketModel = require("../models/oauthLoginTicketModel");
+const pdfActivityService = require("../services/pdfActivityService");
 const env = require("../config/env");
 const { hmacSha256, randomToken } = require("../utils/cryptoHash");
 const asyncHandler = require("../middleware/asyncHandler");
@@ -131,6 +132,7 @@ module.exports = {
     const user = await authService.login(req.body.email, req.body.password);
     const full = await userModel.findById(user.id);
     issueSession(res, full || user);
+    await pdfActivityService.recordLogin((full || user).id);
     return ApiResponse.ok(res, user);
   }),
 
@@ -317,6 +319,7 @@ module.exports = {
     );
     const full = await userModel.findById(result.user.id);
     issueSession(res, full || result.user);
+    await pdfActivityService.recordLogin((full || result.user).id);
     return ApiResponse.ok(res, {
       user: result.user,
       redirect: result.redirect,
@@ -341,6 +344,7 @@ module.exports = {
     );
     const full = await userModel.findById(result.user.id);
     issueSession(res, full || result.user);
+    await pdfActivityService.recordLogin((full || result.user).id);
     return ApiResponse.ok(res, {
       user: result.user,
       redirect: result.redirect,
@@ -369,6 +373,7 @@ module.exports = {
       throw ApiError.unauthorized("Google sign-in expired. Please try again.");
     }
     issueSession(res, user);
+    await pdfActivityService.recordLogin(user.id);
     return ApiResponse.ok(res, userModel.publicUser(user));
   }),
 };

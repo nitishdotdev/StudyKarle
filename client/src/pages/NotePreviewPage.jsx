@@ -6,14 +6,22 @@ import Skeleton from "../components/common/Skeleton";
 import ErrorState from "../components/common/ErrorState";
 import Badge from "../components/common/Badge";
 import PageLoader from "../components/common/PageLoader";
+import SlowLoadNotice from "../components/common/SlowLoadNotice";
+import RefreshErrorBanner from "../components/common/RefreshErrorBanner";
 import { formatBytes } from "../utils/formatBytes";
 import { formatDate } from "../utils/formatDate";
 import useFetch from "../hooks/useFetch";
+import useDelayedFlag from "../hooks/useDelayedFlag";
 import { fetchNote, downloadNoteFile } from "../api/notesApi";
 import { saveNote, unsaveNote } from "../api/savedApi";
 import { useToast } from "../context/ToastContext";
 import useAuth from "../hooks/useAuth";
 import { paymentAccessPath, paymentAccessPathFromError } from "../utils/paymentRedirect";
+import {
+  describeDataFreshness,
+  putCachedNote,
+  readCachedNote,
+} from "../utils/offlineNoteCache";
 
 // pdf.js is heavy — only load it on this page, and only once the user is
 // actually looking at the note preview (the PDF itself starts loading
@@ -26,9 +34,10 @@ export default function NotePreviewPage() {
   const { noteId } = useParams();
   const navigate = useNavigate();
   const toast = useToast();
-  const { isAdmin } = useAuth();
+  const { isAdmin, user } = useAuth();
+  const userId = user && user.id;
   const {
-    data: note,
+    data: liveNote,
     loading,
     error,
     errorStatus,
@@ -40,6 +49,35 @@ export default function NotePreviewPage() {
     },
     [noteId]
   );
+  const [cached, setCached] = useState(function () {
+    const entry = readCachedNote(user && user.id, noteId);
+    return entry ? entry.note : null;
+  });
+
+  useEffect(
+    function () {
+      const entry = readCachedNote(userId, noteId);
+      setCached(entry ? entry.note : null);
+    },
+    [userId, noteId]
+  );
+
+  useEffect(
+    function () {
+      if (!liveNote || !userId) {
+        return;
+      }
+      putCachedNote(userId, liveNote);
+      setCached(null);
+    },
+    [liveNote, userId]
+  );
+
+  const blocked = errorStatus === 401 || errorStatus === 402 || errorStatus === 403;
+  const note = liveNote || (blocked ? null : cached);
+  const source = liveNote ? "live" : note ? "cached" : "live";
+  const freshness = describeDataFreshness({ source: source });
+  const showSkeleton = useDelayedFlag(loading && !note, 200);
 
   const [saved, setSaved] = useState(false);
   const [savingBusy, setSavingBusy] = useState(false);
@@ -92,7 +130,13 @@ export default function NotePreviewPage() {
     if (navigator.share) {
       navigator
         .share({ title: note ? note.title : "StudyKarle Note", url: shareUrl })
-        .catch(function () {});
+        .catch(function (err) {
+          if (err && err.name === "NotAllowedError") {
+            toast.info("Sharing was blocked in this browser. The link was copied instead.");
+            navigator.clipboard.writeText(shareUrl).catch(function () {});
+            return;
+          }
+        });
     } else {
       navigator.clipboard.writeText(shareUrl);
       toast.success("Link copied to clipboard");
@@ -118,6 +162,15 @@ export default function NotePreviewPage() {
 
   return (
     <AppShell>
+      <SlowLoadNotice active={loading && !note} onRetry={reload} />
+      {freshness.label ? (
+        <p className="mb-4 text-body-sm text-text-secondary" role="status">
+          {freshness.label} The PDF still needs a connection.
+        </p>
+      ) : null}
+      {error && note ? (
+        <RefreshErrorBanner message="Couldn't refresh this note." onRetry={reload} />
+      ) : null}
       <div className="flex items-center gap-3 mb-4">
         <button
           type="button"
@@ -140,9 +193,9 @@ export default function NotePreviewPage() {
 
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
         <div className="min-w-0">
-          {loading ? (
+          {loading && !note && showSkeleton ? (
             <div className="space-y-2">
-              <Skeleton type="row" count={1} />
+              <Skeleton type="row" count={1} label="Loading note" />
             </div>
           ) : note ? (
             <React.Fragment>
@@ -192,8 +245,8 @@ export default function NotePreviewPage() {
         </div>
       </div>
 
-      {error ? (
-        <ErrorState message={error} onRetry={reload} />
+      {error && !note ? (
+        <ErrorState error={{ status: errorStatus, message: error, details: errorDetails }} onRetry={reload} />
       ) : (
         <div className="grid grid-cols-1 xl:grid-cols-12 gap-8 items-start">
           {/* min-w-0 prevents the grid column from refusing to shrink on mobile */}
@@ -202,6 +255,7 @@ export default function NotePreviewPage() {
               <PdfPreview
                 noteId={noteId}
                 title={note ? note.title : "Note"}
+                userId={userId}
                 onAccessDenied={function (err) {
                   navigate(paymentAccessPathFromError(err), { replace: true });
                 }}

@@ -5,10 +5,19 @@ import Input from "../components/common/Input";
 import Button from "../components/common/Button";
 import Skeleton from "../components/common/Skeleton";
 import ErrorState from "../components/common/ErrorState";
+import SlowLoadNotice from "../components/common/SlowLoadNotice";
 import { formatDate } from "../utils/formatDate";
 import useAuth from "../hooks/useAuth";
+import useDraft from "../hooks/useDraft";
+import useDelayedFlag from "../hooks/useDelayedFlag";
 import { useToast } from "../context/ToastContext";
 import { fetchProfile, updateProfile, changePassword } from "../api/userApi";
+import { readDraft, shouldRestoreDraft } from "../utils/draftStore";
+import {
+  firstInvalidField,
+  focusField,
+  validatePasswordChange,
+} from "../utils/formValidation";
 
 export default function ProfilePage() {
   const { user, refreshUser, logout } = useAuth();
@@ -20,7 +29,10 @@ export default function ProfilePage() {
   const [error, setError] = useState(null);
 
   const [form, setForm] = useState({ name: "", course: "", currentYear: "" });
+  const [profileErrors, setProfileErrors] = useState({});
   const [savingProfile, setSavingProfile] = useState(false);
+  const showSkeleton = useDelayedFlag(loading && !profileData, 200);
+  const draft = useDraft("profile", form, setForm, { restore: false });
 
   const [pwForm, setPwForm] = useState({
     currentPassword: "",
@@ -30,17 +42,40 @@ export default function ProfilePage() {
   const [savingPassword, setSavingPassword] = useState(false);
 
   const [loggingOut, setLoggingOut] = useState(false);
+  const [restoredDraft, setRestoredDraft] = useState(false);
 
-  useEffect(function () {
+  function loadProfile() {
     setLoading(true);
+    setError(null);
     fetchProfile()
       .then(function (data) {
         setProfileData(data);
-        setForm({
+        const serverForm = {
           name: data.user.name || "",
           course: data.user.course || "",
           currentYear: data.user.current_year || "",
+        };
+        const saved = readDraft("profile");
+        const serverStamp = data.user.updated_at
+          ? Date.parse(data.user.updated_at) || 0
+          : Date.parse(data.user.created_at) || 0;
+        const hasNewerDraft = shouldRestoreDraft(saved, {
+          name: serverForm.name,
+          course: serverForm.course,
+          currentYear: serverForm.currentYear,
+          savedAt: serverStamp,
         });
+        if (hasNewerDraft) {
+          setForm({
+            name: saved.name || serverForm.name,
+            course: saved.course || serverForm.course,
+            currentYear: saved.currentYear || serverForm.currentYear,
+          });
+          setRestoredDraft(true);
+        } else {
+          setForm(serverForm);
+          setRestoredDraft(false);
+        }
       })
       .catch(function (err) {
         setError(err.message);
@@ -48,6 +83,10 @@ export default function ProfilePage() {
       .finally(function () {
         setLoading(false);
       });
+  }
+
+  useEffect(function () {
+    loadProfile();
   }, []);
 
   function handleProfileChange(e) {
@@ -59,14 +98,24 @@ export default function ProfilePage() {
 
   function handleProfileSubmit(e) {
     e.preventDefault();
+    const next = {};
+    if (!form.name || form.name.trim().length < 2) {
+      next.name = "Name must be at least 2 characters";
+    }
+    setProfileErrors(next);
+    if (Object.keys(next).length) {
+      focusField("name");
+      return;
+    }
     setSavingProfile(true);
     updateProfile(form)
       .then(function () {
-        toast.success("Profile updated successfully");
+        draft.discard();
+        toast.success("Profile saved. Your name and course details are up to date.");
         return refreshUser();
       })
       .catch(function (err) {
-        toast.error(err.message);
+        toast.error(err.message || "Couldn't save your profile. Try again.");
       })
       .finally(function () {
         setSavingProfile(false);
@@ -80,23 +129,12 @@ export default function ProfilePage() {
     });
   }
 
-  function validatePassword() {
-    const next = {};
-    if (!pwForm.currentPassword) {
-      next.currentPassword = "Current password is required";
-    }
-    if (!pwForm.newPassword || pwForm.newPassword.length < 8) {
-      next.newPassword = "New password must be at least 8 characters";
-    } else if (!/\d/.test(pwForm.newPassword)) {
-      next.newPassword = "New password must contain at least one number";
-    }
-    setPwErrors(next);
-    return Object.keys(next).length === 0;
-  }
-
   function handlePasswordSubmit(e) {
     e.preventDefault();
-    if (!validatePassword()) {
+    const next = validatePasswordChange(pwForm);
+    setPwErrors(next);
+    if (Object.keys(next).length) {
+      focusField(firstInvalidField(next));
       return;
     }
     setSavingPassword(true);
@@ -139,10 +177,16 @@ export default function ProfilePage() {
         </p>
       </div>
 
-      {loading ? (
-        <Skeleton type="row" count={3} />
-      ) : error ? (
-        <ErrorState message={error} />
+      <SlowLoadNotice active={loading && !profileData} onRetry={loadProfile} />
+
+      {loading && !profileData && showSkeleton ? (
+        <Skeleton type="row" count={3} label="Loading your profile" />
+      ) : loading && !profileData ? (
+        <div className="min-h-[12rem]" aria-busy="true" />
+      ) : error && !profileData ? (
+        <ErrorState message={error} onRetry={loadProfile} />
+      ) : !profileData ? (
+        <ErrorState message={error || "Couldn't load your profile"} onRetry={loadProfile} />
       ) : (
         <React.Fragment>
           <div className="grid grid-cols-1 md:grid-cols-12 gap-gutter">
@@ -188,6 +232,29 @@ export default function ProfilePage() {
                 <h3 className="font-headline-md text-headline-md text-text-primary mb-6">
                   Account Details
                 </h3>
+                {restoredDraft ? (
+                  <div
+                    className="mb-4 rounded-lg border border-border-subtle bg-surface-low px-4 py-3 text-body-sm text-text-secondary"
+                    role="status"
+                  >
+                    We restored unsaved profile changes from this device.
+                    <button
+                      type="button"
+                      className="ml-2 font-semibold text-primary hover:underline"
+                      onClick={function () {
+                        setForm({
+                          name: profileData.user.name || "",
+                          course: profileData.user.course || "",
+                          currentYear: profileData.user.current_year || "",
+                        });
+                        draft.discard();
+                        setRestoredDraft(false);
+                      }}
+                    >
+                      Discard restored draft
+                    </button>
+                  </div>
+                ) : null}
                 <form
                   className="space-y-stack-md"
                   onSubmit={handleProfileSubmit}
@@ -198,6 +265,7 @@ export default function ProfilePage() {
                     label="Full Name"
                     value={form.name}
                     onChange={handleProfileChange}
+                    error={profileErrors.name}
                     required
                   />
                   <Input

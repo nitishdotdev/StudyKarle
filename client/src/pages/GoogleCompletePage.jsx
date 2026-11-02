@@ -5,6 +5,7 @@ import { useToast } from "../context/ToastContext";
 import * as authApi from "../api/authApi";
 import PageLoader from "../components/common/PageLoader";
 import { consumeOAuthHash, clearOAuthTicket } from "../utils/oauthTicket";
+import { isSafeReturnPath } from "../utils/sessionReturn";
 
 let completionStarted = false;
 
@@ -38,10 +39,7 @@ export default function GoogleCompletePage() {
           clearOAuthTicket();
           setUser(user);
           toast.success("Welcome back!");
-          const target =
-            redirect.charAt(0) === "/" && redirect.indexOf("//") !== 0
-              ? redirect
-              : "/dashboard";
+          const target = isSafeReturnPath(redirect) ? redirect : "/dashboard";
           navigate(target, { replace: true });
         })
         .catch(function (err) {

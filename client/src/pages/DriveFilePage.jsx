@@ -10,6 +10,8 @@ import PageLoader from "../components/common/PageLoader";
 import { formatBytes } from "../utils/formatBytes";
 import { formatDate } from "../utils/formatDate";
 import useFetch from "../hooks/useFetch";
+import useDelayedFlag from "../hooks/useDelayedFlag";
+import SlowLoadNotice from "../components/common/SlowLoadNotice";
 import { useToast } from "../context/ToastContext";
 import useAuth from "../hooks/useAuth";
 import ShareModal from "../components/drive/ShareModal";
@@ -31,13 +33,15 @@ export default function DriveFilePage() {
   const { nodeId } = useParams();
   const navigate = useNavigate();
   const toast = useToast();
-  const { isAdmin } = useAuth();
+  const { isAdmin, user } = useAuth();
+  const userId = user && user.id;
   const { data, loading, error, errorStatus, errorDetails, reload } = useFetch(
     function () {
       return fetchDriveFile(nodeId);
     },
     [nodeId]
   );
+  const showSkeleton = useDelayedFlag(loading && !data, 200);
 
   const [saved, setSaved] = useState(false);
   const [savingBusy, setSavingBusy] = useState(false);
@@ -67,18 +71,23 @@ export default function DriveFilePage() {
     [nodeId]
   );
 
-  if (loading) {
+  if (loading && !data) {
     return (
       <AppShell>
-        <div className="space-y-4">
-          <Skeleton type="row" count={1} />
-          <Skeleton type="row" count={3} />
-        </div>
+        <SlowLoadNotice active={loading} onRetry={reload} />
+        {showSkeleton ? (
+          <div className="space-y-4">
+            <Skeleton type="row" count={1} label="Loading file" />
+            <Skeleton type="row" count={3} />
+          </div>
+        ) : (
+          <div className="min-h-[12rem]" aria-busy="true" />
+        )}
       </AppShell>
     );
   }
 
-  if (error) {
+  if (error && !data) {
     if (errorStatus === 402) {
       return <Navigate to={paymentAccessPathFromError({ status: errorStatus, details: errorDetails })} replace />;
     }
@@ -91,7 +100,15 @@ export default function DriveFilePage() {
     }
     return (
       <AppShell>
-        <ErrorState message={error} onRetry={reload} />
+        <ErrorState error={{ status: errorStatus, message: error, details: errorDetails }} onRetry={reload} />
+      </AppShell>
+    );
+  }
+
+  if (!data || !data.node) {
+    return (
+      <AppShell>
+        <ErrorState message="Couldn't load this file" onRetry={reload} />
       </AppShell>
     );
   }
@@ -228,6 +245,7 @@ export default function DriveFilePage() {
             <PdfPreview
               noteId={nodeId}
               title={node.name}
+              userId={userId}
               previewUrl={getDrivePreviewUrl(nodeId)}
               fallbackUrl={"/drive/files/" + nodeId + "/preview"}
               onAccessDenied={function (err) {

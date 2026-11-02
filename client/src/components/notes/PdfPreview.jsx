@@ -6,6 +6,7 @@ import axiosClient from '../../api/axiosClient';
 import { getPreviewUrl } from '../../api/notesApi';
 import Spinner from '../common/Spinner';
 import ErrorState from '../common/ErrorState';
+import { readPdfPosition, savePdfPosition } from '../../utils/pdfPositionStore';
 
 // ------------------------------------------------------------------
 // PDF.js worker
@@ -62,7 +63,7 @@ const PdfPage = React.memo(function PdfPage({
   );
 });
 
-export default function PdfPreview({ noteId, title, previewUrl, fallbackUrl, onAccessDenied }) {
+export default function PdfPreview({ noteId, title, previewUrl, fallbackUrl, onAccessDenied, userId }) {
   const [file, setFile] = useState(function () {
     return previewUrl || getPreviewUrl(noteId);
   });
@@ -79,6 +80,7 @@ export default function PdfPreview({ noteId, title, previewUrl, fallbackUrl, onA
   const visiblePagesRef = useRef(new Set());
   const pageAspectsRef = useRef({});
   const fallbackTriedRef = useRef(false);
+  const restoredPageRef = useRef(null);
   const [containerWidth, setContainerWidth] = useState(0);
 
   // Reset state when the note changes.
@@ -91,12 +93,29 @@ export default function PdfPreview({ noteId, title, previewUrl, fallbackUrl, onA
       visiblePagesRef.current = new Set();
       pageAspectsRef.current = {};
       setPageAspects({});
-      setActivePage(1);
+      const savedPage = readPdfPosition(userId, noteId);
+      restoredPageRef.current = savedPage;
+      setActivePage(savedPage || 1);
       pageRefs.current = {};
       fallbackTriedRef.current = false;
       setLoadProgress(0);
     },
-    [noteId, previewUrl]
+    [noteId, previewUrl, userId]
+  );
+
+  useEffect(
+    function () {
+      if (!userId || !noteId || !activePage || activePage < 1) {
+        return undefined;
+      }
+      const timer = setTimeout(function () {
+        savePdfPosition(userId, noteId, activePage);
+      }, 400);
+      return function () {
+        clearTimeout(timer);
+      };
+    },
+    [userId, noteId, activePage]
   );
 
   // ----------------------------------------------------------------
@@ -189,10 +208,24 @@ export default function PdfPreview({ noteId, title, previewUrl, fallbackUrl, onA
 
   const onDocumentLoadSuccess = useCallback(function ({ numPages: np }) {
     setNumPages(np);
+    const savedPage = restoredPageRef.current;
+    const startPage =
+      savedPage && savedPage >= 1 && savedPage <= np ? savedPage : 1;
     const initial = new Set();
-    for (let i = 1; i <= Math.min(np, 3); i++) initial.add(i);
+    const from = Math.max(1, startPage - 1);
+    const to = Math.min(np, startPage + 1);
+    for (let i = from; i <= to; i++) initial.add(i);
     visiblePagesRef.current = initial;
     setVisiblePages(initial);
+    setActivePage(startPage);
+    if (startPage > 1) {
+      requestAnimationFrame(function () {
+        const el = pageRefs.current[startPage];
+        if (el && typeof el.scrollIntoView === "function") {
+          el.scrollIntoView({ block: "start" });
+        }
+      });
+    }
   }, []);
 
   const onDocumentLoadError = useCallback(
@@ -256,7 +289,16 @@ export default function PdfPreview({ noteId, title, previewUrl, fallbackUrl, onA
     >
       {error ? (
         <div className="flex items-center justify-center bg-white min-h-[300px] md:min-h-[500px]">
-          <ErrorState message={error} />
+          <ErrorState
+            title="Couldn't open this PDF"
+            message={error}
+            onRetry={function () {
+              setError(null);
+              setLoadProgress(0);
+              fallbackTriedRef.current = false;
+              setFile(previewUrl || getPreviewUrl(noteId));
+            }}
+          />
         </div>
       ) : (
         <div className="relative bg-white">

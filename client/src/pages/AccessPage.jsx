@@ -5,6 +5,8 @@ import Button from "../components/common/Button";
 import Input from "../components/common/Input";
 import Spinner from "../components/common/Spinner";
 import ErrorState from "../components/common/ErrorState";
+import SlowLoadNotice from "../components/common/SlowLoadNotice";
+import RefreshErrorBanner from "../components/common/RefreshErrorBanner";
 import FaqAccordion from "../components/payments/FaqAccordion";
 import PaymentSupportFooter from "../components/payments/PaymentSupportFooter";
 import { useToast } from "../context/ToastContext";
@@ -15,6 +17,7 @@ import {
   startCheckout,
   submitPaymentProof,
 } from "../api/paymentApi";
+import { firstInvalidField, focusField, validatePaymentProof } from "../utils/formValidation";
 
 const OFFER_FAQ = [
   {
@@ -110,6 +113,7 @@ export default function AccessPage() {
   const [copied, setCopied] = useState("");
   const [utr, setUtr] = useState("");
   const [file, setFile] = useState(null);
+  const [proofErrors, setProofErrors] = useState({});
   const [submitted, setSubmitted] = useState(false);
   const [stage, setStage] = useState("offer");
 
@@ -213,8 +217,10 @@ export default function AccessPage() {
 
   function handleSubmit(event) {
     event.preventDefault();
-    if (!file) {
-      toast.error("Upload a payment screenshot first.");
+    const next = validatePaymentProof({ file: file });
+    setProofErrors(next);
+    if (Object.keys(next).length) {
+      focusField(firstInvalidField(next) === "screenshot" ? "screenshot" : firstInvalidField(next));
       return;
     }
     const form = new FormData();
@@ -243,17 +249,18 @@ export default function AccessPage() {
       });
   }
 
-  if (loading) {
+  if (loading && !offer) {
     return (
       <AppShell>
+        <SlowLoadNotice active={loading} onRetry={load} />
         <div className="flex justify-center py-20">
-          <Spinner />
+          <Spinner label="Loading access details" />
         </div>
       </AppShell>
     );
   }
 
-  if (error) {
+  if (error && !offer) {
     return (
       <AppShell>
         <ErrorState message={error} onRetry={load} />
@@ -266,6 +273,9 @@ export default function AccessPage() {
 
   return (
     <AppShell>
+      {error && offer ? (
+        <RefreshErrorBanner message="Couldn't refresh access details." onRetry={load} />
+      ) : null}
       <div className="mx-auto max-w-5xl">
         {stage === "offer" ? (
           <div className="grid grid-cols-1 gap-8 lg:grid-cols-12 lg:gap-10">
@@ -480,9 +490,19 @@ export default function AccessPage() {
                         setFile(
                           event.target.files && event.target.files[0] ? event.target.files[0] : null
                         );
+                        if (proofErrors.screenshot) {
+                          setProofErrors({});
+                        }
                       }}
-                      className="block w-full text-body-sm"
+                      aria-invalid={proofErrors.screenshot ? "true" : undefined}
+                      aria-describedby={proofErrors.screenshot ? "screenshot-error" : undefined}
+                      className="block w-full min-h-[44px] text-body-sm"
                     />
+                    {proofErrors.screenshot ? (
+                      <p id="screenshot-error" className="mt-1.5 text-body-sm text-error" role="alert">
+                        {proofErrors.screenshot}
+                      </p>
+                    ) : null}
                   </div>
                   <Input
                     id="utr"

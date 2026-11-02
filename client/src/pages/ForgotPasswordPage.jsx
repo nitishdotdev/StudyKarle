@@ -4,6 +4,7 @@ import Input from "../components/common/Input";
 import Button from "../components/common/Button";
 import useAuth from "../hooks/useAuth";
 import { useToast } from "../context/ToastContext";
+import { firstInvalidField, focusField } from "../utils/formValidation";
 import * as authApi from "../api/authApi";
 import LoginImage from "../assets/illustrations/login.png";
 
@@ -57,10 +58,15 @@ export default function ForgotPasswordPage() {
     e.preventDefault();
     const next = {};
     if (!email) {
-      next.email = "Email is required";
+      next.email = "Enter your email address";
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+      next.email = "Enter a valid email address";
     }
     setErrors(next);
-    if (Object.keys(next).length) return;
+    if (Object.keys(next).length) {
+      focusField(firstInvalidField(next));
+      return;
+    }
 
     setSubmitting(true);
     authApi
@@ -82,10 +88,13 @@ export default function ForgotPasswordPage() {
     e.preventDefault();
     const next = {};
     if (!otp || otp.length !== 6 || !/^\d+$/.test(otp)) {
-      next.otp = "Enter a valid 6-digit code";
+      next.otp = "Enter the 6-digit code from your email";
     }
     setErrors(next);
-    if (Object.keys(next).length) return;
+    if (Object.keys(next).length) {
+      focusField("otp");
+      return;
+    }
 
     setSubmitting(true);
     authApi
@@ -96,7 +105,8 @@ export default function ForgotPasswordPage() {
         setStep(3);
       })
       .catch(function (err) {
-        toast.error(err.message || "Invalid or expired code");
+        setErrors({ otp: err.message || "Invalid or expired code" });
+        focusField("otp");
       })
       .finally(function () {
         setSubmitting(false);
@@ -132,7 +142,10 @@ export default function ForgotPasswordPage() {
       next.confirmPassword = "Passwords do not match";
     }
     setErrors(next);
-    if (Object.keys(next).length) return;
+    if (Object.keys(next).length) {
+      focusField(firstInvalidField(next));
+      return;
+    }
 
     setSubmitting(true);
     authApi

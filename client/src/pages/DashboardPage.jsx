@@ -7,16 +7,18 @@ import Skeleton from "../components/common/Skeleton";
 import ErrorState from "../components/common/ErrorState";
 import EmptyState from "../components/common/EmptyState";
 import NotFoundState from "../components/common/NotFoundState";
+import SlowLoadNotice from "../components/common/SlowLoadNotice";
+import RefreshErrorBanner from "../components/common/RefreshErrorBanner";
+import Button from "../components/common/Button";
 import useFetch from "../hooks/useFetch";
 import useAuth from "../hooks/useAuth";
+import useDelayedFlag from "../hooks/useDelayedFlag";
 import { fetchDriveRoot } from "../api/driveApi";
+import { classifyLoadState, LOAD_STATES } from "../utils/uiState";
 
 function Icon({ name, className = "" }) {
   return (
-    <span
-      aria-hidden="true"
-      className={`material-symbols-outlined leading-none ${className}`}
-    >
+    <span aria-hidden="true" className={`material-symbols-outlined leading-none ${className}`}>
       {name}
     </span>
   );
@@ -29,23 +31,22 @@ function getGreeting() {
   return "Good evening";
 }
 
-// The Dashboard is a live mirror of the canonical content tree root. It reads
-// the exact root children (folders + files) from /api/drive and links every
-// folder/file by its stable node id, so the tree renders exactly as it exists —
-// no flattening, guessing, or fixed academic structure.
 export default function DashboardPage() {
   const { user } = useAuth();
-  const { data, loading, error, errorStatus, reload } = useFetch(
-    fetchDriveRoot,
-    []
-  );
-
+  const { data, loading, error, errorStatus, errorDetails, reload, refreshing } = useFetch(fetchDriveRoot, []);
+  const showSkeleton = useDelayedFlag(loading && !data, 200);
   const folders = data ? data.folders || [] : [];
   const files = data ? data.files || [] : [];
+  const state = classifyLoadState({
+    loading: loading,
+    error: error,
+    hasData: !!data,
+    isEmpty: folders.length === 0 && files.length === 0,
+    refreshing: refreshing,
+  });
 
   return (
     <AppShell>
-      {/* Welcome Header */}
       <section className="relative mb-10 overflow-hidden rounded-[1.75rem] border border-border-subtle bg-white p-7 sm:p-9">
         <div
           aria-hidden="true"
@@ -64,14 +65,12 @@ export default function DashboardPage() {
             <h1 className="mt-2 font-headline-xl text-headline-xl text-text-primary">
               Welcome back{user ? `, ${user.name.split(" ")[0]}` : ""}!
             </h1>
-            <p className="mt-2 text-body-lg text-text-secondary">
-              What will you learn today?
-            </p>
+            <p className="mt-2 text-body-lg text-text-secondary">What will you learn today?</p>
           </div>
 
           <Link
             to="/search"
-            className="inline-flex shrink-0 items-center gap-2 self-start rounded-lg border border-border-subtle bg-white px-5 py-2.5 font-label-md text-label-md text-text-primary shadow-sm transition-all hover:bg-surface-container-low sm:self-auto"
+            className="inline-flex min-h-[44px] shrink-0 items-center gap-2 self-start rounded-lg border border-border-subtle bg-white px-5 py-2.5 font-label-md text-label-md text-text-primary shadow-sm transition-all hover:bg-surface-container-low sm:self-auto"
           >
             <Icon name="search" className="text-[18px]" />
             Search resources
@@ -79,67 +78,65 @@ export default function DashboardPage() {
         </div>
       </section>
 
-      {/* Library — exact root content from the canonical tree */}
       <section>
         <div className="mb-6 flex items-end justify-between gap-4">
           <div>
-            <h2 className="font-headline-lg text-headline-lg text-text-primary">
-              Browse Library
-            </h2>
+            <h2 className="font-headline-lg text-headline-lg text-text-primary">Browse Library</h2>
             <p className="mt-1 text-body-md text-text-secondary">
               Explore the folders and files in your library.
             </p>
           </div>
         </div>
 
-        {loading ? (
-          <div className="space-y-8">
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-gutter">
-              <Skeleton type="card" count={4} />
-            </div>
-          </div>
-        ) : error ? (
+        <SlowLoadNotice active={loading && !data} onRetry={reload} />
+        {error && data ? (
+          <RefreshErrorBanner message="Couldn't refresh your library." onRetry={reload} />
+        ) : null}
+
+        {state === LOAD_STATES.LOADING && showSkeleton ? (
+          <Skeleton type="card" count={4} label="Loading your library" />
+        ) : state === LOAD_STATES.LOADING ? (
+          <div className="min-h-[12rem]" aria-busy="true" />
+        ) : state === LOAD_STATES.ERROR ? (
           errorStatus === 404 ? (
             <NotFoundState title="Library not found" message={error} />
           ) : (
-            <ErrorState message={error} onRetry={reload} />
+            <ErrorState
+              error={{ status: errorStatus, message: error, details: errorDetails }}
+              onRetry={reload}
+              preserveHint={data ? "Your previously loaded library is still on screen." : undefined}
+            />
           )
-        ) : folders.length === 0 && files.length === 0 ? (
+        ) : state === LOAD_STATES.EMPTY ? (
           <EmptyState
             icon="folder_open"
-            title="Your library is empty"
-            description="Folders and files added to your library will appear here."
+            title="Your study library is empty"
+            description="Folders and files added by your administrators will appear here. Search if you already know a topic name."
             action={
               <Link to="/search">
-                <button
-                  type="button"
-                  className="inline-flex items-center gap-2 rounded-lg bg-primary px-6 py-2.5 font-label-md text-label-md text-white transition-all hover:bg-primary-container"
-                >
-                  <Icon name="search" className="text-[18px]" />
-                  Search resources
-                </button>
+                <Button icon="search">Explore notes</Button>
               </Link>
             }
           />
         ) : (
           <div className="space-y-8">
-            {folders.length > 0 && (
+            {refreshing ? (
+              <p className="sr-only" aria-live="polite">
+                Refreshing library
+              </p>
+            ) : null}
+            {folders.length > 0 ? (
               <div>
-                <h3 className="font-headline-sm text-headline-sm text-text-primary mb-4">
-                  Folders
-                </h3>
+                <h3 className="font-headline-sm text-headline-sm text-text-primary mb-4">Folders</h3>
                 <FolderGrid folders={folders} />
               </div>
-            )}
-
-            {files.length > 0 && (
+            ) : null}
+            {files.length > 0 ? (
               <div>
-                <h3 className="font-headline-sm text-headline-sm text-text-primary mb-4">
-                  Files
-                </h3>
+                <h3 className="font-headline-sm text-headline-sm text-text-primary mb-4">Files</h3>
                 <MaterialGrid files={files} />
               </div>
-            )}
+            ) : null}
           </div>
         )}
       </section>

@@ -3,6 +3,7 @@ import { Navigate, useLocation } from 'react-router-dom';
 import useAuth from '../../hooks/useAuth';
 import Spinner from '../common/Spinner';
 import ErrorState from '../common/ErrorState';
+import { saveReturnTo } from '../../utils/sessionReturn';
 
 export default function ProtectedRoute({ children }) {
   const { isAuthenticated, loading, sessionError, refreshUser } = useAuth();
@@ -25,6 +26,7 @@ export default function ProtectedRoute({ children }) {
   }
 
   if (!isAuthenticated) {
+    saveReturnTo((location.pathname || "") + (location.search || ""));
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 

@@ -23,7 +23,7 @@ const PdfPreview = lazy(function () {
 
 export default function DriveSharePage() {
   const { token } = useParams();
-  const { data, loading, error, errorStatus } = useFetch(
+  const { data, loading, error, errorStatus, reload } = useFetch(
     function () {
       return fetchDriveShare(token);
     },
@@ -51,7 +51,7 @@ export default function DriveSharePage() {
               message="This share link is invalid, has expired, or was revoked."
             />
           ) : (
-            <ErrorState message={error} />
+            <ErrorState error={{ status: errorStatus, message: error }} onRetry={reload} />
           )}
           <div className="mt-6 text-center">
             <Link to="/">

@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { API_URL } from "../../api/axiosClient";
+import { isSafeReturnPath } from "../../utils/sessionReturn";
 
 function GoogleIcon() {
   return (
@@ -39,7 +40,7 @@ export default function GoogleButton({ disabled, redirectTo }) {
     }
     setStarting(true);
     const base = API_URL.replace(/\/$/, "");
-    const target = redirectTo
+    const target = isSafeReturnPath(redirectTo)
       ? base + "/auth/google?redirect=" + encodeURIComponent(redirectTo)
       : base + "/auth/google";
     window.location.assign(target);

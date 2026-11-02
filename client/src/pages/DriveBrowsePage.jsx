@@ -6,65 +6,40 @@ import Skeleton from "../components/common/Skeleton";
 import ErrorState from "../components/common/ErrorState";
 import EmptyState from "../components/common/EmptyState";
 import NotFoundState from "../components/common/NotFoundState";
+import SlowLoadNotice from "../components/common/SlowLoadNotice";
+import RefreshErrorBanner from "../components/common/RefreshErrorBanner";
+import Button from "../components/common/Button";
 import FolderGrid from "../components/drive/FolderGrid";
 import MaterialGrid from "../components/drive/MaterialGrid";
 import useFetch from "../hooks/useFetch";
+import useDelayedFlag from "../hooks/useDelayedFlag";
 import { fetchDriveRoot, fetchDriveFolder } from "../api/driveApi";
+import { classifyLoadState, LOAD_STATES } from "../utils/uiState";
 
-// Mirrors a Google Drive folder one-to-one. Serves BOTH the root listing
-// (/drive) and any folder at arbitrary depth (/drive/folder/:nodeId) from the
-// canonical drive_nodes tree. Each node is identified by its stable Drive id,
-// so duplicate folder names at different locations stay distinct and mixed
-// folders+files render exactly where they live in Drive.
 export default function DriveBrowsePage() {
   const { nodeId } = useParams();
   const navigate = useNavigate();
   const isRoot = !nodeId;
 
-  const { data, loading, error, errorStatus, reload } = useFetch(
-    function () {
-      return isRoot ? fetchDriveRoot() : fetchDriveFolder(nodeId);
-    },
-    [nodeId]
-  );
+  const { data, loading, error, errorStatus, errorDetails, reload, refreshing } = useFetch(function () {
+    return isRoot ? fetchDriveRoot() : fetchDriveFolder(nodeId);
+  }, [nodeId]);
+  const showSkeleton = useDelayedFlag(loading && !data, 200);
 
-  if (loading) {
-    return (
-      <AppShell>
-        <div className="space-y-4">
-          <Skeleton type="row" count={1} />
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-gutter">
-            <Skeleton type="card" count={4} />
-          </div>
-        </div>
-      </AppShell>
-    );
-  }
-
-  if (error) {
-    if (errorStatus === 404) {
-      return (
-        <AppShell>
-          <NotFoundState title="Folder not found" message={error} />
-        </AppShell>
-      );
-    }
-    return (
-      <AppShell>
-        <ErrorState message={error} onRetry={reload} />
-      </AppShell>
-    );
-  }
-
-  const node = data.node;
-  const parent = data.parent;
-  const ancestors = data.ancestors || [];
-  const folders = data.folders || [];
-  const files = data.files || [];
+  const node = data && data.node;
+  const parent = data && data.parent;
+  const ancestors = (data && data.ancestors) || [];
+  const folders = (data && data.folders) || [];
+  const files = (data && data.files) || [];
+  const state = classifyLoadState({
+    loading: loading,
+    error: error,
+    hasData: !!data,
+    isEmpty: folders.length === 0 && files.length === 0,
+    refreshing: refreshing,
+  });
 
   function handleBack() {
-    // Navigate to the ACTUAL parent node returned by the API — never a
-    // reconstruction of the path from the URL string.
     if (parent) {
       navigate("/drive/folder/" + parent.nodeId);
     } else {
@@ -72,9 +47,7 @@ export default function DriveBrowsePage() {
     }
   }
 
-  const breadcrumbs = [
-    { label: "Library", to: isRoot ? undefined : "/drive" },
-  ]
+  const breadcrumbs = [{ label: "Library", to: isRoot ? undefined : "/drive" }]
     .concat(
       ancestors.map(function (a) {
         return { label: a.name, to: "/drive/folder/" + a.nodeId };
@@ -90,7 +63,7 @@ export default function DriveBrowsePage() {
             type="button"
             onClick={handleBack}
             aria-label="Back to parent folder"
-            className="shrink-0 w-9 h-9 rounded-lg border border-border-subtle bg-white flex items-center justify-center text-text-secondary hover:bg-surface-low transition-colors"
+            className="shrink-0 w-11 h-11 rounded-lg border border-border-subtle bg-white flex items-center justify-center text-text-secondary hover:bg-surface-low transition-colors"
           >
             <span className="material-symbols-outlined text-[20px]" aria-hidden="true">
               arrow_back
@@ -104,38 +77,69 @@ export default function DriveBrowsePage() {
 
       <div className="mb-stack-lg">
         <h2 className="font-headline-lg text-headline-lg text-text-primary mb-1 break-words">
-          {node.name}
+          {node ? node.name : isRoot ? "Library" : "Folder"}
         </h2>
-        <p className="text-body-md text-text-secondary">
-          Browse the files available in this folder.
-        </p>
+        <p className="text-body-md text-text-secondary">Browse the files available in this folder.</p>
       </div>
 
-      {folders.length === 0 && files.length === 0 ? (
+      <SlowLoadNotice active={loading && !data} onRetry={reload} />
+      {error && data ? (
+        <RefreshErrorBanner message="Couldn't refresh this folder." onRetry={reload} />
+      ) : null}
+
+      {state === LOAD_STATES.LOADING && showSkeleton ? (
+        <div className="space-y-4">
+          <Skeleton type="row" count={1} label="Loading folder" />
+          <Skeleton type="card" count={4} />
+        </div>
+      ) : state === LOAD_STATES.LOADING ? (
+        <div className="min-h-[12rem]" aria-busy="true" />
+      ) : state === LOAD_STATES.ERROR ? (
+        errorStatus === 404 ? (
+          <NotFoundState title="Folder not found" message={error} />
+        ) : (
+          <ErrorState
+            error={{ status: errorStatus, message: error, details: errorDetails }}
+            onRetry={reload}
+            onBack={handleBack}
+            preserveHint={data ? "This folder's previous contents are still visible." : undefined}
+          />
+        )
+      ) : state === LOAD_STATES.EMPTY ? (
         <EmptyState
           icon="folder_open"
-          title="Empty folder"
-          description="This folder has no content yet."
+          title={isRoot ? "This library has no content yet" : "This folder is empty"}
+          description={
+            isRoot
+              ? "When administrators add folders and files, they will appear here."
+              : "Nothing has been published in this folder yet. Go back and try another folder."
+          }
+          action={
+            isRoot ? (
+              <Button icon="search" onClick={function () { navigate("/search"); }}>
+                Search notes
+              </Button>
+            ) : (
+              <Button variant="secondary" icon="arrow_back" onClick={handleBack}>
+                Go back
+              </Button>
+            )
+          }
         />
       ) : (
         <div className="space-y-8">
-          {folders.length > 0 && (
+          {folders.length > 0 ? (
             <div>
-              <h3 className="font-headline-sm text-headline-sm text-text-primary mb-4">
-                Folders
-              </h3>
+              <h3 className="font-headline-sm text-headline-sm text-text-primary mb-4">Folders</h3>
               <FolderGrid folders={folders} />
             </div>
-          )}
-
-          {files.length > 0 && (
+          ) : null}
+          {files.length > 0 ? (
             <div>
-              <h3 className="font-headline-sm text-headline-sm text-text-primary mb-4">
-                Files
-              </h3>
+              <h3 className="font-headline-sm text-headline-sm text-text-primary mb-4">Files</h3>
               <MaterialGrid files={files} />
             </div>
-          )}
+          ) : null}
         </div>
       )}
     </AppShell>

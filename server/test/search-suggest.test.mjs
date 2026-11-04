@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import {
   classifySearchState,
   suggestCorrection,
+  topicSuggestions,
   SEARCH_STATES,
 } from "../../client/src/utils/searchSuggest.js";
 
@@ -117,4 +118,22 @@ test("suggestCorrection returns null when nothing reliable is close", () => {
     suggestCorrection("quantum chromodynamics homework", ["binary tree", "calculus"]),
     null
   );
+});
+
+test("classifySearchState accepts items as well as notes", () => {
+  assert.equal(
+    classifySearchState({
+      query: "os",
+      loading: false,
+      error: null,
+      results: { query: "os", items: [{ nodeId: "os-pdf" }], meta: { total: 1 } },
+    }),
+    SEARCH_STATES.RESULTS
+  );
+});
+
+test("topicSuggestions ranks prefix matches and never silently replaces the query", () => {
+  const rows = topicSuggestions("oper", ["operating systems", "computer networks", "thermodynamics"], 4);
+  assert.equal(rows[0], "operating systems");
+  assert.equal(rows.indexOf("oper"), -1);
 });

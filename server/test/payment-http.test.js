@@ -197,6 +197,15 @@ const driveNodeModel = {
   async findAncestors(id) {
     return ancestorsOf(id);
   },
+  async search(query) {
+    const needle = String(query || "").toLowerCase();
+    return Array.from(driveNodes.values()).filter(function (n) {
+      return (
+        String(n.name || "").toLowerCase().indexOf(needle) !== -1 ||
+        String(n.path || "").toLowerCase().indexOf(needle) !== -1
+      );
+    });
+  },
 };
 
 const driveShareModel = {

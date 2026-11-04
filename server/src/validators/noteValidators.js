@@ -43,6 +43,26 @@ const searchValidator = [
     .withMessage("Search query is required")
     .isLength({ min: 1, max: 100 })
     .withMessage("Search query must be 1-100 characters"),
+  query("kind")
+    .optional({ checkFalsy: true })
+    .isIn(["file", "folder"])
+    .withMessage("kind must be file or folder"),
+  query("year")
+    .optional({ checkFalsy: true })
+    .isIn(["1", "2"])
+    .withMessage("year must be 1 or 2"),
+  query("type")
+    .optional({ checkFalsy: true })
+    .isIn(["pdf"])
+    .withMessage("type must be pdf"),
+  query("page")
+    .optional({ checkFalsy: true })
+    .isInt({ min: 1 })
+    .withMessage("page must be a positive integer"),
+  query("limit")
+    .optional({ checkFalsy: true })
+    .isInt({ min: 1, max: 50 })
+    .withMessage("limit must be between 1 and 50"),
 ];
 
 module.exports = {

@@ -25,10 +25,19 @@ export function downloadNoteFile(noteId) {
   return downloadFromApi("/notes/" + noteId + "/download");
 }
 
-export function searchNotes(query, page, signal) {
-  return axiosClient
-    .get("/search", { params: { q: query, page: page || 1 }, signal: signal })
-    .then(function (res) {
-      return { notes: res.data.data, meta: res.data.meta };
-    });
+export function searchNotes(query, page, signal, filters) {
+  const params = { q: query, page: page || 1 };
+  if (filters && filters.kind) params.kind = filters.kind;
+  if (filters && filters.year) params.year = filters.year;
+  if (filters && filters.type) params.type = filters.type;
+  if (filters && filters.limit) params.limit = filters.limit;
+  return axiosClient.get("/search", { params: params, signal: signal }).then(function (res) {
+    const items = res.data.data;
+    return {
+      notes: items,
+      items: items,
+      meta: res.data.meta,
+      query: query,
+    };
+  });
 }

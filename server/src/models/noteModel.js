@@ -100,10 +100,20 @@ module.exports = {
   },
 
   async search(query, params) {
-    const like = "%" + query + "%";
+    const like = "%" + String(query || "").replace(/[%_]/g, " ") + "%";
     const builder = db(TABLE)
       .join("subjects", "subjects.id", "notes.subject_id")
-      .select(BASE_COLUMNS.concat(["subjects.name as subject_name"]))
+      .join("semesters", "semesters.id", "subjects.semester_id")
+      .join("years", "years.id", "semesters.year_id")
+      .select(
+        BASE_COLUMNS.concat([
+          "notes.drive_file_id",
+          "subjects.name as subject_name",
+          "semesters.label as semester_label",
+          "years.label as year_label",
+          "years.id as year_id",
+        ])
+      )
       .where("notes.status", "published")
       .andWhere(function () {
         this.whereILike("notes.title", like)

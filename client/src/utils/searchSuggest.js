@@ -42,16 +42,16 @@ export function classifySearchState(input) {
     return SEARCH_STATES.IDLE;
   }
   const results = input && input.results;
-  const notes = results && results.notes;
+  const items = (results && (results.items || results.notes)) || null;
   const matchesQuery = resultsMatchQuery(results, query);
   if (input && input.loading) {
-    if (matchesQuery && notes && notes.length) {
+    if (matchesQuery && items && items.length) {
       return SEARCH_STATES.RESULTS;
     }
     return SEARCH_STATES.LOADING;
   }
   if (input && input.error) {
-    if (matchesQuery && notes && notes.length) {
+    if (matchesQuery && items && items.length) {
       return SEARCH_STATES.RESULTS;
     }
     return SEARCH_STATES.ERROR;
@@ -59,10 +59,10 @@ export function classifySearchState(input) {
   if (!matchesQuery) {
     return SEARCH_STATES.LOADING;
   }
-  if (!notes) {
+  if (!items) {
     return SEARCH_STATES.LOADING;
   }
-  if (!notes.length) {
+  if (!items.length) {
     return SEARCH_STATES.NO_RESULTS;
   }
   return SEARCH_STATES.RESULTS;
@@ -144,4 +144,36 @@ export function suggestCorrection(query, corpus) {
     }
   }
   return best;
+}
+
+export function topicSuggestions(query, corpus, limit) {
+  const q = normalize(query);
+  const rows = Array.isArray(corpus) ? corpus : [];
+  if (!q) {
+    return rows.slice(0, limit || 6);
+  }
+  const scored = [];
+  for (let i = 0; i < rows.length; i++) {
+    const candidate = String(rows[i] || "").trim();
+    const n = normalize(candidate);
+    if (!n || n === q) {
+      continue;
+    }
+    let rank = 0;
+    if (n.startsWith(q)) rank = 3;
+    else if (n.indexOf(q) !== -1) rank = 2;
+    else if (tokens(q).every(function (t) {
+      return n.indexOf(t) !== -1;
+    })) rank = 1;
+    if (rank) {
+      scored.push({ candidate: candidate, rank: rank, length: n.length });
+    }
+  }
+  scored.sort(function (a, b) {
+    if (b.rank !== a.rank) return b.rank - a.rank;
+    return a.length - b.length;
+  });
+  return scored.slice(0, limit || 6).map(function (row) {
+    return row.candidate;
+  });
 }

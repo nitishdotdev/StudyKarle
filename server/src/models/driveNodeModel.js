@@ -62,4 +62,33 @@ module.exports = {
     const result = await db(TABLE).where({ kind: kind }).count("id as count").first();
     return Number(result.count);
   },
+
+  async search(query, params) {
+    const like = "%" + String(query || "").replace(/[%_]/g, " ") + "%";
+    const builder = db(TABLE)
+      .select(
+        "drive_id",
+        "parent_drive_id",
+        "name",
+        "mime_type",
+        "kind",
+        "depth",
+        "path",
+        "size_bytes",
+        "created_time",
+        "modified_time"
+      )
+      .where(function () {
+        this.whereILike("name", like).orWhereILike("path", like);
+      });
+
+    if (params && params.kind) {
+      builder.andWhere("kind", params.kind);
+    }
+    builder.orderBy("name", "asc");
+    if (params && params.limit) {
+      builder.limit(params.limit);
+    }
+    return builder;
+  },
 };

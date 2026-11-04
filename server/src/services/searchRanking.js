@@ -15,30 +15,45 @@ function tokens(value) {
 
 const MAX_LEVENSHTEIN_CHARS = 48;
 
+function clippedLength(value) {
+  let n = 0;
+  for (let i = 0; i < MAX_LEVENSHTEIN_CHARS; i++) {
+    if (value.charAt(i) === "") break;
+    n = i + 1;
+  }
+  return n;
+}
+
 function levenshtein(a, b) {
-  const left = String(a || "").slice(0, MAX_LEVENSHTEIN_CHARS);
-  const right = String(b || "").slice(0, MAX_LEVENSHTEIN_CHARS);
+  const left = String(a || "");
+  const right = String(b || "");
   if (left === right) return 0;
-  if (!left.length) return right.length;
-  if (!right.length) return left.length;
-  const rows = [];
-  for (let i = 0; i <= right.length; i++) {
-    rows[i] = [i];
+  const prev = [];
+  const curr = [];
+  for (let j = 0; j <= MAX_LEVENSHTEIN_CHARS; j++) {
+    prev[j] = j;
+    curr[j] = 0;
   }
-  for (let j = 0; j <= left.length; j++) {
-    rows[0][j] = j;
-  }
-  for (let i = 1; i <= right.length; i++) {
-    for (let j = 1; j <= left.length; j++) {
-      const cost = left[j - 1] === right[i - 1] ? 0 : 1;
-      rows[i][j] = Math.min(
-        rows[i - 1][j] + 1,
-        rows[i][j - 1] + 1,
-        rows[i - 1][j - 1] + cost
+  for (let i = 1; i <= MAX_LEVENSHTEIN_CHARS; i++) {
+    const rb = right.charAt(i - 1);
+    if (rb === "") {
+      return prev[clippedLength(left)];
+    }
+    curr[0] = i;
+    for (let j = 1; j <= MAX_LEVENSHTEIN_CHARS; j++) {
+      const la = left.charAt(j - 1);
+      const cost = la === rb ? 0 : 1;
+      curr[j] = Math.min(
+        prev[j] + 1,
+        curr[j - 1] + 1,
+        prev[j - 1] + cost
       );
     }
+    for (let j = 0; j <= MAX_LEVENSHTEIN_CHARS; j++) {
+      prev[j] = curr[j];
+    }
   }
-  return rows[right.length][left.length];
+  return prev[clippedLength(left)];
 }
 
 function acronym(value) {

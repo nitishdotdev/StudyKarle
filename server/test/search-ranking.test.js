@@ -105,6 +105,18 @@ test("suggestCorrection offers a close library title without rewriting short que
   assert.equal(ranking.suggestCorrection("quantum homework", ["Binary Tree"]), null);
 });
 
+test("fuzzy ranking stays bounded for long titles and queries", function () {
+  const longTitle = "Binary Tree " + "notes ".repeat(80);
+  const longQuery = "binry tree " + "notes ".repeat(40);
+  const scored = ranking.scoreSearchHit(longQuery, {
+    title: longTitle,
+    kind: "file",
+    path: "Year 3/DSA/" + longTitle,
+  });
+  assert.equal(typeof scored.rank, "number");
+  assert.ok(scored.rank >= 0);
+});
+
 test("applySearchFilters type=pdf keeps PDFs and drops folders", function () {
   const hits = [
     { title: "Physics", kind: "folder", path: "Year 1/Physics", mimeType: "application/vnd.google-apps.folder" },

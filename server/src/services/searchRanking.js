@@ -13,20 +13,24 @@ function tokens(value) {
   return normalizeSearchText(value).split(" ").filter(Boolean);
 }
 
+const MAX_LEVENSHTEIN_CHARS = 48;
+
 function levenshtein(a, b) {
-  if (a === b) return 0;
-  if (!a.length) return b.length;
-  if (!b.length) return a.length;
+  const left = String(a || "").slice(0, MAX_LEVENSHTEIN_CHARS);
+  const right = String(b || "").slice(0, MAX_LEVENSHTEIN_CHARS);
+  if (left === right) return 0;
+  if (!left.length) return right.length;
+  if (!right.length) return left.length;
   const rows = [];
-  for (let i = 0; i <= b.length; i++) {
+  for (let i = 0; i <= right.length; i++) {
     rows[i] = [i];
   }
-  for (let j = 0; j <= a.length; j++) {
+  for (let j = 0; j <= left.length; j++) {
     rows[0][j] = j;
   }
-  for (let i = 1; i <= b.length; i++) {
-    for (let j = 1; j <= a.length; j++) {
-      const cost = a[j - 1] === b[i - 1] ? 0 : 1;
+  for (let i = 1; i <= right.length; i++) {
+    for (let j = 1; j <= left.length; j++) {
+      const cost = left[j - 1] === right[i - 1] ? 0 : 1;
       rows[i][j] = Math.min(
         rows[i - 1][j] + 1,
         rows[i][j - 1] + 1,
@@ -34,7 +38,7 @@ function levenshtein(a, b) {
       );
     }
   }
-  return rows[b.length][a.length];
+  return rows[right.length][left.length];
 }
 
 function acronym(value) {

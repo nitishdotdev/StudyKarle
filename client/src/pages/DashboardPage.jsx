@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import AppShell from "../components/layout/AppShell";
 import FolderGrid from "../components/drive/FolderGrid";
 import MaterialGrid from "../components/drive/MaterialGrid";
+import ContinueStudyingSection from "../components/drive/ContinueStudyingSection";
 import Skeleton from "../components/common/Skeleton";
 import ErrorState from "../components/common/ErrorState";
 import EmptyState from "../components/common/EmptyState";
@@ -140,6 +141,8 @@ export default function DashboardPage() {
           </div>
         )}
       </section>
+
+      <ContinueStudyingSection />
     </AppShell>
   );
 }

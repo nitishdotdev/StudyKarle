@@ -22,6 +22,12 @@ module.exports = {
     return db(TABLE).where({ drive_id: nodeId, kind: "file" }).first();
   },
 
+  async findFilesByIds(ids) {
+    const list = (ids || []).filter(Boolean);
+    if (!list.length) return [];
+    return db(TABLE).whereIn("drive_id", list).andWhere({ kind: "file" });
+  },
+
   // Direct children of a Drive folder, in the order Drive returned them
   // (folders and files interleaved by name, as Google Drive displays them).
   async findChildren(parentDriveId) {

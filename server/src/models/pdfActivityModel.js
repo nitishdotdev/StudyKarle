@@ -210,6 +210,43 @@ module.exports = {
     });
   },
 
+  async recentOpenedByUser(userId, limit) {
+    if (!userId) return [];
+    const query = db(TABLE)
+      .select(
+        "id",
+        "user_id",
+        "activity_type",
+        "resource_type",
+        "pdf_id",
+        "pdf_name",
+        "created_at"
+      )
+      .where({
+        user_id: userId,
+        activity_type: "pdf_opened",
+      })
+      .orderBy("created_at", "desc");
+
+    const parsed = Number(limit);
+    if (Number.isFinite(parsed) && parsed > 0) {
+      query.limit(parsed);
+    }
+
+    const rows = await query;
+    return rows.map(function (row) {
+      return {
+        id: row.id,
+        userId: row.user_id,
+        activityType: row.activity_type,
+        resourceType: row.resource_type,
+        pdfId: row.pdf_id,
+        pdfName: row.pdf_name,
+        createdAt: row.created_at,
+      };
+    });
+  },
+
   // Deletes every row in the PDF-activity table. Returns the number of rows
   // removed. Scoped to this table only — security/audit logs (admin_activity,
   // view_history, drive_shares) are never touched.

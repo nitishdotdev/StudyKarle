@@ -7,10 +7,11 @@ import { useLocation } from "react-router-dom";
 
 export default function PublicLayout() {
   const location = useLocation();
+  const isSensitiveShareRoute = location.pathname.startsWith("/drive/share/");
 
   return (
     <>
-      <Seo path={location.pathname} />
+      <Seo path={location.pathname} noindex={isSensitiveShareRoute} />
       <PublicHeader />
       <Outlet />
       <Footer />

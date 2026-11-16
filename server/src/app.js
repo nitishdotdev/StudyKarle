@@ -12,6 +12,7 @@ const errorHandler = require("./middleware/errorHandler");
 const csrfProtection = require("./middleware/csrfProtection");
 const proxyDiagnostics = require("./middleware/proxyDiagnostics");
 const healthController = require("./controllers/healthController");
+const seoRoutes = require("./routes/seoRoutes");
 
 const app = express();
 
@@ -92,6 +93,7 @@ if (!env.isProduction) {
 app.get("/health", healthController.health);
 app.get("/api/health", healthController.health);
 app.get("/api/csrf-token", csrfProtection.issueToken);
+app.use("/seo", seoRoutes);
 
 app.use("/api/auth", proxyDiagnostics);
 app.use("/api", csrfProtection);

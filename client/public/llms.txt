@@ -1,0 +1,18 @@
+# StudyKarle
+
+> StudyKarle is a student-focused platform for organized engineering notes,
+> previous-year papers, assignments, lab files and semester-wise study
+> materials.
+
+## Public pages
+
+- [Home](https://www.studykarle.me/)
+- [Features](https://www.studykarle.me/features)
+- [How StudyKarle works](https://www.studykarle.me/how-it-works)
+- [About StudyKarle](https://www.studykarle.me/about)
+- [Contact](https://www.studykarle.me/contact)
+- [Privacy policy](https://www.studykarle.me/privacy)
+- [Terms of service](https://www.studykarle.me/terms)
+
+The authenticated library and individual files are not listed here because
+access is controlled by the StudyKarle application.

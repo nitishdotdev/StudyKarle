@@ -1,10 +1,13 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import Button from '../components/common/Button';
+import Seo from '../components/seo/Seo';
 
 export default function NotFoundPage() {
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-background text-center p-6">
+    <>
+      <Seo path="/not-found" noindex />
+      <div className="min-h-screen flex flex-col items-center justify-center bg-background text-center p-6">
       <span className="material-symbols-outlined text-text-muted text-[64px] mb-4" aria-hidden="true">
         search_off
       </span>
@@ -15,6 +18,7 @@ export default function NotFoundPage() {
       <Link to="/">
         <Button icon="home">Back to Home</Button>
       </Link>
-    </div>
+      </div>
+    </>
   );
 }

@@ -33,6 +33,32 @@ test("pdf reading position is isolated per user", () => {
   assert.equal(readPdfPosition("user-b", "note-1", { storage: storage }), null);
 });
 
+test("pdf reading position is isolated by resource type", () => {
+  const storage = memoryStorage();
+  savePdfPosition("user-a", "33", 4, {
+    storage,
+    resourceType: "drive",
+  });
+  savePdfPosition("user-a", "33", 9, {
+    storage,
+    resourceType: "note",
+  });
+  assert.equal(
+    readPdfPosition("user-a", "33", {
+      storage,
+      resourceType: "drive",
+    }),
+    4
+  );
+  assert.equal(
+    readPdfPosition("user-a", "33", {
+      storage,
+      resourceType: "note",
+    }),
+    9
+  );
+});
+
 test("invalid pages are not persisted", () => {
   const storage = memoryStorage();
   assert.equal(savePdfPosition("user-a", "note-1", 0, { storage: storage }), false);

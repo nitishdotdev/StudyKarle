@@ -210,6 +210,80 @@ module.exports = {
     });
   },
 
+  async recentOpenedByUser(userId) {
+    if (!userId) return [];
+    const result = await db.raw(
+      `
+        WITH ranked_activity AS (
+          SELECT
+            pa.id,
+            pa.user_id,
+            pa.activity_type,
+            pa.resource_type,
+            pa.pdf_id,
+            pa.pdf_name,
+            pa.created_at,
+            ROW_NUMBER() OVER (
+              PARTITION BY pa.resource_type, pa.pdf_id
+              ORDER BY pa.created_at DESC, pa.id DESC
+            ) AS resource_rank
+          FROM ${TABLE} pa
+          WHERE pa.user_id = ?
+            AND pa.activity_type = 'pdf_opened'
+            AND (
+              (
+                pa.resource_type = 'drive'
+                AND EXISTS (
+                  SELECT 1
+                  FROM drive_nodes dn
+                  WHERE dn.drive_id = pa.pdf_id
+                    AND dn.kind = 'file'
+                )
+              )
+              OR (
+                pa.resource_type = 'note'
+                AND pa.pdf_id ~ '^[0-9]+$'
+                AND EXISTS (
+                  SELECT 1
+                  FROM notes n
+                  WHERE n.id = CASE
+                    WHEN pa.pdf_id ~ '^[0-9]+$' THEN pa.pdf_id::integer
+                    ELSE NULL
+                  END
+                    AND n.status = 'published'
+                )
+              )
+            )
+        )
+        SELECT
+          id,
+          user_id,
+          activity_type,
+          resource_type,
+          pdf_id,
+          pdf_name,
+          created_at
+        FROM ranked_activity
+        WHERE resource_rank = 1
+        ORDER BY created_at DESC, id DESC
+        LIMIT 2
+      `,
+      [userId]
+    );
+    const rows = result.rows || [];
+    return rows.map(function (row) {
+      return {
+        id: row.id,
+        userId: row.user_id,
+        activityType: row.activity_type,
+        resourceType: row.resource_type,
+        pdfId: row.pdf_id,
+        pdfName: row.pdf_name,
+        createdAt: row.created_at,
+      };
+    });
+  },
+
   // Deletes every row in the PDF-activity table. Returns the number of rows
   // removed. Scoped to this table only — security/audit logs (admin_activity,
   // view_history, drive_shares) are never touched.

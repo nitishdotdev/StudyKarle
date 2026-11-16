@@ -1,6 +1,7 @@
 const express = require("express");
 const userController = require("../controllers/userController");
 const authenticate = require("../middleware/authenticate");
+const authorize = require("../middleware/authorize");
 const validate = require("../middleware/validate");
 const { changePasswordValidator } = require("../validators/authValidators");
 const {
@@ -15,6 +16,7 @@ router.use(authenticate);
 router.use(authenticatedActionLimiter);
 
 router.get("/me", userController.getMe);
+router.get("/me/continue-studying", authorize("student"), userController.continueStudying);
 
 router.patch(
   "/me",

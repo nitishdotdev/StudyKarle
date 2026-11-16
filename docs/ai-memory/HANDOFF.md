@@ -102,6 +102,22 @@ offline PDF/library/search/download (no service worker).
   cannot resolve the Vercel or `www.studykarle.me` hostnames. Do not merge or
   declare production readiness until those checks run from a resolvable network.
 
+## Continue Studying audit (2026-11-16)
+
+- PR #28 head `78c8601ac2c05f8426bd0dbeb6487de6e0b3c4cd` replaces the fixed
+  50-row activity window with a PostgreSQL window-function query that filters
+  existing Drive files and published notes before selecting the latest two
+  unique `(resource_type, pdf_id)` resources, ordered by timestamp and ID.
+- PDF reading-position keys now include resource type, preventing Drive and
+  legacy-note IDs from colliding for the same user. Added regression coverage
+  for more than 50 repeated opens and resource-type isolation.
+- Local verification: backend tests 359/359, frontend production build plus
+  seven-page SEO validator passed, and `git diff --check` passed. PR CI,
+  CodeQL, and Vercel Preview checks passed after rerunning CI.
+- Preview and production HTTP/browser verification remain **NOT VERIFIED**
+  because DNS resolution is unavailable in this runtime. PR #28 is clean and
+  open; owner review/merge is still required.
+
 ---
 
 *Verify `git log -1` and `git status` before acting.*

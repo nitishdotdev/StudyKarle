@@ -77,6 +77,17 @@ offline PDF/library/search/download (no service worker).
   `/seo/sitemap.xml` through Vercel, and replaced the SPA catch-all with
   explicit application-route rewrites so unknown URLs can return genuine 404s.
 
+## SEO production cleanup (2026-11-16)
+
+- Commit `2e65bb2` fixes the About page H1, makes prerender/runtime JSON-LD
+  share the stable `studykarle-schema` script, removes the unsupported logo
+  property, and removes unverifiable homepage statistics/testimonials.
+- Client build passed and generated all seven public pages with one H1 and one
+  valid Organization/WebSite/WebPage JSON-LD script each. Backend tests passed
+  340/340.
+- Production DNS resolution was unavailable, so live noindex headers, 404s,
+  metadata, sitemap/robots, and auth/payment/Drive flows remain unverified.
+
 ---
 
 *Verify `git log -1` and `git status` before acting.*

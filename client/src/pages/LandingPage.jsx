@@ -41,13 +41,6 @@ const features = [
   },
 ];
 
-const stats = [
-  { value: "10K+", label: "Notes" },
-  { value: "50+", label: "Subjects" },
-  { value: "8+", label: "Years Covered" },
-  { value: "1K+", label: "Students" },
-];
-
 const steps = [
   {
     icon: "person_add",
@@ -66,30 +59,6 @@ const steps = [
     title: "Download and Study",
     description:
       "Open the files you need, save time, and focus on actual preparation.",
-  },
-];
-
-const testimonials = [
-  {
-    name: "Aarav Sharma",
-    role: "CSE Student",
-    rating: 5,
-    feedback:
-      "StudyKarle brings all my study resources together in one place, making it easier to learn, stay organized, and prepare with confidence.",
-  },
-  {
-    name: "Priya Verma",
-    role: "AIML Student",
-    rating: 5,
-    feedback:
-      "It feels great to have a platform where students can access quality notes, learn together, and support each other's academic journey.",
-  },
-  {
-    name: "Rohan Gupta",
-    role: "ECE Student",
-    rating: 4,
-    feedback:
-      "StudyKarle makes learning more accessible by helping students quickly find the resources they need to improve, grow, and succeed.",
   },
 ];
 
@@ -163,10 +132,12 @@ export default function LandingPage() {
                     </span>
                   </h1>
                   <p className="mx-auto max-w-2xl text-body-lg leading-relaxed text-text-secondary lg:mx-0">
-                    StudyKarle gives students fast access to notes, previous
-                    year papers, assignments, lab files, practical files, and
-                    semester-wise study resources in one clean, trusted
-                    platform.
+                    StudyKarle organizes notes, previous year papers,
+                    assignments, lab files, practical files, and
+                    semester-wise study resources in one clean platform.
+                    Students can request the current ₹9 Year 1 or Year 2
+                    access after creating an account and submitting payment
+                    proof for approval.
                   </p>
                 </div>
 
@@ -211,77 +182,6 @@ export default function LandingPage() {
           </div>
         </section>
 
-        <section className="border-t border-border-subtle bg-white/60">
-          <div className="mx-auto max-w-container px-4 py-14 sm:px-6 lg:px-8 lg:py-16">
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-              {stats.map((stat) => (
-                <div
-                  key={stat.label}
-                  className="rounded-3xl border border-border-subtle bg-white p-6 text-center shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md"
-                >
-                  <p className="text-3xl font-headline-xl text-primary">
-                    {stat.value}
-                  </p>
-                  <p className="mt-2 text-body-sm text-text-secondary">
-                    {stat.label}
-                  </p>
-                </div>
-              ))}
-            </div>
-          </div>
-        </section>
-
-        <section className="bg-white">
-          <div className="mx-auto max-w-container px-4 py-16 sm:px-6 lg:px-8 lg:py-24">
-            <SectionHeading
-              eyebrow="Student Feedback"
-              title="Built to support every student's learning journey."
-              description="StudyKarle brings notes and study resources together so every student can learn, improve, and succeed."
-            />
-
-            <div className="mt-12 grid gap-6 lg:grid-cols-3">
-              {testimonials.map((testimonial) => (
-                <article
-                  key={testimonial.name}
-                  className="rounded-[1.75rem] border border-border-subtle bg-white p-7 shadow-sm transition-all hover:-translate-y-1 hover:shadow-lg"
-                >
-                  <div
-                    className="flex items-center gap-1 text-amber-500"
-                    aria-label={`${testimonial.rating} out of 5 stars`}
-                  >
-                    {Array.from({ length: 5 }).map((_, index) => (
-                      <Icon
-                        key={index}
-                        name={
-                          index < testimonial.rating ? "star" : "star_border"
-                        }
-                        className="text-[20px]"
-                      />
-                    ))}
-                  </div>
-
-                  <p className="mt-4 text-body-sm leading-relaxed text-text-secondary">
-                    {testimonial.feedback}
-                  </p>
-
-                  <div className="mt-6 flex items-center gap-4">
-                    <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 text-primary">
-                      <Icon name="person" className="text-[24px]" />
-                    </div>
-                    <div>
-                      <p className="text-headline-md font-headline-md text-text-primary">
-                        {testimonial.name}
-                      </p>
-                      <p className="text-body-sm text-text-secondary">
-                        {testimonial.role}
-                      </p>
-                    </div>
-                  </div>
-                </article>
-              ))}
-            </div>
-          </div>
-        </section>
       </main>
     </div>
   );

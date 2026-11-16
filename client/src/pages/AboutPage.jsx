@@ -30,7 +30,7 @@ const reasons = [
   },
   {
     icon: "shield",
-    title: "Trusted access",
+    title:     "Protected access",
     description:
       "Login-based access helps keep the platform safe and controlled.",
   },
@@ -74,15 +74,23 @@ function Icon({ name, className = "" }) {
   );
 }
 
-function SectionHeading({ eyebrow, title, description, className = "" }) {
+function SectionHeading({
+  eyebrow,
+  title,
+  description,
+  className = "",
+  titleAs = "h2",
+}) {
+  const Heading = titleAs;
+
   return (
     <div className={`text-center ${className}`}>
       <p className="text-label-md uppercase tracking-[0.18em] text-text-secondary">
         {eyebrow}
       </p>
-      <h2 className="mt-3 font-headline-lg text-headline-lg text-text-primary">
+      <Heading className="mt-3 font-headline-lg text-headline-lg text-text-primary">
         {title}
-      </h2>
+      </Heading>
       {description ? (
         <p className="mx-auto mt-4 max-w-3xl text-body-md leading-relaxed text-text-secondary">
           {description}
@@ -118,13 +126,14 @@ export default function AboutPage() {
           <SectionHeading
             eyebrow="About StudyKarle"
             title="Built to make learning accessible for every student."
-            description="StudyKarle is designed for students who should not have to pay extra to access quality notes, study materials, and academic support. The goal is simple: make useful resources easier to find, easier to use, and free from unnecessary barriers."
+            description="StudyKarle is designed to make quality notes, study materials, and academic support easier to find. Students can create an account and request the current ₹9 semester access for Year 1 or Year 2, subject to admin approval."
+            titleAs="h1"
             className="mx-auto max-w-4xl"
           />
 
           <div className="mt-8 flex flex-wrap items-center justify-center gap-3 text-center">
             {[
-              "Free study notes",
+              "Organized study notes",
               "Previous year papers",
               "Assignments",
               "Lab files",
@@ -151,11 +160,10 @@ export default function AboutPage() {
                 Our Mission
               </h2>
               <p className="mt-4 text-body-md leading-relaxed text-text-secondary">
-                Our mission is to give every student free access to useful
-                academic resources so learning does not depend on money,
-                connections, or searching through scattered links. StudyKarle
-                exists to support real student well-being by making study
-                material easier to reach.
+                Our mission is to make useful academic resources easier to
+                reach, with a clear and affordable access process. StudyKarle
+                supports students by organizing study material instead of
+                leaving them to search through scattered links.
               </p>
             </Card>
 
@@ -168,10 +176,10 @@ export default function AboutPage() {
               </h2>
               <p className="mt-4 text-body-md leading-relaxed text-text-secondary">
                 Our vision is a student-friendly platform where quality notes
-                and study resources are available to everyone without any
-                charge. We want to create a space where students can learn
-                better, save time, and grow with confidence throughout their
-                academic journey.
+                and study resources are organized, searchable, and available
+                through a transparent access process. We want to help students
+                learn better, save time, and grow with confidence throughout
+                their academic journey.
               </p>
             </Card>
           </div>

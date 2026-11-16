@@ -88,6 +88,20 @@ offline PDF/library/search/download (no service worker).
 - Production DNS resolution was unavailable, so live noindex headers, 404s,
   metadata, sitemap/robots, and auth/payment/Drive flows remain unverified.
 
+## Private-route noindex cleanup (2026-11-16)
+
+- PR #31 adds client-side `noindex, nofollow` handling to `AuthLayout`,
+  marks `/drive/share/*` sensitive, replaces the broad Vercel header matcher
+  with explicit exact/wildcard rules, and adds `client/scripts/validate-seo.mjs`.
+- Local validation passed: frontend build plus seven-page SEO validator,
+  backend tests 340/340, route coverage check, and React Router checks for
+  private/share/public robots transitions.
+- PR CI initially showed `action_required` with zero jobs; an authorized
+  rerun provisioned both jobs and passed. CodeQL and Vercel Preview also pass.
+- Preview and production HTTP checks remain unverified because this runtime
+  cannot resolve the Vercel or `www.studykarle.me` hostnames. Do not merge or
+  declare production readiness until those checks run from a resolvable network.
+
 ---
 
 *Verify `git log -1` and `git status` before acting.*

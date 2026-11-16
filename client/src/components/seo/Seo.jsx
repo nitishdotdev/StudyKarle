@@ -7,23 +7,23 @@ export const PUBLIC_SEO = {
   "/": {
     title: "StudyKarle | Engineering Notes, PYQs and Study Materials",
     description:
-      "StudyKarle helps engineering students find organized notes, previous-year papers, assignments, lab files and semester-wise study materials.",
+      "StudyKarle organizes engineering notes, previous-year papers, assignments, lab files and semester-wise study materials. Year 1 and Year 2 access currently costs ₹9 after account creation and approval.",
     type: "WebSite",
   },
   "/features": {
     title: "StudyKarle Features | Organized Academic Resources",
     description:
-      "Explore StudyKarle features for finding semester-wise notes, previous-year papers, assignments and engineering study resources.",
+      "Explore StudyKarle features for finding semester-wise notes, previous-year papers, assignments and engineering study resources through an account-based access process.",
   },
   "/how-it-works": {
     title: "How StudyKarle Works | Find Study Materials Faster",
     description:
-      "Learn how StudyKarle organizes academic resources so students can create an account, browse materials and study with less searching.",
+      "Learn how StudyKarle organizes academic resources so students can create an account, request ₹9 Year 1 or Year 2 access, and study with less searching.",
   },
   "/about": {
     title: "About StudyKarle | Student-Focused Academic Resources",
     description:
-      "StudyKarle is a student-focused platform for discovering organized notes, papers, assignments and other engineering study materials.",
+      "StudyKarle is a student-focused platform for discovering organized notes, papers, assignments and other engineering study materials through approved semester access.",
   },
   "/contact": {
     title: "Contact StudyKarle | Academic Resource Support",
@@ -68,7 +68,7 @@ export default function Seo({ path, noindex = false }) {
   const config = PUBLIC_SEO[path] || {
     title: "StudyKarle | Academic Resources",
     description:
-      "Organized academic notes, previous-year papers and study materials for engineering students.",
+      "Organized academic notes, previous-year papers and study materials for engineering students. Current Year 1 and Year 2 access is ₹9 after approval.",
   };
   const canonical = SITE_URL + (path === "/" ? "/" : path);
 
@@ -101,12 +101,7 @@ export default function Seo({ path, noindex = false }) {
       setMeta("name", "twitter:image", SOCIAL_IMAGE);
       setMeta("name", "twitter:image:alt", "StudyKarle academic resources");
 
-      const existing = document.getElementById("studykarle-schema");
-      if (existing) existing.remove();
-      const schema = document.createElement("script");
-      schema.id = "studykarle-schema";
-      schema.type = "application/ld+json";
-      schema.textContent = JSON.stringify({
+      const schemaContent = JSON.stringify({
         "@context": "https://schema.org",
         "@graph": [
           {
@@ -114,7 +109,6 @@ export default function Seo({ path, noindex = false }) {
             "@id": SITE_URL + "/#organization",
             name: "StudyKarle",
             url: SITE_URL + "/",
-            logo: SOCIAL_IMAGE,
             sameAs: [
               "https://www.instagram.com/nitishdotdev",
               "https://www.linkedin.com/in/nitishdotdev",
@@ -139,7 +133,24 @@ export default function Seo({ path, noindex = false }) {
           },
         ],
       });
-      document.head.appendChild(schema);
+      let schema = document.getElementById("studykarle-schema");
+      if (!schema) {
+        schema = document.head.querySelector(
+          'script[type="application/ld+json"]'
+        );
+      }
+      if (!schema) {
+        schema = document.createElement("script");
+        document.head.appendChild(schema);
+      }
+      schema.id = "studykarle-schema";
+      schema.type = "application/ld+json";
+      schema.textContent = schemaContent;
+      document.head
+        .querySelectorAll('script[type="application/ld+json"]')
+        .forEach(function (node) {
+          if (node !== schema) node.remove();
+        });
     },
     [canonical, config, noindex]
   );

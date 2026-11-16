@@ -31,7 +31,7 @@ const sections = [
   },
   {
     title: "Contact",
-    body: "Questions about these Terms can be sent to nikusi099@gmail.",
+    body: "Questions about these Terms can be sent to nikusi099@gmail.com.",
   },
 ];
 

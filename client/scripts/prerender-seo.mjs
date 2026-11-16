@@ -10,7 +10,7 @@ const pages = {
   "/": {
     title: "StudyKarle | Engineering Notes, PYQs and Study Materials",
     description:
-      "StudyKarle helps engineering students find organized notes, previous-year papers, assignments, lab files and semester-wise study materials.",
+      "StudyKarle organizes engineering notes, previous-year papers, assignments, lab files and semester-wise study materials. Year 1 and Year 2 access currently costs ₹9 after account creation and approval.",
     heading: "Engineering notes and study materials, organized for students.",
     intro:
       "StudyKarle brings notes, previous-year papers, assignments, lab files and semester-wise resources into one structured academic platform.",
@@ -18,7 +18,7 @@ const pages = {
   "/features": {
     title: "StudyKarle Features | Organized Academic Resources",
     description:
-      "Explore StudyKarle features for finding semester-wise notes, previous-year papers, assignments and engineering study resources.",
+      "Explore StudyKarle features for finding semester-wise notes, previous-year papers, assignments and engineering study resources through an account-based access process.",
     heading: "Everything students need in one disciplined layout.",
     intro:
       "StudyKarle makes academic resources easier to discover with semester-wise organization, searchable materials and focused study workflows.",
@@ -26,7 +26,7 @@ const pages = {
   "/how-it-works": {
     title: "How StudyKarle Works | Find Study Materials Faster",
     description:
-      "Learn how StudyKarle organizes academic resources so students can create an account, browse materials and study with less searching.",
+      "Learn how StudyKarle organizes academic resources so students can create an account, request ₹9 Year 1 or Year 2 access, and study with less searching.",
     heading: "A simple flow that keeps the focus on studying.",
     intro:
       "Create an account, browse organized academic resources, and open the notes or papers you need for preparation.",
@@ -34,10 +34,10 @@ const pages = {
   "/about": {
     title: "About StudyKarle | Student-Focused Academic Resources",
     description:
-      "StudyKarle is a student-focused platform for discovering organized notes, papers, assignments and other engineering study materials.",
+      "StudyKarle is a student-focused platform for discovering organized notes, papers, assignments and other engineering study materials through approved semester access.",
     heading: "Built to make learning accessible for every student.",
     intro:
-      "StudyKarle is a student-focused academic resource platform designed to make useful study material easier to find and use.",
+      "StudyKarle is a student-focused academic resource platform designed to make useful study material easier to find and use through approved semester access.",
   },
   "/contact": {
     title: "Contact StudyKarle | Academic Resource Support",
@@ -83,7 +83,6 @@ function renderPage(path, page) {
         "@id": `${site}/#organization`,
         name: "StudyKarle",
         url: `${site}/`,
-        logo: image,
       },
       {
         "@type": "WebSite",
@@ -123,7 +122,7 @@ function renderPage(path, page) {
     <meta name="twitter:description" content="${escapeHtml(page.description)}" />
     <meta name="twitter:image" content="${image}" />
     <meta name="twitter:image:alt" content="StudyKarle academic resources" />
-    <script type="application/ld+json">${schema}</script>`;
+    <script id="studykarle-schema" type="application/ld+json">${schema}</script>`;
   const body = `
     <div id="root">
       <main>
@@ -146,7 +145,10 @@ function renderPage(path, page) {
     .replace(/<meta name="twitter:[^"]+"[\s\S]*?\/>/g, "")
     .replace(/<meta property="og:[^"]+"[\s\S]*?\/>/g, "")
     .replace(/<link rel="canonical"[\s\S]*?\/>/g, "")
-    .replace(/<script type="application\/ld\+json">[\s\S]*?<\/script>/, "")
+    .replace(
+      /<script\b[^>]*type="application\/ld\+json"[^>]*>[\s\S]*?<\/script>/,
+      ""
+    )
     .replace(/<body>[\s\S]*?<\/body>/, `<body>${body}</body>`)
     .replace("</head>", `${head}\n  </head>`);
 }

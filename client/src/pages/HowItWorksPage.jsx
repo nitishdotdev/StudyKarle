@@ -6,13 +6,13 @@ const steps = [
     icon: "person_add",
     title: "Create Account",
     description:
-      "Sign up in a few seconds and unlock access to your personalized academic dashboard.",
+      "Sign up in a few seconds and request the current ₹9 Year 1 or Year 2 semester access.",
   },
   {
     icon: "folder_open",
     title: "Browse Resources",
     description:
-      "Explore semester-wise notes, previous year papers, assignments, lab files, and practical resources.",
+      "After payment proof is approved, explore semester-wise notes, previous year papers, assignments, lab files, and practical resources.",
   },
   {
     icon: "download",

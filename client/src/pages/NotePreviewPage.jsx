@@ -254,6 +254,7 @@ export default function NotePreviewPage() {
             <Suspense fallback={<PageLoader label="Loading PDF viewer..." />}>
               <PdfPreview
                 noteId={noteId}
+                resourceType="note"
                 title={note ? note.title : "Note"}
                 userId={userId}
                 onAccessDenied={function (err) {

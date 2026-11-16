@@ -113,6 +113,7 @@ export default function DriveSharePage() {
             <Suspense fallback={<PageLoader label="Loading PDF viewer..." />}>
               <PdfPreview
                 noteId={token}
+                resourceType="share"
                 title={node.name}
                 previewUrl={getDriveSharePreviewUrl(token)}
                 fallbackUrl={"/drive/shares/" + token + "/preview"}

@@ -63,6 +63,32 @@ test("reading-position lookup shows Resume only for a saved page greater than on
   assert.equal(resumeAction({ canPreview: true }, null), "Continue reading");
 });
 
+test("reading-position lookup supports distinct resource types", () => {
+  const storage = memoryStorage();
+  savePdfPosition("7", "33", 3, {
+    storage,
+    resourceType: "drive",
+  });
+  savePdfPosition("7", "33", 8, {
+    storage,
+    resourceType: "note",
+  });
+  assert.equal(
+    readPdfPosition("7", "33", {
+      storage,
+      resourceType: "drive",
+    }),
+    3
+  );
+  assert.equal(
+    readPdfPosition("7", "33", {
+      storage,
+      resourceType: "note",
+    }),
+    8
+  );
+});
+
 test("locked resources use Unlock access instead of a resume label", () => {
   assert.equal(resumeAction({ canPreview: false }, 12), "Unlock access");
 });

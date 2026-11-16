@@ -244,6 +244,7 @@ export default function DriveFilePage() {
           <Suspense fallback={<PageLoader label="Loading PDF viewer..." />}>
             <PdfPreview
               noteId={nodeId}
+              resourceType="drive"
               title={node.name}
               userId={userId}
               previewUrl={getDrivePreviewUrl(nodeId)}

@@ -63,7 +63,15 @@ const PdfPage = React.memo(function PdfPage({
   );
 });
 
-export default function PdfPreview({ noteId, title, previewUrl, fallbackUrl, onAccessDenied, userId }) {
+export default function PdfPreview({
+  noteId,
+  title,
+  previewUrl,
+  fallbackUrl,
+  onAccessDenied,
+  userId,
+  resourceType = "note",
+}) {
   const [file, setFile] = useState(function () {
     return previewUrl || getPreviewUrl(noteId);
   });
@@ -93,14 +101,16 @@ export default function PdfPreview({ noteId, title, previewUrl, fallbackUrl, onA
       visiblePagesRef.current = new Set();
       pageAspectsRef.current = {};
       setPageAspects({});
-      const savedPage = readPdfPosition(userId, noteId);
+      const savedPage = readPdfPosition(userId, noteId, {
+        resourceType: resourceType,
+      });
       restoredPageRef.current = savedPage;
       setActivePage(savedPage || 1);
       pageRefs.current = {};
       fallbackTriedRef.current = false;
       setLoadProgress(0);
     },
-    [noteId, previewUrl, userId]
+    [noteId, previewUrl, resourceType, userId]
   );
 
   useEffect(
@@ -109,13 +119,15 @@ export default function PdfPreview({ noteId, title, previewUrl, fallbackUrl, onA
         return undefined;
       }
       const timer = setTimeout(function () {
-        savePdfPosition(userId, noteId, activePage);
+        savePdfPosition(userId, noteId, activePage, {
+          resourceType: resourceType,
+        });
       }, 400);
       return function () {
         clearTimeout(timer);
       };
     },
-    [userId, noteId, activePage]
+    [activePage, noteId, resourceType, userId]
   );
 
   // ----------------------------------------------------------------

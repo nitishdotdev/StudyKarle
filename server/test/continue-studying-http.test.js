@@ -305,8 +305,7 @@ const pdfActivityModel = {
     return true;
   },
 
-  async recentOpenedByUser(userId, limit) {
-    const parsed = Number(limit);
+  async recentOpenedByUser(userId) {
     const rows = activityRows
       .filter(function (row) {
         return row.user_id === userId && row.activity_type === "pdf_opened";
@@ -315,8 +314,7 @@ const pdfActivityModel = {
       .sort(function (a, b) {
         return b.created_at.getTime() - a.created_at.getTime();
       });
-    const sliced = Number.isFinite(parsed) && parsed > 0 ? rows.slice(0, parsed) : rows;
-    return sliced.map(function (row) {
+    return rows.map(function (row) {
       return {
         id: row.id,
         userId: row.user_id,
@@ -547,6 +545,39 @@ test("returns the latest two unique opened resources", async function () {
   assert.equal(items.length, 2);
   assert.equal(items[0].resourceId, "renamed");
   assert.equal(items[1].resourceId, "33");
+});
+
+test("older second unique resource survives more than 50 recent opens of one resource", async function () {
+  const student = await createUser("student", "ManyOpens");
+  addActivity({
+    userId: student.id,
+    activityType: "pdf_opened",
+    resourceType: "note",
+    pdfId: "33",
+    pdfName: "Handwritten OS",
+    createdAt: "2026-11-05T08:00:00.000Z",
+  });
+  for (let i = 0; i < 51; i++) {
+    addActivity({
+      userId: student.id,
+      activityType: "pdf_opened",
+      resourceType: "drive",
+      pdfId: "os-pdf",
+      pdfName: "Operating Systems.pdf",
+      createdAt: new Date(
+        Date.parse("2026-11-05T09:00:00.000Z") + i * 1000
+      ).toISOString(),
+    });
+  }
+
+  const res = await authedGet(student, "/api/users/me/continue-studying");
+  const items = itemsOf(res);
+  assert.deepEqual(
+    items.map(function (item) {
+      return item.resourceId;
+    }),
+    ["os-pdf", "33"]
+  );
 });
 
 test("duplicate opens collapse to the latest unique resource", async function () {

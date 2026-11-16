@@ -16,7 +16,9 @@ function displayTitle(title) {
 
 export default function ContinueStudyingCard({ item, userId }) {
   const pdf = isPdf(item);
-  const page = readPdfPosition(userId, item.resourceId);
+  const page = readPdfPosition(userId, item.resourceId, {
+    resourceType: item.resourceType,
+  });
   const action = resumeAction(item, page);
   const href = resourceHref(item);
 

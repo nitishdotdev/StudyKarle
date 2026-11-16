@@ -74,8 +74,8 @@ module.exports = {
     return pdfActivityModel.recent(limit);
   },
 
-  recentOpenedByUser(userId, limit) {
-    return pdfActivityModel.recentOpenedByUser(userId, limit);
+  recentOpenedByUser(userId) {
+    return pdfActivityModel.recentOpenedByUser(userId);
   },
 
   clear() {

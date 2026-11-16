@@ -210,30 +210,67 @@ module.exports = {
     });
   },
 
-  async recentOpenedByUser(userId, limit) {
+  async recentOpenedByUser(userId) {
     if (!userId) return [];
-    const query = db(TABLE)
-      .select(
-        "id",
-        "user_id",
-        "activity_type",
-        "resource_type",
-        "pdf_id",
-        "pdf_name",
-        "created_at"
-      )
-      .where({
-        user_id: userId,
-        activity_type: "pdf_opened",
-      })
-      .orderBy("created_at", "desc");
-
-    const parsed = Number(limit);
-    if (Number.isFinite(parsed) && parsed > 0) {
-      query.limit(parsed);
-    }
-
-    const rows = await query;
+    const result = await db.raw(
+      `
+        WITH ranked_activity AS (
+          SELECT
+            pa.id,
+            pa.user_id,
+            pa.activity_type,
+            pa.resource_type,
+            pa.pdf_id,
+            pa.pdf_name,
+            pa.created_at,
+            ROW_NUMBER() OVER (
+              PARTITION BY pa.resource_type, pa.pdf_id
+              ORDER BY pa.created_at DESC, pa.id DESC
+            ) AS resource_rank
+          FROM ${TABLE} pa
+          WHERE pa.user_id = ?
+            AND pa.activity_type = 'pdf_opened'
+            AND (
+              (
+                pa.resource_type = 'drive'
+                AND EXISTS (
+                  SELECT 1
+                  FROM drive_nodes dn
+                  WHERE dn.drive_id = pa.pdf_id
+                    AND dn.kind = 'file'
+                )
+              )
+              OR (
+                pa.resource_type = 'note'
+                AND pa.pdf_id ~ '^[0-9]+$'
+                AND EXISTS (
+                  SELECT 1
+                  FROM notes n
+                  WHERE n.id = CASE
+                    WHEN pa.pdf_id ~ '^[0-9]+$' THEN pa.pdf_id::integer
+                    ELSE NULL
+                  END
+                    AND n.status = 'published'
+                )
+              )
+            )
+        )
+        SELECT
+          id,
+          user_id,
+          activity_type,
+          resource_type,
+          pdf_id,
+          pdf_name,
+          created_at
+        FROM ranked_activity
+        WHERE resource_rank = 1
+        ORDER BY created_at DESC, id DESC
+        LIMIT 2
+      `,
+      [userId]
+    );
+    const rows = result.rows || [];
     return rows.map(function (row) {
       return {
         id: row.id,

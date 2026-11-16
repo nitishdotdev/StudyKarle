@@ -3,7 +3,6 @@ const driveNodeModel = require("../models/driveNodeModel");
 const noteModel = require("../models/noteModel");
 const materialGate = require("./materialGateService");
 
-const OPEN_WINDOW = 50;
 const MAX_ITEMS = 2;
 
 function uniqueKey(row) {
@@ -58,7 +57,7 @@ async function listForStudent(user) {
   const userId = user && user.id;
   if (!userId) return [];
 
-  const opened = await pdfActivityService.recentOpenedByUser(userId, OPEN_WINDOW);
+  const opened = await pdfActivityService.recentOpenedByUser(userId);
   const unique = [];
   const seen = new Set();
   opened.forEach(function (row) {

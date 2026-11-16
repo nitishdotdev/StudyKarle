@@ -75,9 +75,9 @@ function ContinueStudyingPanel({ user }) {
           <p className="max-w-md text-body-sm text-text-muted">
             Open a study resource and it will appear here so you can pick up where you left off.
           </p>
-          <Link to="/dashboard">
+          <Link to="/search">
             <Button variant="secondary" size="sm">
-              Browse Library
+              Search resources
             </Button>
           </Link>
         </div>

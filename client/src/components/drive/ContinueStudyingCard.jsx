@@ -39,9 +39,9 @@ export default function ContinueStudyingCard({ item, userId }) {
         </span>
       </div>
       <div className="flex flex-1 flex-col px-4 pt-3 pb-2">
-        <h4 className="font-headline-md text-headline-md text-text-primary line-clamp-1">
+        <h3 className="font-headline-md text-headline-md text-text-primary line-clamp-1">
           {displayTitle(item.title)}
-        </h4>
+        </h3>
         {item.context ? (
           <p className="mt-0.5 text-body-sm text-text-secondary line-clamp-1">{item.context}</p>
         ) : null}

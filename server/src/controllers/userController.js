@@ -3,6 +3,7 @@ const authService = require('../services/authService');
 const savedNoteModel = require('../models/savedNoteModel');
 const savedFileModel = require('../models/savedFileModel');
 const viewHistoryModel = require('../models/viewHistoryModel');
+const continueStudyingService = require('../services/continueStudyingService');
 const asyncHandler = require('../middleware/asyncHandler');
 const ApiResponse = require('../utils/ApiResponse');
 
@@ -33,5 +34,10 @@ module.exports = {
   changePassword: asyncHandler(async function (req, res) {
     await authService.changePassword(req.user.id, req.body.currentPassword, req.body.newPassword);
     return ApiResponse.ok(res, { updated: true });
+  }),
+
+  continueStudying: asyncHandler(async function (req, res) {
+    const items = await continueStudyingService.listForStudent(req.user);
+    return ApiResponse.ok(res, { items: items });
   })
 };

@@ -99,6 +99,32 @@ module.exports = {
     return db(TABLE).where({ id: id }).first();
   },
 
+  async findPublishedByIds(ids) {
+    const list = (ids || [])
+      .map(function (id) {
+        return Number(id);
+      })
+      .filter(function (id) {
+        return Number.isFinite(id);
+      });
+    if (!list.length) return [];
+    return db(TABLE)
+      .join("subjects", "subjects.id", "notes.subject_id")
+      .join("semesters", "semesters.id", "subjects.semester_id")
+      .join("years", "years.id", "semesters.year_id")
+      .select(
+        BASE_COLUMNS.concat([
+          "subjects.name as subject_name",
+          "semesters.label as semester_label",
+          "semesters.id as semester_id",
+          "years.label as year_label",
+          "years.id as year_id",
+        ])
+      )
+      .whereIn("notes.id", list)
+      .andWhere("notes.status", "published");
+  },
+
   async search(query, params) {
     const like = "%" + String(query || "").replace(/[%_]/g, " ") + "%";
     const builder = db(TABLE)

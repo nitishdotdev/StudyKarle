@@ -17,3 +17,9 @@ export function changePassword(payload) {
     return res.data.data;
   });
 }
+
+export function fetchContinueStudying() {
+  return axiosClient.get('/users/me/continue-studying').then(function (res) {
+    return res.data.data;
+  });
+}

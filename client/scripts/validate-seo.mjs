@@ -1,6 +1,10 @@
 import { readFile } from "node:fs/promises";
 
 const root = new URL("../dist/", import.meta.url);
+const landingSource = await readFile(
+  new URL("../src/pages/LandingPage.jsx", import.meta.url),
+  "utf8"
+);
 const pages = [
   { path: "/", file: "index.html" },
   { path: "/features", file: "features/index.html" },
@@ -71,6 +75,37 @@ for (const page of pages) {
 
   titles.add(titleValue);
   descriptions.add(descriptionValue);
+}
+
+for (const value of ["800+", "50+", "4+", "100+"]) {
+  if (!landingSource.includes(`value: "${value}"`)) {
+    throw new Error(`LandingPage.jsx: approved statistic ${value} is missing`);
+  }
+}
+for (const value of ["Aarav Sharma", "Priya Verma", "Rohan Gupta"]) {
+  if (!landingSource.includes(`name: "${value}"`)) {
+    throw new Error(`LandingPage.jsx: restored testimonial ${value} is missing`);
+  }
+}
+for (const value of [
+  "StudyKarle brings all my study resources together in one place",
+  "It feels great to have a platform where students can access quality notes",
+  "StudyKarle makes learning more accessible by helping students quickly find",
+]) {
+  if (!landingSource.includes(value)) {
+    throw new Error("LandingPage.jsx: historical testimonial text is missing");
+  }
+}
+if (
+  !landingSource.includes('eyebrow="Student Feedback"') ||
+  !landingSource.includes('? "star" : "star_border"')
+) {
+  throw new Error("LandingPage.jsx: historical feedback presentation is missing");
+}
+for (const value of ["10K+", "8+", "1K+"]) {
+  if (landingSource.includes(`value: "${value}"`)) {
+    throw new Error(`LandingPage.jsx: unsupported statistic ${value} is present`);
+  }
 }
 
 console.log(`Validated ${pages.length} public SEO pages`);

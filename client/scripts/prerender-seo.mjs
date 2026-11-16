@@ -73,6 +73,15 @@ function escapeHtml(value) {
     .replaceAll('"', "&quot;");
 }
 
+function removeSchemaScript(html) {
+  const start = html.indexOf('<script id="studykarle-schema"');
+  if (start === -1) return html;
+  const endMarker = "</script>";
+  const end = html.indexOf(endMarker, start);
+  if (end === -1) return html;
+  return html.slice(0, start) + html.slice(end + endMarker.length);
+}
+
 function renderPage(path, page) {
   const canonical = `${site}${path === "/" ? "/" : path}`;
   const schema = JSON.stringify({
@@ -138,17 +147,13 @@ function renderPage(path, page) {
         <p><a href="/login">Sign in to browse the StudyKarle library</a></p>
       </main>
     </div>`;
-  return base
+  return removeSchemaScript(base)
     .replace(/<title>[\s\S]*?<\/title>/, "")
     .replace(/<meta name="description"[\s\S]*?\/>/, "")
     .replace(/<meta name="robots"[\s\S]*?\/>/g, "")
     .replace(/<meta name="twitter:[^"]+"[\s\S]*?\/>/g, "")
     .replace(/<meta property="og:[^"]+"[\s\S]*?\/>/g, "")
     .replace(/<link rel="canonical"[\s\S]*?\/>/g, "")
-    .replace(
-      /<script\b[^>]*type="application\/ld\+json"[^>]*>[\s\S]*?<\/script>/,
-      ""
-    )
     .replace(/<body>[\s\S]*?<\/body>/, `<body>${body}</body>`)
     .replace("</head>", `${head}\n  </head>`);
 }

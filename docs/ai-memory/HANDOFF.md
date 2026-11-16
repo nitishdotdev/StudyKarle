@@ -8,9 +8,9 @@
 
 ## Current session status
 
-**Last updated**: 2026-11-02
-**Updated by**: MonkeyCode (commit, rebase onto main, PR for student UX)
-**Working branch**: `feature/student-ux-states`
+**Last updated**: 2026-11-16
+**Updated by**: Copilot (SEO/AEO/GEO implementation)
+**Working branch**: current checkout
 **Remote memory**: not configured (Layer A only)
 
 ---
@@ -56,6 +56,26 @@ offline PDF/library/search/download (no service worker).
 1. Owner reviews the student UX PR. Do not merge without explicit approval.
 2. Browser-verify the six scenarios if a real browser + DB + `.env` exist.
 3. Login PR deploy still needs `cd server && npm run migrate` on target Postgres.
+
+## SEO/AEO/GEO implementation (2026-11-16)
+
+- Added route-specific prerendered HTML for the seven existing public
+  informational pages, shared runtime metadata/JSON-LD, canonical URLs, and
+  social metadata.
+- Added `robots.txt`, `llms.txt`, a 1200x630 `social-preview.png`, Vercel
+  route rewrites, private-route `X-Robots-Tag` headers, and a backend sitemap
+  containing only public informational URLs.
+- The Drive hierarchy remains protected and is intentionally not indexed:
+  `drive_nodes` has no approved-public-content flag and its API/file access is
+  authenticated and payment/material-gated. Resource-level SEO pages require
+  an explicit approved-public data model before implementation.
+- Verification: client build passed; backend test suite passed (340 tests);
+  sitemap HTTP response returned 200 valid XML; live production curl was
+  blocked by DNS resolution in this environment.
+- Pre-merge audit tightened `robots.txt` so private UI routes remain crawlable
+  for `X-Robots-Tag: noindex`, exposed both `/sitemap.xml` and
+  `/seo/sitemap.xml` through Vercel, and replaced the SPA catch-all with
+  explicit application-route rewrites so unknown URLs can return genuine 404s.
 
 ---
 

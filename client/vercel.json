@@ -1,11 +1,106 @@
 {
+  "headers": [
+    {
+      "source": "/(login|signup|forgot-password|dashboard|drive|notes|search|saved|profile|access|admin|auth)(/.*)?",
+      "headers": [
+        {
+          "key": "X-Robots-Tag",
+          "value": "noindex, nofollow"
+        }
+      ]
+    }
+  ],
   "rewrites": [
     {
       "source": "/api/(.*)",
       "destination": "https://studykarle-backend.onrender.com/api/$1"
     },
     {
-      "source": "/(.*)",
+      "source": "/sitemap.xml",
+      "destination": "https://studykarle-backend.onrender.com/seo/sitemap.xml"
+    },
+    {
+      "source": "/seo/sitemap.xml",
+      "destination": "https://studykarle-backend.onrender.com/seo/sitemap.xml"
+    },
+    {
+      "source": "/features",
+      "destination": "/features/index.html"
+    },
+    {
+      "source": "/how-it-works",
+      "destination": "/how-it-works/index.html"
+    },
+    {
+      "source": "/about",
+      "destination": "/about/index.html"
+    },
+    {
+      "source": "/contact",
+      "destination": "/contact/index.html"
+    },
+    {
+      "source": "/privacy",
+      "destination": "/privacy/index.html"
+    },
+    {
+      "source": "/terms",
+      "destination": "/terms/index.html"
+    },
+    {
+      "source": "/login",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/signup",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/forgot-password",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/auth/(.*)",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/dashboard",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/drive",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/drive/(.*)",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/notes/(.*)",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/search",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/saved",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/profile",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/access",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/admin",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/admin/(.*)",
       "destination": "/index.html"
     }
   ]

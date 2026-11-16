@@ -122,6 +122,19 @@ is extra. Whether the 2.0.2 CLI also reads the undotted name is
 **Next step**: Keep both files identical until the owner deletes one.
 Do not add a `server` key to either.
 
+### I-007 — Public resource SEO boundary [OPEN]
+
+**Symptom**: The canonical `drive_nodes` library contains the academic
+hierarchy, but the current model has no approved-public-content flag and its
+routes are authenticated/material-gated.
+
+**Status**: Confirmed. SEO implementation indexes only verified public
+informational pages and does not expose Drive nodes or protected files.
+
+**Next step**: If public subject/resource landing pages are desired, add an
+explicit admin-controlled publication state and define safe public preview
+metadata before adding sitemap entries.
+
 ---
 
 *Add new issues above this line with the next sequential ID (I-007, ...).*

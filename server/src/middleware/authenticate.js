@@ -33,7 +33,8 @@ module.exports = asyncHandler(async function authenticate(req, res, next) {
     id: user.id,
     name: user.name,
     email: user.email,
-    role: user.role
+    role: user.role,
+    currentYear: user.current_year || null
   };
 
   next();

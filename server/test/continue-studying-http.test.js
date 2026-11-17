@@ -77,6 +77,19 @@ function seedLibrary() {
     path: "Year 1/Data Structures/Trees and Graphs.pdf",
     size_bytes: 2048,
     modified_time: "2026-01-01T00:00:00.000Z",
+    created_time: "2025-12-01T00:00:00.000Z",
+  });
+  driveNodes.set("physics", {
+    drive_id: "physics",
+    parent_drive_id: "year1",
+    name: "Physics.pdf",
+    mime_type: "application/pdf",
+    kind: "file",
+    depth: 2,
+    path: "Year 1/Physics.pdf",
+    size_bytes: 1024,
+    modified_time: "2026-02-01T00:00:00.000Z",
+    created_time: "2026-01-01T00:00:00.000Z",
   });
   driveNodes.set("year3", {
     drive_id: "year3",
@@ -203,6 +216,7 @@ const userModel = {
       email: String(data.email).toLowerCase(),
       password_hash: data.passwordHash || null,
       role: data.role || "student",
+      current_year: data.currentYear || data.current_year || null,
       token_version: 0,
     };
     users.set(row.id, row);
@@ -241,6 +255,28 @@ const driveNodeModel = {
       .filter(function (n) {
         return n && n.kind === "file";
       });
+  },
+  async findRecommendedPdfFiles(preferredYear) {
+    const rows = Array.from(driveNodes.values()).filter(function (node) {
+      return (
+        node.kind === "file" &&
+        (/pdf/i.test(String(node.mime_type || "")) || /\.pdf$/i.test(node.name)) &&
+        /(^|\/)(year[ _-]*1|year[ _-]*2)(\/|$)/i.test(node.path)
+      );
+    });
+    rows.sort(function (a, b) {
+      if (preferredYear) {
+        const preferred = new RegExp("(^|/)Year " + preferredYear + "(/|$)", "i");
+        const aPreferred = preferred.test(a.path) ? 0 : 1;
+        const bPreferred = preferred.test(b.path) ? 0 : 1;
+        if (aPreferred !== bPreferred) return aPreferred - bPreferred;
+      }
+      const modified =
+        new Date(b.modified_time || 0).getTime() - new Date(a.modified_time || 0).getTime();
+      if (modified) return modified;
+      return a.drive_id.localeCompare(b.drive_id);
+    });
+    return rows.slice(0, 12);
   },
   async findAncestors(id) {
     return ancestorsOf(id);
@@ -794,9 +830,65 @@ test("recent locked resources remain visible across every unverified entitlement
   }
 });
 
-test("empty history returns an empty items list, not an error", async function () {
+test("no eligible protected PDFs returns an empty items list", async function () {
+  driveNodes.delete("trees");
+  driveNodes.delete("physics");
   const student = await createUser("student", "Empty");
   const res = await authedGet(student, "/api/users/me/continue-studying");
   assert.equal(res.status, 200);
+  assert.deepEqual(itemsOf(res), []);
+});
+
+test("unverified students without history receive two locked library recommendations", async function () {
+  const cases = [
+    { name: "unpaid", payment: null, entitlement: null, code: "PAYMENT_REQUIRED" },
+    { name: "pending", payment: { status: "pending" }, entitlement: null, code: "PAYMENT_PENDING" },
+    { name: "rejected", payment: { status: "rejected" }, entitlement: null, code: "PAYMENT_REJECTED" },
+    {
+      name: "expired",
+      payment: null,
+      entitlement: { ends_at: "2020-01-01T00:00:00.000Z" },
+      code: "PAYMENT_EXPIRED",
+    },
+  ];
+
+  for (const item of cases) {
+    const student = await createUser("student", "Recommendation-" + item.name);
+    if (item.payment) paymentRequests.set(student.id, item.payment);
+    if (item.entitlement) entitlements.set(student.id, item.entitlement);
+
+    const res = await authedGet(student, "/api/users/me/continue-studying");
+    const items = itemsOf(res);
+    assert.equal(items.length, 2, item.name);
+    assert.deepEqual(
+      items.map(function (entry) {
+        return entry.resourceId;
+      }),
+      ["physics", "trees"],
+      item.name
+    );
+    items.forEach(function (entry) {
+      assert.equal(entry.source, "recommendation", item.name);
+      assert.equal(entry.protected, true, item.name);
+      assert.equal(entry.canPreview, false, item.name);
+      assert.equal(entry.canDownload, false, item.name);
+      assert.equal(entry.accessCode, item.code, item.name);
+      assert.equal(entry.lastOpenedAt, undefined, item.name);
+      assert.ok(entry.modifiedAt, item.name);
+    });
+    assert.equal(
+      activityRows.some(function (row) {
+        return row.user_id === student.id && row.activity_type === "pdf_opened";
+      }),
+      false,
+      item.name
+    );
+  }
+});
+
+test("approved students without history do not receive locked recommendations", async function () {
+  const student = await createUser("student", "ApprovedEmpty");
+  entitlements.set(student.id, { ends_at: "2099-12-31T18:30:00.000Z" });
+  const res = await authedGet(student, "/api/users/me/continue-studying");
   assert.deepEqual(itemsOf(res), []);
 });

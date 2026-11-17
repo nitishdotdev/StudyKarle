@@ -2,6 +2,8 @@ const pdfActivityService = require("./pdfActivityService");
 const driveNodeModel = require("../models/driveNodeModel");
 const noteModel = require("../models/noteModel");
 const materialGate = require("./materialGateService");
+const accessEntitlementService = require("./accessEntitlementService");
+const yearScope = require("./yearScopeService");
 
 const MAX_ITEMS = 2;
 
@@ -21,12 +23,14 @@ function contextFromPath(path) {
 
 function toDriveItem(row, node, decision) {
   return {
+    source: row.source || "history",
     resourceType: "drive",
     resourceId: node.drive_id,
     title: node.name,
     context: contextFromPath(node.path),
     href: "/drive/file/" + encodeURIComponent(node.drive_id),
-    lastOpenedAt: row.createdAt,
+    lastOpenedAt: row.source === "recommendation" ? undefined : row.createdAt,
+    modifiedAt: row.source === "recommendation" ? node.modified_time || null : undefined,
     mimeType: node.mime_type || null,
     fileType: node.mime_type && String(node.mime_type).indexOf("pdf") !== -1 ? "pdf" : "file",
     protected: !!decision.protected,
@@ -36,8 +40,40 @@ function toDriveItem(row, node, decision) {
   };
 }
 
+function isPdf(node) {
+  return (
+    node &&
+    (String(node.mime_type || "").toLowerCase().indexOf("pdf") !== -1 ||
+      /\.pdf$/i.test(String(node.name || "")))
+  );
+}
+
+function isApproved(entitlement) {
+  return !!(entitlement && entitlement.hasAccess && entitlement.status === "approved");
+}
+
+async function recommendationItems(user) {
+  const entitlement = await accessEntitlementService.getEntitlementState(user.id);
+  if (isApproved(entitlement)) return [];
+
+  const preferredYear = Number.parseInt(String(user.currentYear || ""), 10);
+  const candidates = await driveNodeModel.findRecommendedPdfFiles(
+    preferredYear === 1 || preferredYear === 2 ? preferredYear : null
+  );
+  const items = [];
+  for (let i = 0; i < candidates.length && items.length < MAX_ITEMS; i++) {
+    const node = candidates[i];
+    if (!isPdf(node) || !yearScope.isProtectedNode(node)) continue;
+    const decision = await materialGate.authorizeDriveNode(user, node);
+    if (!decision.protected || decision.canPreview || decision.canDownload) continue;
+    items.push(toDriveItem({ source: "recommendation" }, node, decision));
+  }
+  return items;
+}
+
 function toNoteItem(row, note, decision) {
   return {
+    source: row.source || "history",
     resourceType: "note",
     resourceId: String(note.id),
     title: note.title,
@@ -107,7 +143,8 @@ async function listForStudent(user) {
     }
   }
 
-  return items;
+  if (items.length > 0) return items;
+  return recommendationItems(user);
 }
 
 module.exports = {

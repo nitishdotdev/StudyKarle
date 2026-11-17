@@ -1,6 +1,6 @@
 import React from "react";
 import { Link } from "react-router-dom";
-import { lastOpenedLabel, resourceHref, resumeAction } from "../../utils/continueStudying";
+import { activityLabel, resourceHref, resumeAction } from "../../utils/continueStudying";
 import { readPdfPosition } from "../../utils/pdfPositionStore";
 import PdfThumbnail from "./PdfThumbnail";
 
@@ -32,7 +32,7 @@ export default function ContinueStudyingCard({ item, userId }) {
         {item.context ? (
           <p className="mt-0.5 text-body-sm text-text-secondary line-clamp-1">{item.context}</p>
         ) : null}
-        <p className="mt-0.5 text-body-sm text-text-muted">{lastOpenedLabel(item.lastOpenedAt)}</p>
+        <p className="mt-0.5 text-body-sm text-text-muted">{activityLabel(item)}</p>
       </div>
       <div className="border-t border-border-subtle bg-primary/10 px-4 py-2.5 text-label-md font-semibold text-primary">
         {action}

@@ -747,6 +747,53 @@ test("locked Year 1 resources keep access flags without exposing file bytes", as
   });
 });
 
+test("recent locked resources remain visible across every unverified entitlement state", async function () {
+  const cases = [
+    { name: "unpaid", payment: null, entitlement: null, code: "PAYMENT_REQUIRED" },
+    {
+      name: "pending",
+      payment: { status: "pending" },
+      entitlement: null,
+      code: "PAYMENT_PENDING",
+    },
+    {
+      name: "rejected",
+      payment: { status: "rejected" },
+      entitlement: null,
+      code: "PAYMENT_REJECTED",
+    },
+    {
+      name: "expired",
+      payment: null,
+      entitlement: { ends_at: "2020-01-01T00:00:00.000Z" },
+      code: "PAYMENT_EXPIRED",
+    },
+  ];
+
+  for (const item of cases) {
+    const student = await createUser("student", "Unverified-" + item.name);
+    if (item.payment) paymentRequests.set(student.id, item.payment);
+    if (item.entitlement) entitlements.set(student.id, item.entitlement);
+    addActivity({
+      userId: student.id,
+      activityType: "pdf_opened",
+      resourceType: "drive",
+      pdfId: "trees",
+      pdfName: "Trees and Graphs.pdf",
+      createdAt: "2026-11-05T12:00:00.000Z",
+    });
+
+    const res = await authedGet(student, "/api/users/me/continue-studying");
+    assert.equal(res.status, 200, item.name);
+    const items = itemsOf(res);
+    assert.equal(items.length, 1, item.name);
+    assert.equal(items[0].resourceId, "trees", item.name);
+    assert.equal(items[0].protected, true, item.name);
+    assert.equal(items[0].canPreview, false, item.name);
+    assert.equal(items[0].accessCode, item.code, item.name);
+  }
+});
+
 test("empty history returns an empty items list, not an error", async function () {
   const student = await createUser("student", "Empty");
   const res = await authedGet(student, "/api/users/me/continue-studying");

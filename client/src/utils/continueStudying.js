@@ -1,5 +1,4 @@
 import { formatRelativeTime } from "./formatDate.js";
-import { paymentAccessPath } from "./paymentRedirect.js";
 
 export function shouldShowContinueStudying(user) {
   return !!(user && user.role === "student");
@@ -8,9 +7,6 @@ export function shouldShowContinueStudying(user) {
 export function resourceHref(item) {
   if (!item) {
     return "/dashboard";
-  }
-  if (item.canPreview === false) {
-    return paymentAccessPath(item.accessCode);
   }
   if (item.href) {
     return item.href;

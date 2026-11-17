@@ -118,6 +118,20 @@ offline PDF/library/search/download (no service worker).
   because DNS resolution is unavailable in this runtime. PR #28 is clean and
   open; owner review/merge is still required.
 
+## Continue Studying unverified visibility (2026-11-17)
+
+- PR #33 head `889f5d4aecf6ede808458cae26e83ace8bc4089b` keeps valid recent
+  resources visible for students in unpaid, pending, rejected, and expired
+  entitlement states. The API continues returning only metadata and access
+  flags; locked thumbnails do not fetch PDF bytes.
+- Locked cards now navigate through the existing Drive/note viewer routes so
+  backend authorization performs the established redirect to `/access`.
+- Verification: backend tests 360/360, targeted Continue Studying tests 19/19,
+  frontend build plus SEO validator passed, and `git diff --check` passed.
+  Preview deployment matches the exact head. Browser verification was
+  attempted but blocked by DNS/client network restrictions; production remains
+  **NOT VERIFIED**.
+
 ---
 
 *Verify `git log -1` and `git status` before acting.*

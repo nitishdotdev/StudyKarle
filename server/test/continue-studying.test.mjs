@@ -7,7 +7,6 @@ import {
   lastOpenedLabel,
 } from "../../client/src/utils/continueStudying.js";
 import { readPdfPosition, savePdfPosition } from "../../client/src/utils/pdfPositionStore.js";
-import { paymentAccessPath } from "../../client/src/utils/paymentRedirect.js";
 
 function memoryStorage() {
   const map = new Map();
@@ -42,7 +41,7 @@ test("drive and note resources navigate to the existing viewer routes", () => {
   );
 });
 
-test("locked resources navigate to the existing access page", () => {
+test("locked resources navigate through the existing viewer authorization flow", () => {
   const item = {
     resourceType: "drive",
     resourceId: "trees",
@@ -50,7 +49,7 @@ test("locked resources navigate to the existing access page", () => {
     canPreview: false,
     accessCode: "PAYMENT_REQUIRED",
   };
-  assert.equal(resourceHref(item), paymentAccessPath("PAYMENT_REQUIRED"));
+  assert.equal(resourceHref(item), "/drive/file/trees");
 });
 
 test("reading-position lookup shows Resume only for a saved page greater than one", () => {

@@ -1,5 +1,6 @@
 import React, { lazy, Suspense } from "react";
 import { Routes, Route } from "react-router-dom";
+import { SpeedInsights } from "@vercel/speed-insights/react";
 
 import ProtectedRoute from "./components/auth/ProtectedRoute";
 import AdminRoute from "./components/auth/AdminRoute";
@@ -112,7 +113,8 @@ function SuspenseRoute({ children }) {
 
 export default function App() {
   return (
-    <Routes>
+    <>
+      <Routes>
       <Route element={<PublicLayout />}>
         <Route path="/" element={<SuspenseRoute><LandingPage /></SuspenseRoute>} />
         <Route path="/features" element={<SuspenseRoute><FeaturesPage /></SuspenseRoute>} />
@@ -268,6 +270,8 @@ export default function App() {
         }
       />
       <Route path="*" element={<SuspenseRoute><NotFoundPage /></SuspenseRoute>} />
-    </Routes>
+      </Routes>
+      <SpeedInsights />
+    </>
   );
 }

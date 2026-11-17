@@ -132,6 +132,27 @@ offline PDF/library/search/download (no service worker).
   attempted but blocked by DNS/client network restrictions; production remains
   **NOT VERIFIED**.
 
+## Continue Studying recommendation fallback (2026-11-17)
+
+- Follow-up PR #34 is based on merged PR #33/main. Implementation commit:
+  `5cfe2e3c337fd4ba02779c7a6e5c669de7c078b8`.
+- `continueStudyingService` now preserves genuine latest-two history first,
+  then falls back only for unapproved students with no valid history to a
+  bounded `drive_nodes` PDF query scoped by the shared Year 1/Year 2
+  classification. Candidates are ordered by preferred profile year when
+  available, then `modified_time DESC NULLS LAST`, `created_time DESC NULLS
+  LAST`, and `drive_id`.
+- Recommendations are authorized through `materialGate`, return only safe
+  metadata with `source: recommendation`, and never create `pdf_opened`
+  activity. Approved students receive no locked fallback. The frontend clears
+  and refetches by authenticated user ID and labels recommendations
+  “Recently updated”.
+- Validation: backend tests 363/363, targeted Continue Studying tests 22/22,
+  frontend build plus SEO validator passed, and `git diff --check` passed.
+  PR #34 CI, CodeQL, and Vercel Preview checks passed. Preview/browser account
+  verification remains **NOT VERIFIED** because the browser returned
+  `ERR_BLOCKED_BY_CLIENT` and direct DNS/HTTP access was unavailable.
+
 ---
 
 *Verify `git log -1` and `git status` before acting.*

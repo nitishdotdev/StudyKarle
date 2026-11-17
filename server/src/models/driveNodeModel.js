@@ -28,6 +28,42 @@ module.exports = {
     return db(TABLE).whereIn("drive_id", list).andWhere({ kind: "file" });
   },
 
+  async findRecommendedPdfFiles(preferredYear) {
+    const yearPattern =
+      "(^|/)(year[[:space:]_-]*1|1st[[:space:]_-]*year|first[[:space:]_-]*year|y1|year[[:space:]_-]*2|2nd[[:space:]_-]*year|second[[:space:]_-]*year|y2)(/|$)";
+    const preferredPattern =
+      Number(preferredYear) === 1
+        ? "(^|/)(year[[:space:]_-]*1|1st[[:space:]_-]*year|first[[:space:]_-]*year|y1)(/|$)"
+        : Number(preferredYear) === 2
+          ? "(^|/)(year[[:space:]_-]*2|2nd[[:space:]_-]*year|second[[:space:]_-]*year|y2)(/|$)"
+          : null;
+
+    const query = db(TABLE)
+      .select(
+        "drive_id",
+        "name",
+        "mime_type",
+        "kind",
+        "path",
+        "created_time",
+        "modified_time"
+      )
+      .where("kind", "file")
+      .andWhere(function () {
+        this.whereILike("mime_type", "%pdf%").orWhereILike("name", "%.pdf");
+      })
+      .andWhereRaw("path ~* ?", [yearPattern]);
+
+    if (preferredPattern) {
+      query.orderByRaw("CASE WHEN path ~* ? THEN 0 ELSE 1 END", [preferredPattern]);
+    }
+    return query
+      .orderByRaw("modified_time DESC NULLS LAST")
+      .orderByRaw("created_time DESC NULLS LAST")
+      .orderBy("drive_id", "asc")
+      .limit(12);
+  },
+
   // Direct children of a Drive folder, in the order Drive returned them
   // (folders and files interleaved by name, as Google Drive displays them).
   async findChildren(parentDriveId) {

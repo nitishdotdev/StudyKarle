@@ -40,3 +40,12 @@ export function lastOpenedLabel(value) {
   }
   return "Last opened " + formatRelativeTime(value);
 }
+
+export function activityLabel(item) {
+  if (item && item.source === "recommendation") {
+    return item.modifiedAt
+      ? "Recently updated " + formatRelativeTime(item.modifiedAt)
+      : "Recently updated";
+  }
+  return lastOpenedLabel(item && item.lastOpenedAt);
+}

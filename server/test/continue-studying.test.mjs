@@ -5,6 +5,7 @@ import {
   resourceHref,
   shouldShowContinueStudying,
   lastOpenedLabel,
+  activityLabel,
 } from "../../client/src/utils/continueStudying.js";
 import { readPdfPosition, savePdfPosition } from "../../client/src/utils/pdfPositionStore.js";
 
@@ -96,4 +97,14 @@ test("last opened copy stays relative and never invents a completion percent", (
   const recent = lastOpenedLabel(new Date().toISOString());
   assert.equal(recent.indexOf("%"), -1);
   assert.ok(recent.indexOf("Last opened") === 0);
+});
+
+test("recommendations use honest recently-updated copy", () => {
+  assert.equal(
+    activityLabel({ source: "recommendation", modifiedAt: new Date().toISOString() }).indexOf(
+      "Recently updated"
+    ),
+    0
+  );
+  assert.equal(activityLabel({ source: "recommendation" }), "Recently updated");
 });

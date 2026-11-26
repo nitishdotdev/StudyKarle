@@ -14,10 +14,10 @@ const router = express.Router();
 
 router.use('/auth', authRoutes);
 router.use('/users', userRoutes);
-// driveRoutes is mounted before the other "/"-mounted routers because it owns
-// public, token-gated share endpoints (/drive/shares/:token) that must not be
-// intercepted by the global `authenticate` middleware in the note/year/search
-// routers (which are path-agnostic inside their own mount).
+// Each "/"-mounted router scopes its own `authenticate` and
+// `authenticatedActionLimiter` middleware to its path prefix(es) so auth and
+// rate limiting execute once per request and never intercept sibling routers
+// or public share endpoints (/drive/shares/:token).
 router.use('/', driveRoutes);
 router.use('/', paymentRoutes);
 router.use('/', yearRoutes);

@@ -13,8 +13,7 @@ const upload = multer({
   limits: { fileSize: MAX_PROOF_BYTES },
 });
 
-router.use(authenticate);
-router.use(authenticatedActionLimiter);
+router.use("/payments", authenticate, authenticatedActionLimiter);
 
 router.get("/payments/offer", paymentController.offer);
 router.get("/payments/access", paymentController.access);

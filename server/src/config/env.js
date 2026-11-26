@@ -1,11 +1,84 @@
+const crypto = require("crypto");
 require("dotenv").config();
 
-function required(name, fallback) {
-  const value = process.env[name] || fallback;
-  if (value === undefined) {
-    throw new Error("Missing required environment variable: " + name);
+const MIN_PRODUCTION_SECRET_LENGTH = 32;
+const INSECURE_PLACEHOLDER_SECRETS = new Set([
+  "dev_secret_change_me",
+  "dev_jwt_secret_change_me",
+  "dev_csrf_secret_change_me",
+  "dev_otp_secret_change_me",
+  "change_this_to_a_long_random_string",
+  "change_this_to_a_separate_long_random_csrf_secret",
+  "change_this_to_a_separate_long_random_otp_secret",
+  "test_secret_change_me",
+  "secret",
+  "changeme",
+]);
+
+function isPlaceholderSecret(value) {
+  return INSECURE_PLACEHOLDER_SECRETS.has(String(value || "").trim().toLowerCase());
+}
+
+function validateProductionSecret(name, rawValue) {
+  const value = typeof rawValue === "string" ? rawValue : "";
+  const trimmed = value.trim();
+  if (!trimmed) {
+    throw new Error(
+      "Missing required production environment variable: " + name
+    );
+  }
+  if (isPlaceholderSecret(trimmed)) {
+    throw new Error(
+      "Insecure placeholder value configured for production secret: " + name
+    );
+  }
+  if (trimmed.length < MIN_PRODUCTION_SECRET_LENGTH) {
+    throw new Error(
+      "Production secret " +
+        name +
+        " must be at least " +
+        MIN_PRODUCTION_SECRET_LENGTH +
+        " characters long"
+    );
   }
   return value;
+}
+
+function deriveDevSecret(baseSecret, domain) {
+  return crypto
+    .createHmac("sha256", baseSecret)
+    .update("studykarle:dev:" + domain)
+    .digest("hex");
+}
+
+function resolveSecrets(production) {
+  if (production) {
+    const jwtSecret = validateProductionSecret("JWT_SECRET", process.env.JWT_SECRET);
+    const csrfSecret = validateProductionSecret("CSRF_SECRET", process.env.CSRF_SECRET);
+    const otpSecret = validateProductionSecret("OTP_SECRET", process.env.OTP_SECRET);
+
+    if (jwtSecret.trim() === csrfSecret.trim()) {
+      throw new Error("CSRF_SECRET must be distinct from JWT_SECRET in production");
+    }
+    if (jwtSecret.trim() === otpSecret.trim()) {
+      throw new Error("OTP_SECRET must be distinct from JWT_SECRET in production");
+    }
+    if (csrfSecret.trim() === otpSecret.trim()) {
+      throw new Error("OTP_SECRET must be distinct from CSRF_SECRET in production");
+    }
+
+    return { jwtSecret, csrfSecret, otpSecret };
+  }
+
+  const rawJwt = typeof process.env.JWT_SECRET === "string" ? process.env.JWT_SECRET : "";
+  const rawCsrf = typeof process.env.CSRF_SECRET === "string" ? process.env.CSRF_SECRET : "";
+  const rawOtp = typeof process.env.OTP_SECRET === "string" ? process.env.OTP_SECRET : "";
+
+  const jwtSecret = rawJwt.trim() ? rawJwt : "dev_jwt_secret_change_me";
+  const csrfSecret = rawCsrf.trim() ? rawCsrf : deriveDevSecret(jwtSecret, "csrf");
+  const otpSecret = rawOtp.trim() ? rawOtp : deriveDevSecret(jwtSecret, "otp");
+
+  return { jwtSecret, csrfSecret, otpSecret };
 }
 
 function corsOrigins() {
@@ -82,6 +155,9 @@ const googleOauthSignInConfigured = !!(
   googleAuthRedirect
 );
 
+const isProduction = (process.env.NODE_ENV || "development") === "production";
+const secrets = resolveSecrets(isProduction);
+
 module.exports = {
   trustProxyHops: trustProxyHops(),
   nodeEnv: process.env.NODE_ENV || "development",
@@ -89,7 +165,9 @@ module.exports = {
   clientUrl: process.env.CLIENT_URL || "http://localhost:5173",
   corsOrigins: corsOrigins(),
 
-  jwtSecret: required("JWT_SECRET", "dev_secret_change_me"),
+  jwtSecret: secrets.jwtSecret,
+  csrfSecret: secrets.csrfSecret,
+  otpSecret: secrets.otpSecret,
   jwtExpiresIn: process.env.JWT_EXPIRES_IN || "7d",
   cookieName: process.env.COOKIE_NAME || "studykarle_token",
 
@@ -122,5 +200,5 @@ module.exports = {
     maxResendAttempts: Number(process.env.OTP_MAX_RESEND) || 3,
   },
 
-  isProduction: (process.env.NODE_ENV || "development") === "production",
+  isProduction: isProduction,
 };

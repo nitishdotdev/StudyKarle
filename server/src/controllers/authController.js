@@ -121,11 +121,13 @@ module.exports = {
     });
   }),
 
-  signup: asyncHandler(async function (req, res) {
-    const user = await authService.signup(req.body);
-    const full = await userModel.findById(user.id);
-    issueSession(res, full || user);
-    return ApiResponse.created(res, user);
+  signup: asyncHandler(async function () {
+    const err = new ApiError(
+      410,
+      "Direct signup is disabled. Please verify your email using /api/auth/request-otp and /api/auth/verify-otp."
+    );
+    err.code = "EMAIL_VERIFICATION_REQUIRED";
+    throw err;
   }),
 
   login: asyncHandler(async function (req, res) {

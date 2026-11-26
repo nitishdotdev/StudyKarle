@@ -11,7 +11,6 @@ const {
   sessionCheckLimiter,
 } = require("../middleware/rateLimiter");
 const {
-  signupValidator,
   loginValidator,
   requestPasswordResetValidator,
   verifyPasswordResetOtpValidator,
@@ -55,14 +54,7 @@ router.post(
   authController.resendOtp
 );
 
-router.post(
-  "/signup",
-  authIpLimiter,
-  authLimiter,
-  signupValidator,
-  validate,
-  authController.signup
-);
+router.post("/signup", authIpLimiter, authController.signup);
 
 router.post(
   "/login",

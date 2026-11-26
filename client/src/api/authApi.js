@@ -1,11 +1,5 @@
 import axiosClient from "./axiosClient";
 
-export function signup(payload) {
-  return axiosClient.post("/auth/signup", payload).then(function (res) {
-    return res.data.data;
-  });
-}
-
 export function requestOtp(payload) {
   return axiosClient.post("/auth/request-otp", payload).then(function (res) {
     return res.data.data;

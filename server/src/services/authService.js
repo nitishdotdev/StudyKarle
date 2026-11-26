@@ -26,23 +26,13 @@ module.exports = {
   SALT_ROUNDS: SALT_ROUNDS,
   toSessionUser: toSessionUser,
 
-  async signup(data) {
-    const email = normalizeEmail(data.email);
-    disposableEmailService.assertNotDisposable(email);
-
-    const existing = await userModel.findByEmail(email);
-    if (existing) {
-      throw ApiError.conflict("An account with this email already exists");
-    }
-
-    const passwordHash = await bcrypt.hash(data.password, SALT_ROUNDS);
-    const user = await userModel.create({
-      name: data.name,
-      email: email,
-      passwordHash: passwordHash,
-      role: "student",
-    });
-    return toSessionUser(user);
+  async signup() {
+    const err = new ApiError(
+      410,
+      "Direct signup is disabled. Email OTP verification is required before account creation."
+    );
+    err.code = "EMAIL_VERIFICATION_REQUIRED";
+    throw err;
   },
 
   async createUserFromOtp(otpData) {

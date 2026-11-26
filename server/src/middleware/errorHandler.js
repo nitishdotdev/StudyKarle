@@ -28,6 +28,12 @@ module.exports = function errorHandler(err, req, res, next) {
     message: isOperational ? err.message : 'Something went wrong. Please try again.'
   };
 
+  // Expose stable application error codes only for operational errors.
+  // Never serialize arbitrary codes from unexpected/internal errors (e.g. DB codes).
+  if (isOperational && typeof err.code === "string" && err.code.trim()) {
+    body.code = err.code;
+  }
+
   if (err.details) {
     body.details = err.details;
   }

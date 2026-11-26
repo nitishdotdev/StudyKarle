@@ -20,18 +20,19 @@ function isPlaceholderSecret(value) {
 }
 
 function validateProductionSecret(name, rawValue) {
-  const value = typeof rawValue === "string" ? rawValue.trim() : "";
-  if (!value) {
+  const value = typeof rawValue === "string" ? rawValue : "";
+  const trimmed = value.trim();
+  if (!trimmed) {
     throw new Error(
       "Missing required production environment variable: " + name
     );
   }
-  if (isPlaceholderSecret(value)) {
+  if (isPlaceholderSecret(trimmed)) {
     throw new Error(
       "Insecure placeholder value configured for production secret: " + name
     );
   }
-  if (value.length < MIN_PRODUCTION_SECRET_LENGTH) {
+  if (trimmed.length < MIN_PRODUCTION_SECRET_LENGTH) {
     throw new Error(
       "Production secret " +
         name +
@@ -56,26 +57,26 @@ function resolveSecrets(production) {
     const csrfSecret = validateProductionSecret("CSRF_SECRET", process.env.CSRF_SECRET);
     const otpSecret = validateProductionSecret("OTP_SECRET", process.env.OTP_SECRET);
 
-    if (jwtSecret === csrfSecret) {
+    if (jwtSecret.trim() === csrfSecret.trim()) {
       throw new Error("CSRF_SECRET must be distinct from JWT_SECRET in production");
     }
-    if (jwtSecret === otpSecret) {
+    if (jwtSecret.trim() === otpSecret.trim()) {
       throw new Error("OTP_SECRET must be distinct from JWT_SECRET in production");
     }
-    if (csrfSecret === otpSecret) {
+    if (csrfSecret.trim() === otpSecret.trim()) {
       throw new Error("OTP_SECRET must be distinct from CSRF_SECRET in production");
     }
 
     return { jwtSecret, csrfSecret, otpSecret };
   }
 
-  const rawJwt = typeof process.env.JWT_SECRET === "string" ? process.env.JWT_SECRET.trim() : "";
-  const rawCsrf = typeof process.env.CSRF_SECRET === "string" ? process.env.CSRF_SECRET.trim() : "";
-  const rawOtp = typeof process.env.OTP_SECRET === "string" ? process.env.OTP_SECRET.trim() : "";
+  const rawJwt = typeof process.env.JWT_SECRET === "string" ? process.env.JWT_SECRET : "";
+  const rawCsrf = typeof process.env.CSRF_SECRET === "string" ? process.env.CSRF_SECRET : "";
+  const rawOtp = typeof process.env.OTP_SECRET === "string" ? process.env.OTP_SECRET : "";
 
-  const jwtSecret = rawJwt || "dev_jwt_secret_change_me";
-  const csrfSecret = rawCsrf || deriveDevSecret(jwtSecret, "csrf");
-  const otpSecret = rawOtp || deriveDevSecret(jwtSecret, "otp");
+  const jwtSecret = rawJwt.trim() ? rawJwt : "dev_jwt_secret_change_me";
+  const csrfSecret = rawCsrf.trim() ? rawCsrf : deriveDevSecret(jwtSecret, "csrf");
+  const otpSecret = rawOtp.trim() ? rawOtp : deriveDevSecret(jwtSecret, "otp");
 
   return { jwtSecret, csrfSecret, otpSecret };
 }

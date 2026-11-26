@@ -152,6 +152,18 @@ test("production startup succeeds with distinct high-entropy secrets", () => {
   assert.equal(res.data.otpSecret, VALID_PROD_SECRETS.OTP_SECRET);
 });
 
+test("production preserves raw JWT_SECRET value without trimming surrounding whitespace", () => {
+  const paddedJwt = " " + VALID_PROD_SECRETS.JWT_SECRET + " ";
+  const res = runLoadEnv({
+    NODE_ENV: "production",
+    JWT_SECRET: paddedJwt,
+    CSRF_SECRET: VALID_PROD_SECRETS.CSRF_SECRET,
+    OTP_SECRET: VALID_PROD_SECRETS.OTP_SECRET,
+  });
+  assert.equal(res.ok, true);
+  assert.equal(res.data.jwtSecret, paddedJwt);
+});
+
 test("non-production derives distinct fallback secrets when CSRF_SECRET and OTP_SECRET are unset", () => {
   const res = runLoadEnv({
     NODE_ENV: "development",

@@ -13,6 +13,7 @@ export default function PublicHeader() {
       </Link>
 
       <nav className="hidden md:flex items-center gap-8" aria-label="Primary">
+        <Link to="/courses">Courses</Link>
         <Link to="/features">Features</Link>
         <Link to="/how-it-works">How It Works</Link>
         <Link to="/about">About</Link>
@@ -63,6 +64,15 @@ export default function PublicHeader() {
             className="px-3 py-3 rounded-lg font-label-md text-label-md text-text-primary hover:bg-surface-low transition-colors"
           >
             Home
+          </Link>
+          <Link
+            to="/courses"
+            onClick={function () {
+              setMenuOpen(false);
+            }}
+            className="px-3 py-3 rounded-lg font-label-md text-label-md text-text-primary hover:bg-surface-low transition-colors"
+          >
+            Courses
           </Link>
           <Link
             to="/features"

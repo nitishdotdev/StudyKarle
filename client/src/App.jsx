@@ -64,6 +64,12 @@ const NotFoundPage = lazy(function () {
 const FeaturesPage = lazy(function () {
   return import("./pages/FeaturesPage");
 });
+const CoursesPage = lazy(function () {
+  return import("./pages/CoursesPage");
+});
+const CourseDetailPage = lazy(function () {
+  return import("./pages/CourseDetailPage");
+});
 const HowItWorksPage = lazy(function () {
   return import("./pages/HowItWorksPage");
 });
@@ -117,6 +123,8 @@ export default function App() {
       <Routes>
       <Route element={<PublicLayout />}>
         <Route path="/" element={<SuspenseRoute><LandingPage /></SuspenseRoute>} />
+        <Route path="/courses" element={<SuspenseRoute><CoursesPage /></SuspenseRoute>} />
+        <Route path="/courses/:slug" element={<SuspenseRoute><CourseDetailPage /></SuspenseRoute>} />
         <Route path="/features" element={<SuspenseRoute><FeaturesPage /></SuspenseRoute>} />
         <Route path="/how-it-works" element={<SuspenseRoute><HowItWorksPage /></SuspenseRoute>} />
         <Route path="/about" element={<SuspenseRoute><AboutPage /></SuspenseRoute>} />

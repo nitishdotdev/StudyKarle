@@ -39,7 +39,13 @@ module.exports = {
 
   checkout: asyncHandler(async function (req, res) {
     const requestedReference = req.body && req.body.paymentReference;
-    const data = await paymentService.checkout(req.user, requestedReference);
+    const sourceCourseSlug = req.body && req.body.sourceCourseSlug;
+    const data = await paymentService.checkout(req.user, requestedReference, {
+      sourceCourseSlug: sourceCourseSlug,
+      ip: req.ip,
+      userAgent: req.get("user-agent"),
+      referrer: req.get("referer"),
+    });
     if (data.reused || data.alreadyActive) {
       return ApiResponse.ok(res, data);
     }

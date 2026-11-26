@@ -9,9 +9,11 @@ const savedRoutes = require('./savedRoutes');
 const searchRoutes = require('./searchRoutes');
 const adminRoutes = require('./adminRoutes');
 const paymentRoutes = require('./paymentRoutes');
+const publicCourseRoutes = require('./publicCourseRoutes');
 
 const router = express.Router();
 
+router.use('/public', publicCourseRoutes);
 router.use('/auth', authRoutes);
 router.use('/users', userRoutes);
 // Each "/"-mounted router scopes its own `authenticate` and

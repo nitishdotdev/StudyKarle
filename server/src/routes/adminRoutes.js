@@ -2,6 +2,7 @@ const express = require("express");
 const multer = require("multer");
 const adminController = require("../controllers/adminController");
 const paymentController = require("../controllers/paymentController");
+const publicCourseController = require("../controllers/publicCourseController");
 const authenticate = require("../middleware/authenticate");
 const authorize = require("../middleware/authorize");
 const validate = require("../middleware/validate");
@@ -28,6 +29,7 @@ const upload = multer({
 router.use(authenticate, authorize("admin"), authenticatedActionLimiter);
 
 router.get("/stats", adminController.stats);
+router.get("/course-analytics", publicCourseController.adminAnalytics);
 router.get("/activity", adminController.activity);
 router.get("/pdf-activity", adminController.pdfActivity);
 router.delete("/pdf-activity", adminController.clearPdfActivity);

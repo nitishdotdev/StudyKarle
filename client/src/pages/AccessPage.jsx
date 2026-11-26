@@ -184,9 +184,19 @@ export default function AccessPage() {
       });
   }
 
+  function resolveSourceCourseSlug() {
+    const fromQuery = searchParams.get("course");
+    if (fromQuery) return fromQuery;
+    try {
+      return sessionStorage.getItem("studykarle_source_course_slug") || null;
+    } catch (err) {
+      return null;
+    }
+  }
+
   function handleCompleteSetup() {
     setBusy(true);
-    startCheckout(checkout && checkout.paymentReference)
+    startCheckout(checkout && checkout.paymentReference, resolveSourceCourseSlug())
       .then(function (data) {
         if (data.alreadyActive) {
           navigate("/dashboard", { replace: true });

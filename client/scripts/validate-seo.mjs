@@ -7,6 +7,7 @@ const landingSource = await readFile(
 );
 const pages = [
   { path: "/", file: "index.html" },
+  { path: "/courses", file: "courses/index.html" },
   { path: "/features", file: "features/index.html" },
   { path: "/how-it-works", file: "how-it-works/index.html" },
   { path: "/about", file: "about/index.html" },

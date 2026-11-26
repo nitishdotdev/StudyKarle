@@ -51,7 +51,7 @@ function hashTicket(ticket) {
 }
 
 function hashOtp(otp) {
-  return hmacSha256("google-link-otp:" + otp);
+  return hmacSha256("google-link-otp:" + otp, env.otpSecret);
 }
 
 function linkFailureMessage(reason) {

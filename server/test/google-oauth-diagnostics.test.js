@@ -68,7 +68,9 @@ function loadEnv(extra) {
     env: Object.assign(
       {
         PATH: process.env.PATH,
-        JWT_SECRET: "x",
+        JWT_SECRET: "prod_test_jwt_secret_0123456789abcdef",
+        CSRF_SECRET: "prod_test_csrf_secret_0123456789abcdef",
+        OTP_SECRET: "prod_test_otp_secret_0123456789abcdef",
       },
       extra || {}
     ),

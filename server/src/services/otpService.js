@@ -19,7 +19,7 @@ function getExpiryTimestamp() {
 }
 
 function hashOtp(otp) {
-  return hmacSha256(otp);
+  return hmacSha256(otp, env.otpSecret);
 }
 
 function otpMatches(record, otp) {

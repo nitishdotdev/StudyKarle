@@ -106,15 +106,7 @@ export function AuthProvider({ children }) {
     });
   }, []);
 
-  // Legacy direct signup (kept for backward compatibility)
-  const signup = useCallback(function (payload) {
-    return authApi.signup(payload).then(function (data) {
-      setUser(data);
-      return data;
-    });
-  }, []);
-
-  // NEW: OTP-based signup methods
+  // OTP-based signup methods
   const requestOtp = useCallback(function (payload) {
     return authApi.requestOtp(payload);
   }, []);
@@ -145,7 +137,6 @@ export function AuthProvider({ children }) {
         isAuthenticated: !!user,
         isAdmin: !!user && user.role === "admin",
         login: login,
-        signup: signup,
         requestOtp: requestOtp,
         verifyOtp: verifyOtp,
         resendOtp: resendOtp,
@@ -159,7 +150,6 @@ export function AuthProvider({ children }) {
       loading,
       sessionError,
       login,
-      signup,
       requestOtp,
       verifyOtp,
       resendOtp,

@@ -78,6 +78,8 @@ test("production startup rejects insecure placeholder secrets", () => {
   const placeholders = [
     "dev_secret_change_me",
     "change_this_to_a_long_random_string",
+    "change_this_to_a_separate_long_random_csrf_secret",
+    "change_this_to_a_separate_long_random_otp_secret",
     "test_secret_change_me",
   ];
   for (const placeholder of placeholders) {

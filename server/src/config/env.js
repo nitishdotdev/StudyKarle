@@ -8,6 +8,8 @@ const INSECURE_PLACEHOLDER_SECRETS = new Set([
   "dev_csrf_secret_change_me",
   "dev_otp_secret_change_me",
   "change_this_to_a_long_random_string",
+  "change_this_to_a_separate_long_random_csrf_secret",
+  "change_this_to_a_separate_long_random_otp_secret",
   "test_secret_change_me",
   "secret",
   "changeme",

@@ -132,6 +132,7 @@ test("POST /api/auth/signup is disabled (410), creates no user, and issues no se
     const body = await res.json();
     assert.equal(body.success, false);
     assert.match(body.message, /request-otp/i);
+    assert.equal(body.code, "EMAIL_VERIFICATION_REQUIRED");
     assert.equal(res.headers.get("set-cookie"), null);
     assert.equal(users.length, 0);
   } finally {

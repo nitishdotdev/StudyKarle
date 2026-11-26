@@ -7,8 +7,7 @@ const { authenticatedActionLimiter } = require("../middleware/rateLimiter");
 
 const router = express.Router();
 
-router.use(authenticate);
-router.use(authenticatedActionLimiter);
+router.use("/notes", authenticate, authenticatedActionLimiter);
 
 const noteIdValidator = [
   param("noteId").isInt({ min: 1 }).withMessage("Invalid note id"),

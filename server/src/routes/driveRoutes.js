@@ -31,8 +31,7 @@ router.get(
 // file id (not a numeric StudyKarle id), so it is NOT constrained with
 // isInt().
 // ------------------------------------------------------------------
-router.use(authenticate);
-router.use(authenticatedActionLimiter);
+router.use("/drive", authenticate, authenticatedActionLimiter);
 
 router.get("/drive", driveController.listRoot);
 router.get("/drive/nodes/:nodeId", driveController.listFolder);

@@ -7,8 +7,7 @@ const { authenticatedActionLimiter } = require("../middleware/rateLimiter");
 
 const router = express.Router();
 
-router.use(authenticate);
-router.use(authenticatedActionLimiter);
+router.use(["/years", "/subjects"], authenticate, authenticatedActionLimiter);
 
 router.get("/years", yearController.listYears);
 

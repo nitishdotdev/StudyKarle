@@ -6,7 +6,7 @@ const CSRF_COOKIE_NAME = "csrf";
 
 const { generateCsrfToken, doubleCsrfProtection } = doubleCsrf({
   getSecret: function () {
-    return env.jwtSecret;
+    return env.csrfSecret;
   },
   getSessionIdentifier: function () {
     return "anonymous";

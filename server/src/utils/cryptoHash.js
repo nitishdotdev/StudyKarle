@@ -1,9 +1,9 @@
 const crypto = require("crypto");
 const env = require("../config/env");
 
-function hmacSha256(value) {
+function hmacSha256(value, secret) {
   return crypto
-    .createHmac("sha256", env.jwtSecret)
+    .createHmac("sha256", secret || env.jwtSecret)
     .update(String(value))
     .digest("hex");
 }

@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useRef, useCallback, useMemo } from 'react';
+import workerUrl from "pdfjs-dist/build/pdf.worker.min.mjs?url";
 import { Document, Page, pdfjs } from 'react-pdf';
 import "react-pdf/dist/Page/AnnotationLayer.css";
 import "react-pdf/dist/Page/TextLayer.css";
@@ -11,8 +12,7 @@ import { readPdfPosition, savePdfPosition } from '../../utils/pdfPositionStore';
 // ------------------------------------------------------------------
 // PDF.js worker
 // ------------------------------------------------------------------
-// Production worker copied into client/public (matches pdfjs-dist 3.11.174).
-pdfjs.GlobalWorkerOptions.workerSrc = "/pdf.worker.min.js";
+pdfjs.GlobalWorkerOptions.workerSrc = workerUrl;
 
 // Stable options reference — react-pdf warns (and reloads the document) if
 // this object's identity changes between renders.

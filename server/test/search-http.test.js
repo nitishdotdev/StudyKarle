@@ -258,10 +258,15 @@ const driveNodeModel = {
   async findAncestors(id) {
     return ancestorsOf(id);
   },
-  async search(query) {
-    return Array.from(driveNodes.values()).filter(function (n) {
+  async findAncestorsForNodes(nodes) {
+    return new Map(await Promise.all(nodes.map(async (node) => [node.nodeId, await ancestorsOf(node.nodeId)])));
+  },
+  async search(query, params = {}) {
+    const rows = Array.from(driveNodes.values()).filter(function (n) {
+      if (params.kind && n.kind !== params.kind) return false;
       return matchesQuery(n.name, query) || matchesQuery(n.path, query);
     });
+    return rows.slice(params.offset || 0, (params.offset || 0) + (params.limit || rows.length));
   },
 };
 
@@ -272,8 +277,8 @@ const noteModel = {
   async findRawById(id) {
     return notes.get(Number(id)) || null;
   },
-  async search(query) {
-    return Array.from(notes.values()).filter(function (n) {
+  async search(query, params = {}) {
+    const rows = Array.from(notes.values()).filter(function (n) {
       if (n.status !== "published") return false;
       return (
         matchesQuery(n.title, query) ||
@@ -281,6 +286,7 @@ const noteModel = {
         matchesQuery(n.subject_name, query)
       );
     });
+    return rows.slice(params.offset || 0, (params.offset || 0) + (params.limit || rows.length));
   },
   async countSearch(query) {
     const rows = await this.search(query);
@@ -691,7 +697,7 @@ test("unpaid search stays 200 with access flags, never 403", async function () {
   assert.equal(hit.canPreview, false);
 });
 
-test("Year 3 hits are not labeled as Year 1 or Year 2", async function () {
+test("Year 3 hits carry their academic year and remain free", async function () {
   const student = await createStudent("Year3");
   const res = await authedGet(student, "/api/search?q=thermo");
   assert.equal(res.status, 200);
@@ -699,5 +705,6 @@ test("Year 3 hits are not labeled as Year 1 or Year 2", async function () {
     return row.nodeId === "thermo";
   });
   assert.ok(hit);
-  assert.equal(hit.academicYear, null);
+  assert.equal(hit.academicYear, 3);
+  assert.equal(hit.protected, false);
 });

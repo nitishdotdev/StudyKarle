@@ -146,7 +146,7 @@ module.exports = {
           .orWhereILike("notes.description", like)
           .orWhereILike("subjects.name", like);
       })
-      .orderBy("notes.created_at", "desc");
+      .orderBy("notes.created_at", "desc").orderBy("notes.id", "asc");
 
     if (params && params.limit) {
       builder.limit(params.limit).offset(params.offset || 0);
@@ -221,7 +221,7 @@ module.exports = {
     const query = db(TABLE)
       .join("subjects", "subjects.id", "notes.subject_id")
       .select(BASE_COLUMNS.concat(["subjects.name as subject_name"]))
-      .orderBy("notes.created_at", "desc");
+      .orderBy("notes.created_at", "desc").orderBy("notes.id", "asc");
 
     if (params && params.search) {
       query.andWhere(function () {

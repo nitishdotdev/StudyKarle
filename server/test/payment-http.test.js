@@ -977,6 +977,31 @@ test("checkout returns a unique reference, ₹9 amount, and server UPI details",
   assert.ok(data.upiUri.indexOf("studykarle@oksbi") !== -1);
 });
 
+test("checkout only records attribution for a published course", async function (t) {
+  const courses = require("../src/services/publicCourseService");
+  const analytics = require("../src/services/courseAnalyticsService");
+  t.mock.method(courses, "getPublicCourseBySlug", async function (slug) {
+    return slug === "published-course" ? { slug } : null;
+  });
+  const tracked = t.mock.method(analytics, "recordEvent", async function () {});
+
+  const first = await createStudent("Attribution");
+  const invalid = await mutating(first, "POST", "/api/payments/checkout", {
+    sourceCourseSlug: "unpublished-course",
+  });
+  assert.equal(invalid.status, 201);
+  assert.equal(paymentRequests[0].source_course_slug, undefined);
+  assert.equal(tracked.mock.callCount(), 0);
+
+  const second = await createStudent("ValidAttribution");
+  const valid = await mutating(second, "POST", "/api/payments/checkout", {
+    sourceCourseSlug: "published-course",
+  });
+  assert.equal(valid.status, 201);
+  assert.equal(paymentRequests[1].source_course_slug, "published-course");
+  assert.equal(tracked.mock.calls[0].arguments[0].eventType, "unlock_checkout");
+});
+
 test("preview checkout does not save a payment request", async function () {
   const student = await createStudent("Preview");
   const res = await authedGet(student, "/api/payments/checkout");

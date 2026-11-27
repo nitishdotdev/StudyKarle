@@ -15,6 +15,14 @@ const pages = {
     intro:
       "StudyKarle brings notes, previous-year papers, assignments, lab files and semester-wise resources into one structured academic platform.",
   },
+  "/courses": {
+    title: "Engineering Courses, Notes & PYQ Solutions | StudyKarle",
+    description:
+      "Browse engineering subjects on StudyKarle with organized lecture notes, previous-year question papers (PYQs), and solutions. Unlock full semester access for ₹9.",
+    heading: "Engineering Notes, Solutions and PYQs by Subject",
+    intro:
+      "Inspect subject-wise notes, previous-year question papers, and solutions across engineering years before unlocking full semester access for ₹9.",
+  },
   "/features": {
     title: "StudyKarle Features | Organized Academic Resources",
     description:

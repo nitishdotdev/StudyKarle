@@ -22,6 +22,7 @@ export const NAV_ITEMS = [
 
 export const ADMIN_NAV_ITEMS = [
   { label: "Overview", icon: "dashboard", path: "/admin" },
+  { label: "Course Publications", icon: "public", path: "/admin/course-publications" },
   { label: "Payments", icon: "payments", path: "/admin/payments" },
   { label: "Upload Notes", icon: "cloud_upload", path: "/admin/upload" },
   { label: "All Notes", icon: "description", path: "/admin/notes" },

@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { courseMaterialPath, paymentAccessPath } from "../utils/paymentRedirect";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import AppShell from "../components/layout/AppShell";
 import Button from "../components/common/Button";
@@ -104,6 +105,13 @@ export default function AccessPage() {
   const navigate = useNavigate();
   const [params] = useSearchParams();
   const reason = params.get("reason");
+  const rawCourse = params.get("course") || "";
+  const rawItem = params.get("item") || "";
+  const courseSlug = rawCourse.length <= 160 && /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(rawCourse) ? rawCourse : null;
+  const courseItemKey = /^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/.test(rawItem) ? rawItem : null;
+  const returnPath = courseSlug && courseItemKey
+    ? courseMaterialPath(courseSlug, courseItemKey)
+    : courseSlug ? "/courses/" + encodeURIComponent(courseSlug) : "/dashboard";
 
   const [offer, setOffer] = useState(null);
   const [checkout, setCheckout] = useState(null);
@@ -120,16 +128,16 @@ export default function AccessPage() {
   useEffect(
     function () {
       if (isAdmin) {
-        navigate("/dashboard", { replace: true });
+        navigate(returnPath, { replace: true });
       }
     },
-    [isAdmin, navigate]
+    [isAdmin, navigate, returnPath]
   );
 
   function applyCheckout(data) {
     setCheckout(data);
     if (data.alreadyActive) {
-      navigate("/dashboard", { replace: true });
+      navigate(returnPath, { replace: true });
       return;
     }
     if (data.submitted) {
@@ -137,7 +145,7 @@ export default function AccessPage() {
       setStage("submitted");
       return;
     }
-    setStage("pay");
+    setStage(data.persisted ? "proof" : "pay");
   }
 
   function load() {
@@ -147,7 +155,7 @@ export default function AccessPage() {
       .then(function (data) {
         setOffer(data);
         if (data.hasAccess) {
-          navigate("/dashboard", { replace: true });
+          navigate(returnPath, { replace: true });
           return;
         }
         if (data.status === "pending") {
@@ -186,15 +194,15 @@ export default function AccessPage() {
 
   function handleCompleteSetup() {
     setBusy(true);
-    startCheckout(checkout && checkout.paymentReference)
+    startCheckout(checkout && checkout.paymentReference, courseSlug)
       .then(function (data) {
         if (data.alreadyActive) {
-          navigate("/dashboard", { replace: true });
+          navigate(returnPath, { replace: true });
           return;
         }
         setCheckout(data);
         setStage(data.submitted ? "submitted" : "proof");
-        navigate("/access?reason=PAYMENT_PENDING", { replace: true });
+        navigate(paymentAccessPath("PAYMENT_PENDING", { courseSlug, courseItemKey }), { replace: true });
       })
       .catch(function (err) {
         toast.error(err.message);
@@ -547,6 +555,13 @@ export default function AccessPage() {
                 Reference <strong>{checkout.paymentReference}</strong>. Status: pending.
                 Materials stay locked until an administrator approves this request.
               </p>
+              <button
+                type="button"
+                onClick={load}
+                className="mt-4 rounded-lg border px-4 py-2 font-semibold text-primary"
+              >
+                Check access status
+              </button>
               <Link to="/dashboard" className="mt-8 inline-flex">
                 <Button variant="secondary">Back to library</Button>
               </Link>

@@ -7,6 +7,8 @@ const paymentConfig = require("../config/paymentConfig");
 const { validatePaymentProof } = require("./paymentProofService");
 const ApiError = require("../utils/ApiError");
 const logger = require("../utils/logger");
+const publicCourseService = require("./publicCourseService");
+const courseAnalyticsService = require("./courseAnalyticsService");
 
 function hasSubmittedProof(row) {
   if (!row || !row.submitted_at) return false;
@@ -130,7 +132,19 @@ async function previewCheckout(user) {
   });
 }
 
-async function checkout(user, requestedReference) {
+async function publishedSourceCourse(raw) {
+  const slug = courseAnalyticsService.sanitizeCourseSlug(raw);
+  if (!slug) return null;
+  try {
+    const course = await publicCourseService.getPublicCourseBySlug(slug);
+    return course ? course.slug : null;
+  } catch (err) {
+    logger.warn("Course attribution unavailable during payment");
+    return null;
+  }
+}
+
+async function checkout(user, requestedReference, context) {
   const cfg = requireAvailableConfig();
   const state = await accessEntitlementService.getEntitlementState(user.id);
   if (state.hasAccess) {
@@ -150,7 +164,11 @@ async function checkout(user, requestedReference) {
     reference = await uniqueReference();
   }
 
-  await paymentRequestModel.create({
+  const sourceCourseSlug = await publishedSourceCourse(
+    context && context.sourceCourseSlug
+  );
+
+  const createPayload = {
     user_id: user.id,
     payment_reference: reference,
     amount_rupees: cfg.amountRupees,
@@ -158,7 +176,23 @@ async function checkout(user, requestedReference) {
     upi_id: cfg.upiId,
     payee_name: cfg.payeeName,
     status: "pending",
-  });
+  };
+  if (sourceCourseSlug) {
+    createPayload.source_course_slug = sourceCourseSlug;
+  }
+
+  await paymentRequestModel.create(createPayload);
+
+  if (sourceCourseSlug) {
+    await courseAnalyticsService.recordEvent({
+      eventType: "unlock_checkout",
+      courseSlug: sourceCourseSlug,
+      userId: user.id,
+      ip: context && context.ip,
+      userAgent: context && context.userAgent,
+      referrer: context && context.referrer,
+    });
+  }
 
   return checkoutPayload(cfg, reference, {
     reused: false,
@@ -268,12 +302,12 @@ async function adminScreenshot(id) {
 
 async function approve(adminUser, id) {
   const cfg = requireAvailableConfig();
-  return db.transaction(async function (trx) {
+    const result = await db.transaction(async function (trx) {
     const row = await paymentRequestModel.findById(id, trx);
     if (!row) throw ApiError.notFound("Payment not found");
     if (row.status === "approved") {
       const existing = await semesterAccessModel.findByUserId(row.user_id, trx);
-      return { payment: row, entitlement: existing };
+      return { payment: row, entitlement: existing, newlyApproved: false };
     }
     if (row.status !== "pending") {
       throw ApiError.badRequest("Only pending payments can be approved.");
@@ -302,8 +336,21 @@ async function approve(adminUser, id) {
       trx
     );
 
-    return { payment: updated, entitlement: entitlement };
+    return { payment: updated, entitlement: entitlement, newlyApproved: true };
   });
+
+  const sourceCourseSlug = result.newlyApproved && result.payment
+    ? await publishedSourceCourse(result.payment.source_course_slug)
+    : null;
+  if (sourceCourseSlug) {
+    await courseAnalyticsService.recordEvent({
+      eventType: "unlock_approved",
+      courseSlug: sourceCourseSlug,
+      userId: result.payment.user_id,
+    });
+  }
+
+  return { payment: result.payment, entitlement: result.entitlement };
 }
 
 async function reject(adminUser, id, note) {

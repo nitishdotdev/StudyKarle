@@ -165,7 +165,11 @@ The `client/` folder includes `vercel.json` with an SPA rewrite and a proxy of `
 
 1. Provision a PostgreSQL instance and run migrations: `npm run migrate`
 2. Set every variable from `server/.env.example` as environment variables (especially `JWT_SECRET`, `GOOGLE_*`, `RESEND_API_KEY`, and the database settings)
-3. Start the service: `npm start`
+3. Start the service with `NODE_ENV=production npm start`. The startup hook applies pending migrations before the API starts.
+
+## Public course catalog
+
+Admins can use **Course Publications** to choose which synced course folders and material previews appear on the public course pages and sitemap. The catalog starts empty. Publishing a course exposes its approved title and selected preview metadata. To publish renamed metadata, review the selection and save it again. Opening a material uses the same library sign-in and semester access checks.
 
 ## Important Notes
 

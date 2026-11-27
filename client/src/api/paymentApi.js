@@ -1,7 +1,7 @@
 import axiosClient, { API_URL } from "./axiosClient";
 
 export function fetchPaymentOffer() {
-  return axiosClient.get("/payments/offer").then(function (res) {
+  return axiosClient.get("/payments/offer", { skipCache: true }).then(function (res) {
     return res.data.data;
   });
 }
@@ -18,8 +18,10 @@ export function previewCheckout() {
   });
 }
 
-export function startCheckout(paymentReference) {
-  const body = paymentReference ? { paymentReference: paymentReference } : {};
+export function startCheckout(paymentReference, sourceCourseSlug) {
+  const body = {};
+  if (paymentReference) body.paymentReference = paymentReference;
+  if (sourceCourseSlug) body.sourceCourseSlug = sourceCourseSlug;
   return axiosClient.post("/payments/checkout", body).then(function (res) {
     return res.data.data;
   });

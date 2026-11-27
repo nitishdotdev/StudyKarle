@@ -8,10 +8,13 @@ import { useLocation } from "react-router-dom";
 export default function PublicLayout() {
   const location = useLocation();
   const isSensitiveShareRoute = location.pathname.startsWith("/drive/share/");
+  const isDynamicCourseDetail = /^\/courses\/[^/]+/.test(location.pathname);
 
   return (
     <>
-      <Seo path={location.pathname} noindex={isSensitiveShareRoute} />
+      {!isDynamicCourseDetail ? (
+        <Seo path={location.pathname} noindex={isSensitiveShareRoute} />
+      ) : null}
       <PublicHeader />
       <Outlet />
       <Footer />

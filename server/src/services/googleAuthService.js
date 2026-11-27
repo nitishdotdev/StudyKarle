@@ -64,7 +64,7 @@ function safeRedirectPath(value) {
   if (!value || typeof value !== "string") {
     return "/dashboard";
   }
-  if (value.charAt(0) !== "/" || value.indexOf("//") === 0 || value.indexOf("://") !== -1) {
+  if (value.charAt(0) !== "/" || value.indexOf("//") === 0 || value.indexOf("://") !== -1 || value.includes("\\") || /[\u0000-\u001f\u007f]/.test(value)) {
     return "/dashboard";
   }
   return value;

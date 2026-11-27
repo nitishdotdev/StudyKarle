@@ -37,6 +37,9 @@ const DashboardPage = lazy(function () {
 const DriveBrowsePage = lazy(function () {
   return import("./pages/DriveBrowsePage");
 });
+const CourseMaterialPage = lazy(function () {
+  return import("./pages/CourseMaterialPage");
+});
 const DriveFilePage = lazy(function () {
   return import("./pages/DriveFilePage");
 });
@@ -63,6 +66,12 @@ const NotFoundPage = lazy(function () {
 });
 const FeaturesPage = lazy(function () {
   return import("./pages/FeaturesPage");
+});
+const CoursesPage = lazy(function () {
+  return import("./pages/CoursesPage");
+});
+const CourseDetailPage = lazy(function () {
+  return import("./pages/CourseDetailPage");
 });
 const HowItWorksPage = lazy(function () {
   return import("./pages/HowItWorksPage");
@@ -101,6 +110,9 @@ const AdminAnalyticsPage = lazy(function () {
 const AdminViewHistoryPage = lazy(function () {
   return import("./pages/admin/AdminViewHistoryPage");
 });
+const AdminCoursePublicationsPage = lazy(function () {
+  return import("./pages/admin/AdminCoursePublicationsPage");
+});
 const AdminPaymentsPage = lazy(function () {
   return import("./pages/admin/AdminPaymentsPage");
 });
@@ -117,6 +129,8 @@ export default function App() {
       <Routes>
       <Route element={<PublicLayout />}>
         <Route path="/" element={<SuspenseRoute><LandingPage /></SuspenseRoute>} />
+        <Route path="/courses" element={<SuspenseRoute><CoursesPage /></SuspenseRoute>} />
+        <Route path="/courses/:slug" element={<SuspenseRoute><CourseDetailPage /></SuspenseRoute>} />
         <Route path="/features" element={<SuspenseRoute><FeaturesPage /></SuspenseRoute>} />
         <Route path="/how-it-works" element={<SuspenseRoute><HowItWorksPage /></SuspenseRoute>} />
         <Route path="/about" element={<SuspenseRoute><AboutPage /></SuspenseRoute>} />
@@ -154,6 +168,14 @@ export default function App() {
         element={
           <ProtectedRoute>
             <SuspenseRoute><DriveBrowsePage /></SuspenseRoute>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/drive/course/:slug/:itemKey"
+        element={
+          <ProtectedRoute>
+            <SuspenseRoute><CourseMaterialPage /></SuspenseRoute>
           </ProtectedRoute>
         }
       />
@@ -210,6 +232,14 @@ export default function App() {
         element={
           <AdminRoute>
             <SuspenseRoute><AdminOverviewPage /></SuspenseRoute>
+          </AdminRoute>
+        }
+      />
+      <Route
+        path="/admin/course-publications"
+        element={
+          <AdminRoute>
+            <SuspenseRoute><AdminCoursePublicationsPage /></SuspenseRoute>
           </AdminRoute>
         }
       />

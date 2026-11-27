@@ -5,6 +5,7 @@ import {
   saveReturnTo,
   readReturnTo,
   clearReturnTo,
+  authReturnQuery,
 } from "../../client/src/utils/sessionReturn.js";
 
 function memoryStorage() {
@@ -34,6 +35,9 @@ test("isSafeReturnPath rejects open redirects and script urls", () => {
   assert.equal(isSafeReturnPath("javascript:alert(1)"), false);
   assert.equal(isSafeReturnPath(""), false);
   assert.equal(isSafeReturnPath("/login"), false);
+  assert.equal(isSafeReturnPath("/\\outside.example"), false);
+  assert.equal(isSafeReturnPath("/x/../signup"), false);
+  assert.equal(isSafeReturnPath("/auth/google/complete"), false);
 });
 
 test("saveReturnTo keeps a path across an auth redirect", () => {
@@ -48,4 +52,10 @@ test("saveReturnTo ignores unsafe destinations", () => {
   const storage = memoryStorage();
   assert.equal(saveReturnTo("https://evil.example", { storage: storage }), false);
   assert.equal(readReturnTo({ storage: storage }), "");
+});
+
+test("course material and payment context survive an auth redirect", () => {
+  const target = "/drive/course/physics/00000000-0000-4000-8000-000000000001";
+  assert.equal(new URLSearchParams(authReturnQuery(target)).get("returnTo"), target);
+  assert.equal(authReturnQuery("//outside.example"), "");
 });

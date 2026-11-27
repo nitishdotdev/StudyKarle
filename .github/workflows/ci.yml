@@ -18,6 +18,20 @@ jobs:
     name: Backend tests (Node 20)
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_DB: studykarle_course_test_ci
+          POSTGRES_USER: studykarle
+          POSTGRES_HOST_AUTH_METHOD: trust
+        ports:
+          - 5432/tcp
+        options: >-
+          --health-cmd "pg_isready -U studykarle -d studykarle_course_test_ci"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
@@ -33,6 +47,17 @@ jobs:
       - name: Run backend tests
         working-directory: server
         run: npm test
+
+      - name: Verify course publications on PostgreSQL
+        working-directory: server
+        env:
+          DB_HOST: 127.0.0.1
+          DB_PORT: ${{ job.services.postgres.ports[5432] }}
+          DB_NAME: studykarle_course_test_ci
+          DB_USER: studykarle
+        run: |
+          npm run migrate
+          node --test test/course-publication-postgres.test.js
 
   frontend-build:
     name: Frontend production build (Node 20)

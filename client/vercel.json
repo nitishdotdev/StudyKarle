@@ -141,6 +141,36 @@
       "destination": "https://studykarle-backend.onrender.com/seo/sitemap.xml"
     },
     {
+      "source": "/courses",
+      "has": [
+        {
+          "type": "header",
+          "key": "user-agent",
+          "value": "(?i).*(googlebot|bingbot|slurp|duckduckbot|baiduspider|yandex|facebot|twitterbot|linkedinbot|whatsapp|telegrambot|discordbot|applebot|crawler|spider|lighthouse).*"
+        }
+      ],
+      "destination": "https://studykarle-backend.onrender.com/seo/courses"
+    },
+    {
+      "source": "/courses/:slug",
+      "has": [
+        {
+          "type": "header",
+          "key": "user-agent",
+          "value": "(?i).*(googlebot|bingbot|slurp|duckduckbot|baiduspider|yandex|facebot|twitterbot|linkedinbot|whatsapp|telegrambot|discordbot|applebot|crawler|spider|lighthouse).*"
+        }
+      ],
+      "destination": "https://studykarle-backend.onrender.com/seo/courses/:slug"
+    },
+    {
+      "source": "/courses",
+      "destination": "/courses/index.html"
+    },
+    {
+      "source": "/courses/(.*)",
+      "destination": "/index.html"
+    },
+    {
       "source": "/features",
       "destination": "/features/index.html"
     },

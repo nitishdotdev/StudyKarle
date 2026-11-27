@@ -30,6 +30,9 @@ router.use(authenticate, authorize("admin"), authenticatedActionLimiter);
 
 router.get("/stats", adminController.stats);
 router.get("/course-analytics", publicCourseController.adminAnalytics);
+router.get("/course-publications", publicCourseController.listManageableCourses);
+router.get("/course-publications/:folderId", publicCourseController.getPublication);
+router.put("/course-publications/:folderId", publicCourseController.savePublication);
 router.get("/activity", adminController.activity);
 router.get("/pdf-activity", adminController.pdfActivity);
 router.delete("/pdf-activity", adminController.clearPdfActivity);

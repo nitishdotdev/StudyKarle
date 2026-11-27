@@ -1,7 +1,7 @@
 import axiosClient, { API_URL } from "./axiosClient";
 
 export function fetchPaymentOffer() {
-  return axiosClient.get("/payments/offer").then(function (res) {
+  return axiosClient.get("/payments/offer", { skipCache: true }).then(function (res) {
     return res.data.data;
   });
 }

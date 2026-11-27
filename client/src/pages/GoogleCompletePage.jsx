@@ -5,7 +5,7 @@ import { useToast } from "../context/ToastContext";
 import * as authApi from "../api/authApi";
 import PageLoader from "../components/common/PageLoader";
 import { consumeOAuthHash, clearOAuthTicket } from "../utils/oauthTicket";
-import { isSafeReturnPath } from "../utils/sessionReturn";
+import { clearReturnTo, isSafeReturnPath } from "../utils/sessionReturn";
 
 let completionStarted = false;
 
@@ -37,6 +37,7 @@ export default function GoogleCompletePage() {
         .completeGoogleLogin({ ticket: ticket })
         .then(function (user) {
           clearOAuthTicket();
+          clearReturnTo();
           setUser(user);
           toast.success("Welcome back!");
           const target = isSafeReturnPath(redirect) ? redirect : "/dashboard";

@@ -6,6 +6,12 @@
 
 ---
 
+## Public course release (2026-11-27)
+
+- PR #40 uses admin-approved course and preview metadata. Course slugs stay attached to the synced folder identity. The initial public catalog is empty.
+- Material links resolve behind authentication and inherit the existing viewer and semester entitlement checks. Course and material context survive auth and checkout.
+- Production `npm start` runs migrations first. The SQL coverage in CI runs on a dedicated PostgreSQL database after the normal backend suite.
+
 ## Current session status
 
 **Last updated**: 2026-11-16

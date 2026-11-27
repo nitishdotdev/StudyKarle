@@ -13,58 +13,70 @@ const courseAnalyticsModel = require("../src/models/courseAnalyticsModel");
 const userModel = require("../src/models/userModel");
 const tokenService = require("../src/services/tokenService");
 
-const MOCK_DRIVE_NODES = [
+const approvedAt = "2026-10-18T12:00:00.000Z";
+const itemKey = "00000000-0000-4000-8000-000000000001";
+const publications = [
   {
-    drive_id: "SECRET_DRIVE_ID_FOLDER_1",
-    parent_drive_id: "SECRET_ROOT_ID",
-    name: "Elements of AIML",
-    mime_type: "application/vnd.google-apps.folder",
-    kind: "folder",
-    path: "Year 1/Elements of AIML",
-    created_time: "2026-09-01T10:00:00.000Z",
-    modified_time: "2026-10-15T10:00:00.000Z",
+    slug: "elements-of-aiml",
+    course_title: "Elements of AIML",
+    folder_name: "Elements of AIML",
+    depth: 2,
+    parent_name: "Year 1",
+    approved_at: approvedAt,
+    file_type: "PDF",
   },
   {
-    drive_id: "SECRET_DRIVE_ID_FILE_1",
-    parent_drive_id: "SECRET_DRIVE_ID_FOLDER_1",
-    name: "Unit 1 Search Algorithms Notes.pdf",
-    mime_type: "application/pdf",
-    kind: "file",
-    path: "Year 1/Elements of AIML/Unit 1/Unit 1 Search Algorithms Notes.pdf",
-    created_time: "2026-09-02T10:00:00.000Z",
-    modified_time: "2026-10-10T10:00:00.000Z",
-  },
-  {
-    drive_id: "SECRET_DRIVE_ID_FILE_2",
-    parent_drive_id: "SECRET_DRIVE_ID_FOLDER_1",
-    name: "2024 End-Sem PYQ Solutions.pdf",
-    mime_type: "application/pdf",
-    kind: "file",
-    path: "Year 1/Elements of AIML/PYQs/2024 End-Sem PYQ Solutions.pdf",
-    created_time: "2026-09-03T10:00:00.000Z",
-    modified_time: "2026-10-18T12:00:00.000Z",
-  },
-  {
-    drive_id: "SECRET_DRIVE_ID_FILE_3",
-    parent_drive_id: "SECRET_DRIVE_ID_FOLDER_1",
-    name: "2023 Mid-Sem Question Paper.pdf",
-    mime_type: "application/pdf",
-    kind: "file",
-    path: "Year 1/Elements of AIML/PYQs/2023 Mid-Sem Question Paper.pdf",
-    created_time: "2026-09-04T10:00:00.000Z",
-    modified_time: "2026-10-12T10:00:00.000Z",
-  },
-  {
-    drive_id: "SECRET_DRIVE_ID_FILE_4",
-    parent_drive_id: "SECRET_DRIVE_ID_FOLDER_2",
-    name: "Operating Systems Unit 1 Notes.pdf",
-    mime_type: "application/pdf",
-    kind: "file",
-    path: "Year 3/Operating Systems/Operating Systems Unit 1 Notes.pdf",
-    created_time: "2026-09-05T10:00:00.000Z",
-    modified_time: "2026-10-14T10:00:00.000Z",
+    slug: "operating-systems",
+    course_title: "Operating Systems",
+    folder_name: "Operating Systems",
+    depth: 2,
+    parent_name: "Year 3",
+    approved_at: approvedAt,
+    file_type: "PDF",
   },
 ];
+const catalog = [
+  {
+    ...publications[0],
+    item_key: itemKey,
+    drive_id: "SECRET_DRIVE_ID_FILE_1",
+    item_title: "Unit 1 Search Algorithms Notes",
+    file_name: "notes.pdf",
+    file_path: "Year 1/Elements of AIML/notes.pdf",
+    category: "notes",
+  },
+  {
+    ...publications[0],
+    item_key: "key-2",
+    item_title: "2024 End-Sem PYQ Solutions",
+    file_path: "Year 1/Elements of AIML/PYQs/solutions.pdf",
+    category: "pyq_solution",
+  },
+  {
+    ...publications[0],
+    item_key: "key-3",
+    item_title: "2023 Mid-Sem Question Paper",
+    file_path: "Year 1/Elements of AIML/PYQs/paper.pdf",
+    category: "pyqs",
+  },
+  {
+    ...publications[1],
+    item_key: "key-4",
+    item_title: "Operating Systems Unit 1 Notes",
+    file_path: "Year 3/Operating Systems/notes.pdf",
+    category: "notes",
+  },
+];
+
+function fetchPublications(slug, key) {
+  return catalog.filter(function (row) {
+    return (!slug || row.slug === slug) && (!key || row.item_key === key);
+  });
+}
+
+test("Material classification treats underscore-separated terms as words", function () {
+  assert.equal(publicCourseService.classifyMaterial("2024_PYQ_Solutions.pdf").category, "pyq_solution");
+});
 
 function startServer() {
   return new Promise(function (resolve) {
@@ -122,11 +134,8 @@ async function getCsrfContext(port) {
 }
 
 test("Public SEO courses API exposes metadata only, never Drive IDs, URLs, or PDF bytes", async function () {
-  const origFetch = publicCourseService._fetchDriveNodesForCatalog;
-  publicCourseService._fetchDriveNodesForCatalog = async function () {
-    return MOCK_DRIVE_NODES;
-  };
-  publicCourseService.invalidateCache();
+  const origFetch = publicCourseService._fetchPublications;
+  publicCourseService._fetchPublications = fetchPublications;
 
   const { server, port } = await startServer();
   try {
@@ -141,6 +150,7 @@ test("Public SEO courses API exposes metadata only, never Drive IDs, URLs, or PD
     assert.equal(rawListText.includes("drive_id"), false);
     assert.equal(rawListText.includes("/preview"), false);
     assert.equal(rawListText.includes("/download"), false);
+    assert.equal(listRes.headers["cache-control"], "no-store");
 
     const aiml = listRes.json.data.courses.find(function (c) {
       return c.slug === "elements-of-aiml";
@@ -174,17 +184,13 @@ test("Public SEO courses API exposes metadata only, never Drive IDs, URLs, or PD
     assert.equal(bypassDownload.status, 401);
   } finally {
     server.close();
-    publicCourseService._fetchDriveNodesForCatalog = origFetch;
-    publicCourseService.invalidateCache();
+    publicCourseService._fetchPublications = origFetch;
   }
 });
 
 test("SSR SEO course pages and dynamic sitemap render valid canonicals, JSON-LD, and 404 noindex", async function () {
-  const origFetch = publicCourseService._fetchDriveNodesForCatalog;
-  publicCourseService._fetchDriveNodesForCatalog = async function () {
-    return MOCK_DRIVE_NODES;
-  };
-  publicCourseService.invalidateCache();
+  const origFetch = publicCourseService._fetchPublications;
+  publicCourseService._fetchPublications = fetchPublications;
 
   const { server, port } = await startServer();
   try {
@@ -229,22 +235,18 @@ test("SSR SEO course pages and dynamic sitemap render valid canonicals, JSON-LD,
     assert.ok(missingRes.text.includes('content="noindex, nofollow"'));
   } finally {
     server.close();
-    publicCourseService._fetchDriveNodesForCatalog = origFetch;
-    publicCourseService.invalidateCache();
+    publicCourseService._fetchPublications = origFetch;
   }
 });
 
 test("Course visit & unlock CTA tracking records hashed visitor events and admin analytics requires admin role", async function () {
-  const origFetch = publicCourseService._fetchDriveNodesForCatalog;
+  const origFetch = publicCourseService._fetchPublications;
   const origRecord = courseAnalyticsModel.record;
   const origSummarize = courseAnalyticsModel.summarizeByCourse;
   const origFindById = userModel.findById;
 
   const recorded = [];
-  publicCourseService._fetchDriveNodesForCatalog = async function () {
-    return MOCK_DRIVE_NODES;
-  };
-  publicCourseService.invalidateCache();
+  publicCourseService._fetchPublications = fetchPublications;
 
   courseAnalyticsModel.record = async function (entry) {
     recorded.push(entry);
@@ -300,7 +302,19 @@ test("Course visit & unlock CTA tracking records hashed visitor events and admin
     const unauthAdmin = await request(port, "GET", "/api/admin/course-analytics");
     assert.equal(unauthAdmin.status, 401);
 
+    const materialPath = "/api/public/courses/elements-of-aiml/items/" + itemKey;
+    assert.equal((await request(port, "GET", materialPath)).status, 401);
+
     const studentToken = tokenService.signToken(2, 0);
+    const studentHeaders = { Cookie: "studykarle_token=" + studentToken };
+    const resolved = await request(port, "GET", materialPath, { headers: studentHeaders });
+    assert.equal(resolved.status, 200);
+    assert.equal(resolved.json.data.driveId, "SECRET_DRIVE_ID_FILE_1");
+    const missing = await request(port, "GET", materialPath.replace("elements-of-aiml", "unpublished"), { headers: studentHeaders });
+    assert.equal(missing.status, 404);
+    const forbiddenPublication = await request(port, "GET", "/api/admin/course-publications", { headers: studentHeaders });
+    assert.equal(forbiddenPublication.status, 403);
+
     const studentAdmin = await request(port, "GET", "/api/admin/course-analytics", {
       headers: { Cookie: "studykarle_token=" + studentToken },
     });
@@ -316,10 +330,9 @@ test("Course visit & unlock CTA tracking records hashed visitor events and admin
     assert.equal(okAdmin.json.data.totals.visitToApprovalRate, 10);
   } finally {
     server.close();
-    publicCourseService._fetchDriveNodesForCatalog = origFetch;
+    publicCourseService._fetchPublications = origFetch;
     courseAnalyticsModel.record = origRecord;
     courseAnalyticsModel.summarizeByCourse = origSummarize;
     userModel.findById = origFindById;
-    publicCourseService.invalidateCache();
   }
 });

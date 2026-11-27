@@ -7,24 +7,19 @@ function defaultStorage() {
   return window.sessionStorage;
 }
 
-function pathnameOf(path) {
-  const raw = String(path || "");
-  const queryAt = raw.indexOf("?");
-  return queryAt === -1 ? raw : raw.slice(0, queryAt);
+export function isSafeReturnPath(path) {
+  if (typeof path !== "string" || !path.startsWith("/") || path.startsWith("//") ||
+      path.includes("\\") || /[\u0000-\u001f\u007f]/.test(path)) {
+    return false;
+  }
+  const origin = "https://studykarle.me";
+  const target = new URL(path, origin);
+  return target.origin === origin &&
+    !/^\/(login|signup|forgot-password|auth)(?:\/|$)/i.test(target.pathname);
 }
 
-export function isSafeReturnPath(path) {
-  if (typeof path !== "string" || !path.startsWith("/") || path.startsWith("//")) {
-    return false;
-  }
-  if (/^[a-zA-Z][a-zA-Z0-9+.-]*:/.test(path)) {
-    return false;
-  }
-  const pathname = pathnameOf(path);
-  if (pathname === "/login" || pathname === "/signup" || pathname === "/forgot-password") {
-    return false;
-  }
-  return true;
+export function authReturnQuery(redirectTo) {
+  return isSafeReturnPath(redirectTo) ? "?" + new URLSearchParams({ returnTo: redirectTo }) : "";
 }
 
 export function saveReturnTo(path, options) {

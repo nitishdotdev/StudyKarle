@@ -1,6 +1,7 @@
 import React, { useEffect } from "react";
 import { Link, Navigate, useSearchParams } from "react-router-dom";
 import LoginForm from "../components/auth/LoginForm";
+import { authReturnQuery, isSafeReturnPath, readReturnTo } from "../utils/sessionReturn";
 import useAuth from "../hooks/useAuth";
 import { useToast } from "../context/ToastContext";
 import LoginImage from "../assets/illustrations/login.png";
@@ -31,8 +32,11 @@ export default function LoginPage() {
     }
   }, []);
 
+  const redirect = searchParams.get("returnTo");
+  const redirectTo = isSafeReturnPath(redirect) ? redirect : readReturnTo();
+
   if (!loading && isAuthenticated) {
-    return <Navigate to="/dashboard" replace />;
+    return <Navigate to={redirectTo || "/dashboard"} replace />;
   }
 
   return (
@@ -111,12 +115,12 @@ export default function LoginPage() {
                 </p>
               </div>
 
-              <LoginForm />
+              <LoginForm redirectTo={redirectTo} />
 
               <p className="mt-8 text-center text-body-sm text-text-muted">
                 Don't have an account?{" "}
                 <Link
-                  to="/signup"
+                  to={"/signup" + authReturnQuery(redirectTo)}
                   className="font-semibold text-primary hover:underline"
                 >
                   Sign up

@@ -3,12 +3,13 @@ import { useNavigate } from "react-router-dom";
 import Input from "../common/Input";
 import Button from "../common/Button";
 import GoogleButton, { AuthSeparator } from "./GoogleButton";
+import { clearReturnTo } from "../../utils/sessionReturn";
 import useAuth from "../../hooks/useAuth";
 import useDraft from "../../hooks/useDraft";
 import { useToast } from "../../context/ToastContext";
 import { firstInvalidField, focusField, mergeServerFieldErrors, validateSignup } from "../../utils/formValidation";
 
-export default function SignupForm() {
+export default function SignupForm({ redirectTo }) {
   const { requestOtp, verifyOtp, resendOtp } = useAuth();
   const toast = useToast();
   const navigate = useNavigate();
@@ -91,7 +92,8 @@ export default function SignupForm() {
       .then(function () {
         draft.discard();
         toast.success("Account created. Welcome to StudyKarle!");
-        navigate("/dashboard", { replace: true });
+        clearReturnTo();
+        navigate(redirectTo || "/dashboard", { replace: true });
       })
       .catch(function (err) {
         setErrors({ otp: err.message || "Invalid or expired code" });
@@ -135,7 +137,7 @@ export default function SignupForm() {
   if (step === 1) {
     return (
       <div>
-        <GoogleButton disabled={submitting} />
+        <GoogleButton disabled={submitting} redirectTo={redirectTo} />
         <AuthSeparator />
         <form onSubmit={handleRequestOtp} className="space-y-4" noValidate>
           <Input

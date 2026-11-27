@@ -1,7 +1,9 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import Seo, { SITE_URL } from "../components/seo/Seo";
 import Spinner from "../components/common/Spinner";
+import { authReturnQuery } from "../utils/sessionReturn";
+import { courseMaterialPath, paymentAccessPath } from "../utils/paymentRedirect";
 import useAuth from "../hooks/useAuth";
 import { fetchPublicCourse, trackCourseEvent } from "../api/publicCourseApi";
 
@@ -12,8 +14,6 @@ const CATEGORY_LABELS = {
   notes: "Notes",
 };
 
-const SOURCE_COURSE_STORAGE_KEY = "studykarle_source_course_slug";
-
 export default function CourseDetailPage() {
   const { slug } = useParams();
   const navigate = useNavigate();
@@ -22,15 +22,14 @@ export default function CourseDetailPage() {
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
   const [activeTab, setActiveTab] = useState("all");
-  const [selectedLockedTitle, setSelectedLockedTitle] = useState(null);
-  const unlockCardRef = useRef(null);
 
   useEffect(
     function () {
       let active = true;
       setLoading(true);
       setNotFound(false);
-      setSelectedLockedTitle(null);
+      setCourse(null);
+      setActiveTab("all");
       fetchPublicCourse(slug)
         .then(function (data) {
           if (!active) return;
@@ -100,7 +99,7 @@ export default function CourseDetailPage() {
           description: course.seo.description,
           url: canonical,
           provider: { "@id": SITE_URL + "/#organization" },
-          offers: {
+          offers: course.locked ? {
             "@type": "Offer",
             price: String(course.priceRupees),
             priceCurrency: "INR",
@@ -109,7 +108,7 @@ export default function CourseDetailPage() {
               SITE_URL +
               "/signup?returnTo=" +
               encodeURIComponent("/access?course=" + course.slug),
-          },
+          } : undefined,
         },
         {
           "@type": "ItemList",
@@ -128,27 +127,18 @@ export default function CourseDetailPage() {
     [course]
   );
 
-  function handleUnlockClick() {
-    if (!course) return;
-    trackCourseEvent(course.slug, "unlock_cta_click");
-    try {
-      sessionStorage.setItem(SOURCE_COURSE_STORAGE_KEY, course.slug);
-    } catch (err) {
-      // Ignore storage failures in restricted browsers.
-    }
-    const target = "/access?course=" + encodeURIComponent(course.slug);
-    if (user) {
-      navigate(target);
-    } else {
-      navigate("/signup?returnTo=" + encodeURIComponent(target));
-    }
+  function openDestination(target) {
+    navigate(user ? target : "/signup" + authReturnQuery(target));
   }
 
-  function handleLockedItemClick(item) {
-    setSelectedLockedTitle(item.title);
-    if (unlockCardRef.current) {
-      unlockCardRef.current.scrollIntoView({ behavior: "smooth", block: "center" });
-    }
+  function handleUnlockClick() {
+    trackCourseEvent(course.slug, "unlock_cta_click");
+    openDestination(paymentAccessPath(null, { courseSlug: course.slug }));
+  }
+
+  function handleItemClick(item) {
+    if (item.locked) trackCourseEvent(course.slug, "unlock_cta_click");
+    openDestination(courseMaterialPath(course.slug, item.itemKey));
   }
 
   if (loading) {
@@ -233,14 +223,13 @@ export default function CourseDetailPage() {
           <div className="text-2xl font-bold text-slate-900">{course.counts.solutions}</div>
           <div className="text-xs font-medium text-slate-500 mt-0.5">Solutions</div>
         </div>
-        <div className="rounded-xl border border-primary/20 bg-primary/5 p-4">
+        {course.locked ? <div className="rounded-xl border border-primary/20 bg-primary/5 p-4">
           <div className="text-2xl font-bold text-primary">{course.priceFormatted}</div>
           <div className="text-xs font-medium text-slate-700 mt-0.5">One-Time Semester Pass</div>
-        </div>
+        </div> : null}
       </section>
 
-      <section
-        ref={unlockCardRef}
+      {course.locked ? <section
         className="mt-8 rounded-2xl border border-primary/20 bg-white p-6 shadow-sm"
       >
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
@@ -248,15 +237,9 @@ export default function CourseDetailPage() {
             <h2 className="text-xl font-bold text-slate-900">
               Unlock all {course.counts.total} {course.title} materials in 3 steps
             </h2>
-            {selectedLockedTitle ? (
-              <p className="mt-1 text-sm text-amber-800 font-medium">
-                &ldquo;{selectedLockedTitle}&rdquo; requires an approved semester pass to open.
-              </p>
-            ) : (
-              <p className="mt-1 text-sm text-slate-600">
-                One-time {course.priceFormatted} UPI payment unlocks every Year 1 &amp; Year 2 subject for the entire semester — no auto-renewal.
-              </p>
-            )}
+            <p className="mt-1 text-sm text-slate-600">
+              One-time {course.priceFormatted} UPI payment unlocks every Year 1 &amp; Year 2 subject for the entire semester.
+            </p>
           </div>
           <button
             type="button"
@@ -283,7 +266,7 @@ export default function CourseDetailPage() {
             );
           })}
         </ol>
-      </section>
+      </section> : null}
 
       <section className="mt-10">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
@@ -346,17 +329,11 @@ export default function CourseDetailPage() {
 
                 <button
                   type="button"
-                  onClick={function () {
-                    if (item.locked) {
-                      handleLockedItemClick(item);
-                    } else {
-                      handleUnlockClick();
-                    }
-                  }}
+                  onClick={function () { handleItemClick(item); }}
                   className="shrink-0 inline-flex items-center gap-1.5 rounded-lg border border-amber-200 bg-amber-50 px-3 py-1.5 text-xs font-semibold text-amber-900 hover:bg-amber-100 transition-colors"
                 >
-                  <span className="material-symbols-outlined text-[15px]">lock</span>
-                  {item.locked ? "Locked Preview" : "Sign in to View"}
+                  {item.locked ? <span aria-hidden="true" className="material-symbols-outlined text-[15px]">lock</span> : null}
+                  {user ? "Open material" : item.locked ? "Sign up to unlock" : "Sign up to view"}
                 </button>
               </li>
             );

@@ -29,8 +29,10 @@ const PdfPreview = lazy(function () {
   return import("../components/notes/PdfPreview");
 });
 
-export default function DriveFilePage() {
-  const { nodeId } = useParams();
+export default function DriveFilePage({ courseNodeId, courseSlug, courseItemKey }) {
+  const route = useParams();
+  const nodeId = courseNodeId || route.nodeId;
+  const paymentCourse = courseSlug ? { courseSlug, courseItemKey } : undefined;
   const navigate = useNavigate();
   const toast = useToast();
   const { isAdmin, user } = useAuth();
@@ -89,7 +91,7 @@ export default function DriveFilePage() {
 
   if (error && !data) {
     if (errorStatus === 402) {
-      return <Navigate to={paymentAccessPathFromError({ status: errorStatus, details: errorDetails })} replace />;
+      return <Navigate to={paymentAccessPathFromError({ status: errorStatus, details: errorDetails }, paymentCourse)} replace />;
     }
     if (errorStatus === 404) {
       return (
@@ -122,7 +124,7 @@ export default function DriveFilePage() {
   if (isProtected && !canPreview) {
     return (
       <Navigate
-        to={paymentAccessPath(node.accessCode || access.code)}
+        to={paymentAccessPath(node.accessCode || access.code, paymentCourse)}
         replace
       />
     );
@@ -152,7 +154,7 @@ export default function DriveFilePage() {
       })
       .catch(function (err) {
         if (err.status === 402) {
-          navigate(paymentAccessPathFromError(err), { replace: true });
+          navigate(paymentAccessPathFromError(err, paymentCourse), { replace: true });
           return;
         }
         toast.error(err.message);
@@ -250,7 +252,7 @@ export default function DriveFilePage() {
               previewUrl={getDrivePreviewUrl(nodeId)}
               fallbackUrl={"/drive/files/" + nodeId + "/preview"}
               onAccessDenied={function (err) {
-                navigate(paymentAccessPathFromError(err), { replace: true });
+                navigate(paymentAccessPathFromError(err, paymentCourse), { replace: true });
               }}
             />
           </Suspense>

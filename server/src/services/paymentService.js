@@ -7,6 +7,7 @@ const paymentConfig = require("../config/paymentConfig");
 const { validatePaymentProof } = require("./paymentProofService");
 const ApiError = require("../utils/ApiError");
 const logger = require("../utils/logger");
+const publicCourseService = require("./publicCourseService");
 const courseAnalyticsService = require("./courseAnalyticsService");
 
 function hasSubmittedProof(row) {
@@ -131,6 +132,18 @@ async function previewCheckout(user) {
   });
 }
 
+async function publishedSourceCourse(raw) {
+  const slug = courseAnalyticsService.sanitizeCourseSlug(raw);
+  if (!slug) return null;
+  try {
+    const course = await publicCourseService.getPublicCourseBySlug(slug);
+    return course ? course.slug : null;
+  } catch (err) {
+    logger.warn("Course attribution unavailable during payment");
+    return null;
+  }
+}
+
 async function checkout(user, requestedReference, context) {
   const cfg = requireAvailableConfig();
   const state = await accessEntitlementService.getEntitlementState(user.id);
@@ -151,7 +164,7 @@ async function checkout(user, requestedReference, context) {
     reference = await uniqueReference();
   }
 
-  const sourceCourseSlug = courseAnalyticsService.sanitizeCourseSlug(
+  const sourceCourseSlug = await publishedSourceCourse(
     context && context.sourceCourseSlug
   );
 
@@ -326,10 +339,13 @@ async function approve(adminUser, id) {
     return { payment: updated, entitlement: entitlement, newlyApproved: true };
   });
 
-  if (result.newlyApproved && result.payment && result.payment.source_course_slug) {
+  const sourceCourseSlug = result.newlyApproved && result.payment
+    ? await publishedSourceCourse(result.payment.source_course_slug)
+    : null;
+  if (sourceCourseSlug) {
     await courseAnalyticsService.recordEvent({
       eventType: "unlock_approved",
-      courseSlug: result.payment.source_course_slug,
+      courseSlug: sourceCourseSlug,
       userId: result.payment.user_id,
     });
   }

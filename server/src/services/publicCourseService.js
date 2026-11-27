@@ -1,27 +1,23 @@
 const crypto = require("crypto");
 const db = require("../config/db");
 const yearScope = require("./yearScopeService");
+const ApiError = require("../utils/ApiError");
 const paymentConfig = require("../config/paymentConfig");
 
 const SITE_URL = "https://www.studykarle.me";
-const CACHE_TTL_MS = 60 * 1000;
+const SLUG_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
-let catalogCache = {
-  expiresAt: 0,
-  courses: null,
-};
-
-function invalidateCache() {
-  catalogCache = { expiresAt: 0, courses: null };
+function validSlug(value) {
+  return typeof value === "string" && value.length <= 160 && SLUG_PATTERN.test(value);
 }
 
 function slugify(value) {
-  return String(value || "")
-    .toLowerCase()
+  // Collapse runs of separators into one dash, then remove boundary dashes.
+  return String(value || "").slice(0, 120).toLowerCase()
     .replace(/&/g, " and ")
     .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "")
-    .slice(0, 120);
+    .slice(0, 120)
+    .replace(/^-|-$/g, "");
 }
 
 function stripExtension(name) {
@@ -43,7 +39,7 @@ function detectFileType(name, mimeType) {
 }
 
 function classifyMaterial(name, relativeFolder) {
-  const combined = (String(relativeFolder || "") + " " + String(name || "")).toLowerCase();
+  const combined = (String(relativeFolder || "") + " " + String(name || "")).replace(/_/g, " ").toLowerCase();
   const isPyq =
     /\b(pyq|pyqs|previous[\s_-]*year|mid[\s_-]*sem|end[\s_-]*sem|question[\s_-]*paper|exam[\s_-]*paper|qp|sessional|put|ct[\s_-]*\d)\b/i.test(
       combined
@@ -78,139 +74,55 @@ function formatYearLabel(yearNumber) {
   return "Year " + yearNumber;
 }
 
-function opaqueItemKey(courseSlug, index, title) {
-  return crypto
-    .createHash("sha256")
-    .update(courseSlug + ":" + index + ":" + title)
-    .digest("hex")
-    .slice(0, 12);
-}
+function buildCatalogFromPublications(rows) {
+  const bySlug = new Map();
+  for (const row of rows) {
+    const yearNumber = courseYear(row);
+    if (yearNumber === undefined) continue;
 
-/**
- * Derive public course catalog strictly from `drive_nodes` rows.
- * Returned objects NEVER contain `drive_id`, `parent_drive_id`, internal URLs,
- * or raw file bytes.
- */
-function buildCatalogFromNodes(nodes) {
-  const list = Array.isArray(nodes) ? nodes : [];
-  const courseMap = new Map();
-
-  list.forEach(function (node) {
-    if (!node || !node.path) return;
-    const parts = String(node.path).split("/").filter(Boolean);
-    if (parts.length === 0) return;
-
-    const firstYear = extractYearNumber(parts[0]);
-    let yearNumber = firstYear;
-    let courseName = null;
-    let courseFolderParts = null;
-
-    if (firstYear !== null) {
-      if (parts.length < 2) return;
-      courseName = parts[1];
-      courseFolderParts = parts.slice(0, 2);
-    } else {
-      courseName = parts[0];
-      courseFolderParts = parts.slice(0, 1);
-    }
-
-    const baseSlug = slugify(courseName);
-    if (!baseSlug) return;
-
-    const groupKey = (yearNumber || 0) + "::" + baseSlug;
-    if (!courseMap.has(groupKey)) {
-      courseMap.set(groupKey, {
-        baseSlug: baseSlug,
-        title: courseName.trim(),
-        yearNumber: yearNumber,
+    if (!bySlug.has(row.slug)) {
+      bySlug.set(row.slug, {
+        slug: row.slug,
+        title: row.course_title,
+        yearNumber,
         yearLabel: formatYearLabel(yearNumber),
-        locked: yearNumber === 1 || yearNumber === 2,
+        locked: false,
         notesCount: 0,
         solutionsCount: 0,
         pyqsCount: 0,
         totalCount: 0,
-        updatedAt: null,
+        updatedAt: new Date(row.approved_at).toISOString(),
         items: [],
       });
     }
+    const course = bySlug.get(row.slug);
+    if (!row.item_key) continue;
 
-    const course = courseMap.get(groupKey);
-    const modifiedAt = node.modified_time || node.created_time || null;
-    if (
-      modifiedAt &&
-      (!course.updatedAt || new Date(modifiedAt).getTime() > new Date(course.updatedAt).getTime())
-    ) {
-      course.updatedAt = new Date(modifiedAt).toISOString();
-    }
-
-    if (node.kind !== "file") return;
-
-    const relativeParts = parts.slice(courseFolderParts.length);
-    const relativeFolder =
-      relativeParts.length > 1 ? relativeParts.slice(0, -1).join(" / ") : null;
-    const displayTitle = stripExtension(node.name) || node.name;
-    const cls = classifyMaterial(node.name, relativeFolder);
-    const isProtected = yearScope.isProtectedNode({
-      kind: "file",
-      name: node.name,
-      path: node.path,
-    });
-
-    if (cls.isPyq) course.pyqsCount += 1;
-    if (cls.isSolution) course.solutionsCount += 1;
-    if (cls.isNote) course.notesCount += 1;
+    const locked = yearScope.isProtectedNode({ kind: "file", name: row.file_name, path: row.file_path });
+    if (row.category === "pyqs" || row.category === "pyq_solution") course.pyqsCount += 1;
+    if (row.category === "solutions" || row.category === "pyq_solution") course.solutionsCount += 1;
+    if (row.category === "notes") course.notesCount += 1;
     course.totalCount += 1;
-    if (isProtected) course.locked = true;
-
+    course.locked = course.locked || locked;
     course.items.push({
-      title: displayTitle,
-      category: cls.category,
-      isPyq: cls.isPyq,
-      isSolution: cls.isSolution,
-      unitLabel: relativeFolder,
-      fileType: detectFileType(node.name, node.mime_type),
-      locked: isProtected,
-      updatedAt: modifiedAt ? new Date(modifiedAt).toISOString() : null,
+      itemKey: row.item_key,
+      title: row.item_title,
+      category: row.category,
+      unitLabel: row.unit_label,
+      fileType: row.file_type,
+      locked,
+      updatedAt: course.updatedAt,
     });
-  });
-
-  // Resolve duplicate slugs across years cleanly (e.g., append -year-2 only on collision).
-  const slugCounts = new Map();
-  courseMap.forEach(function (course) {
-    slugCounts.set(course.baseSlug, (slugCounts.get(course.baseSlug) || 0) + 1);
-  });
+  }
 
   const cfg = paymentConfig.getPaymentConfig();
+  const order = { pyq_solution: 0, pyqs: 1, solutions: 2, notes: 3 };
   const courses = [];
-
-  courseMap.forEach(function (course) {
-    if (course.totalCount === 0) return;
-
-    const hasCollision = (slugCounts.get(course.baseSlug) || 0) > 1;
-    const slug =
-      hasCollision && course.yearNumber
-        ? course.baseSlug + "-year-" + course.yearNumber
-        : course.baseSlug;
-
-    const sortedItems = course.items
-      .slice()
-      .sort(function (a, b) {
-        const order = { pyq_solution: 0, pyqs: 1, solutions: 2, notes: 3 };
-        const diff = (order[a.category] || 3) - (order[b.category] || 3);
-        if (diff !== 0) return diff;
-        return a.title.localeCompare(b.title);
-      })
-      .map(function (item, idx) {
-        return {
-          itemKey: opaqueItemKey(slug, idx, item.title),
-          title: item.title,
-          category: item.category,
-          unitLabel: item.unitLabel,
-          fileType: item.fileType,
-          locked: !!item.locked,
-          updatedAt: item.updatedAt,
-        };
-      });
+  for (const course of bySlug.values()) {
+    const { slug } = course;
+    const sortedItems = course.items.sort(function (a, b) {
+      return order[a.category] - order[b.category] || a.title.localeCompare(b.title);
+    });
 
     const canonicalUrl = SITE_URL + "/courses/" + slug;
     const seoTitle =
@@ -229,9 +141,8 @@ function buildCatalogFromNodes(nodes) {
       course.pyqsCount +
       " previous-year question papers (PYQs), and " +
       course.solutionsCount +
-      " solutions. Unlock full semester access for " +
-      cfg.amountFormatted +
-      ".";
+      " solutions." +
+      (course.locked ? " Unlock full semester access for " + cfg.amountFormatted + "." : "");
 
     courses.push({
       slug: slug,
@@ -262,7 +173,7 @@ function buildCatalogFromNodes(nodes) {
       },
       items: sortedItems,
     });
-  });
+  }
 
   courses.sort(function (a, b) {
     const ya = a.yearNumber || 99;
@@ -316,11 +227,11 @@ function serializeCourseDetail(course) {
       canonicalUrl: course.seo.canonicalUrl,
       keywords: course.seo.keywords.slice(),
     },
-    unlockSteps: [
+    unlockSteps: course.locked ? [
       "Create or sign in to your StudyKarle account",
       "Pay " + course.priceFormatted + " once via UPI for full semester access",
       "Upload your screenshot for quick admin approval and unlock all locked notes & PYQs",
-    ],
+    ] : [],
     items: course.items.map(function (item) {
       return {
         itemKey: item.itemKey,
@@ -335,50 +246,162 @@ function serializeCourseDetail(course) {
   };
 }
 
-async function fetchDriveNodesForCatalog() {
-  return db("drive_nodes")
-    .select("name", "mime_type", "kind", "path", "created_time", "modified_time")
-    .orderBy("path", "asc");
+// Year folders themselves and files at the year root are never courses.
+function courseYear(folder) {
+  const year = extractYearNumber(folder.parent_name);
+  if (folder.depth === 2 && year !== null) return year;
+  if (folder.depth === 1 && extractYearNumber(folder.folder_name) === null) return null;
+  return undefined;
 }
 
-async function loadCatalog(options) {
-  const bypassCache = options && options.bypassCache;
-  if (!bypassCache && catalogCache.courses && Date.now() < catalogCache.expiresAt) {
-    return catalogCache.courses;
-  }
-  const rows = await module.exports._fetchDriveNodesForCatalog();
-  const courses = buildCatalogFromNodes(rows);
-  catalogCache = {
-    expiresAt: Date.now() + CACHE_TTL_MS,
-    courses: courses,
-  };
-  return courses;
+function courseFolders(connection) {
+  return connection("drive_nodes as folder")
+    .leftJoin("drive_nodes as parent", "parent.drive_id", "folder.parent_drive_id")
+    .select("folder.id", "folder.depth", "folder.name as folder_name", "parent.name as parent_name")
+    .where("folder.kind", "folder")
+    .whereIn("folder.depth", [1, 2]);
 }
 
-async function listPublicCourses(options) {
-  const courses = await loadCatalog(options);
-  return courses.map(serializeCourseSummary);
-}
-
-async function getPublicCourseBySlug(slug, options) {
-  const normalized = slugify(slug);
-  if (!normalized) return null;
-  const courses = await loadCatalog(options);
-  const found = courses.find(function (course) {
-    return course.slug === normalized;
+function descendants(connection, roots) {
+  return connection.withRecursive("course_tree", ["folder_id", "node_id", "drive_id", "kind"], function (query) {
+    query.from(roots.as("roots"))
+      .select("roots.id", "roots.id", "roots.drive_id", "roots.kind")
+      .union(function () {
+        this.from("course_tree as tree")
+          .join("drive_nodes as child", "child.parent_drive_id", "tree.drive_id")
+          .where("tree.kind", "folder")
+          .select("tree.folder_id", "child.id", "child.drive_id", "child.kind");
+      });
   });
-  return found ? serializeCourseDetail(found) : null;
+}
+
+async function fetchPublications(slug, itemKey) {
+  const roots = db("drive_nodes as root")
+    .join("course_publications as published", "published.folder_id", "root.id")
+    .where("published.published", true)
+    .select("root.id", "root.drive_id", "root.kind");
+  if (slug) roots.where("published.slug", slug);
+
+  const items = db("course_publication_items as item")
+    .join("course_tree as tree", function () {
+      this.on("tree.folder_id", "item.folder_id").andOn("tree.node_id", "item.file_id");
+    })
+    .join("drive_nodes as file", "file.id", "item.file_id")
+    .where("file.kind", "file")
+    .select("item.*", "file.path as file_path", "file.name as file_name", "file.drive_id");
+  if (itemKey) items.where("item.item_key", itemKey);
+
+  return descendants(db, roots)
+    .from(courseFolders(db).as("folder"))
+    .join("course_publications as course", "course.folder_id", "folder.id")
+    .leftJoin(items.as("item"), "item.folder_id", "course.folder_id")
+    .where("course.published", true)
+    .modify(function (query) {
+      if (slug) query.where("course.slug", slug);
+    })
+    .select(
+      "folder.depth", "folder.folder_name", "folder.parent_name",
+      "course.slug", "course.title as course_title", "course.approved_at",
+      "item.file_id", "item.item_key", "item.title as item_title", "item.unit_label",
+      "item.category", "item.file_type", "item.file_path", "item.file_name", "item.drive_id"
+    );
+}
+
+async function listPublicCourses() {
+  const rows = await module.exports._fetchPublications();
+  return buildCatalogFromPublications(rows).map(serializeCourseSummary);
+}
+
+async function getPublicCourseBySlug(slug) {
+  if (!validSlug(slug)) return null;
+  const rows = await module.exports._fetchPublications(slug);
+  const [course] = buildCatalogFromPublications(rows);
+  return course ? serializeCourseDetail(course) : null;
+}
+
+async function resolvePublishedItem(slug, itemKey) {
+  if (!validSlug(slug) || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(itemKey || "")) return null;
+  const rows = await module.exports._fetchPublications(slug, itemKey);
+  const item = rows.find(function (row) {
+    return row.item_key === itemKey && courseYear(row) !== undefined;
+  });
+  return item ? item.drive_id : null;
+}
+
+async function listManageableCourses() {
+  const folders = await courseFolders(db)
+    .leftJoin("course_publications as publication", "publication.folder_id", "folder.id")
+    .select("publication.slug", "publication.published", "folder.path")
+    .orderBy("folder.path");
+  return folders.filter(function (folder) {
+    return courseYear(folder) !== undefined;
+  });
+}
+
+async function manageableCourse(connection, folderId) {
+  const folder = await courseFolders(connection).where("folder.id", folderId).select("folder.path").first();
+  if (!folder || courseYear(folder) === undefined) return null;
+
+  const roots = connection("drive_nodes").where("id", folderId).select("id", "drive_id", "kind");
+  const files = await descendants(connection, roots)
+    .from("course_tree as tree")
+    .join("drive_nodes as file", "file.id", "tree.node_id")
+    .leftJoin("course_publication_items as item", function () {
+      this.on("item.file_id", "file.id").andOn("item.folder_id", "tree.folder_id");
+    })
+    .where("file.kind", "file")
+    .select("file.id", "file.name", "file.path", "file.mime_type", "item.item_key")
+    .orderBy("file.path");
+  const publication = await connection("course_publications").where("folder_id", folderId).first();
+  return { folder, files, publication };
+}
+
+async function savePublication(folderId, published, fileIds) {
+  return db.transaction(async function (trx) {
+    const locked = await trx("drive_nodes").where("id", folderId).forUpdate().first("id");
+    if (!locked) return null;
+    const course = await manageableCourse(trx, folderId);
+    if (!course) return null;
+    const filesById = new Map(course.files.map(function (file) { return [file.id, file]; }));
+    if (fileIds.some(function (id) { return !filesById.has(id); })) {
+      throw ApiError.badRequest("Every selected item must belong to this course");
+    }
+
+    const title = course.folder.folder_name;
+    const slug = course.publication?.slug || (slugify(title) || "course") + "-" + crypto.randomUUID();
+    const publication = { folder_id: folderId, slug, title, published, approved_at: new Date() };
+    await trx("course_publications").insert(publication).onConflict("folder_id").merge();
+    await trx("course_publication_items").where("folder_id", folderId).whereNotIn("file_id", fileIds).del();
+
+    if (fileIds.length) {
+      const items = fileIds.map(function (id) {
+        const file = filesById.get(id);
+        const relativePath = file.path.slice(course.folder.path.length + 1);
+        const unitLabel = relativePath.split("/").slice(0, -1).join(" / ") || null;
+        return {
+          folder_id: folderId,
+          file_id: id,
+          item_key: file.item_key || crypto.randomUUID(),
+          title: stripExtension(file.name) || file.name,
+          unit_label: unitLabel,
+          category: classifyMaterial(file.name, unitLabel).category,
+          file_type: detectFileType(file.name, file.mime_type),
+        };
+      });
+      await trx("course_publication_items").insert(items).onConflict(["folder_id", "file_id"]).merge();
+    }
+    return publication;
+  });
 }
 
 module.exports = {
   SITE_URL,
-  slugify,
   classifyMaterial,
-  buildCatalogFromNodes,
-  serializeCourseSummary,
-  serializeCourseDetail,
   listPublicCourses,
   getPublicCourseBySlug,
-  invalidateCache,
-  _fetchDriveNodesForCatalog: fetchDriveNodesForCatalog,
+  resolvePublishedItem,
+  listManageableCourses,
+  getManageableCourse: function (folderId) { return manageableCourse(db, folderId); },
+  savePublication,
+  _fetchPublications: fetchPublications,
 };

@@ -37,6 +37,9 @@ const DashboardPage = lazy(function () {
 const DriveBrowsePage = lazy(function () {
   return import("./pages/DriveBrowsePage");
 });
+const CourseMaterialPage = lazy(function () {
+  return import("./pages/CourseMaterialPage");
+});
 const DriveFilePage = lazy(function () {
   return import("./pages/DriveFilePage");
 });
@@ -107,6 +110,9 @@ const AdminAnalyticsPage = lazy(function () {
 const AdminViewHistoryPage = lazy(function () {
   return import("./pages/admin/AdminViewHistoryPage");
 });
+const AdminCoursePublicationsPage = lazy(function () {
+  return import("./pages/admin/AdminCoursePublicationsPage");
+});
 const AdminPaymentsPage = lazy(function () {
   return import("./pages/admin/AdminPaymentsPage");
 });
@@ -166,6 +172,14 @@ export default function App() {
         }
       />
       <Route
+        path="/drive/course/:slug/:itemKey"
+        element={
+          <ProtectedRoute>
+            <SuspenseRoute><CourseMaterialPage /></SuspenseRoute>
+          </ProtectedRoute>
+        }
+      />
+      <Route
         path="/drive/file/:nodeId"
         element={
           <ProtectedRoute>
@@ -218,6 +232,14 @@ export default function App() {
         element={
           <AdminRoute>
             <SuspenseRoute><AdminOverviewPage /></SuspenseRoute>
+          </AdminRoute>
+        }
+      />
+      <Route
+        path="/admin/course-publications"
+        element={
+          <AdminRoute>
+            <SuspenseRoute><AdminCoursePublicationsPage /></SuspenseRoute>
           </AdminRoute>
         }
       />

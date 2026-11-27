@@ -1,14 +1,14 @@
 import axiosClient from "./axiosClient";
 
 export function fetchPublicCourses() {
-  return axiosClient.get("/public/courses").then(function (res) {
+  return axiosClient.get("/public/courses", { skipCache: true }).then(function (res) {
     return (res.data && res.data.data && res.data.data.courses) || [];
   });
 }
 
 export function fetchPublicCourse(slug) {
   return axiosClient
-    .get("/public/courses/" + encodeURIComponent(slug))
+    .get("/public/courses/" + encodeURIComponent(slug), { skipCache: true })
     .then(function (res) {
       return (res.data && res.data.data && res.data.data.course) || null;
     });
@@ -25,4 +25,11 @@ export function trackCourseEvent(slug, eventType) {
       // Analytics tracking is best-effort and must never interrupt browsing.
       return null;
     });
+}
+
+export function resolvePublicCourseItem(slug, itemKey) {
+  const location = "/public/courses/" + encodeURIComponent(slug) + "/items/" + encodeURIComponent(itemKey);
+  return axiosClient.get(location, { skipCache: true }).then(function (res) {
+    return res.data.data.driveId;
+  });
 }

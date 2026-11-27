@@ -98,11 +98,11 @@ function renderHtmlShell(opts) {
 }
 
 router.get("/sitemap.xml", publicApiLimiter, async function (req, res) {
-  let courses = [];
+  let courses;
   try {
     courses = await publicCourseService.listPublicCourses();
   } catch (err) {
-    courses = [];
+    return res.status(503).set("Cache-Control", "no-store").send("Course catalog temporarily unavailable");
   }
 
   const staticUrls = STATIC_PUBLIC_PATHS.map(function (path) {
@@ -123,7 +123,7 @@ router.get("/sitemap.xml", publicApiLimiter, async function (req, res) {
 
   res
     .type("application/xml")
-    .set("Cache-Control", "public, max-age=3600")
+    .set("Cache-Control", "no-store")
     .send(
       '<?xml version="1.0" encoding="UTF-8"?>\n' +
         '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n' +
@@ -133,11 +133,11 @@ router.get("/sitemap.xml", publicApiLimiter, async function (req, res) {
 });
 
 router.get("/courses", publicApiLimiter, async function (req, res) {
-  let courses = [];
+  let courses;
   try {
     courses = await publicCourseService.listPublicCourses();
   } catch (err) {
-    courses = [];
+    return res.status(503).set("Cache-Control", "no-store").send("Course catalog temporarily unavailable");
   }
 
   const canonical = SITE_URL + "/courses";
@@ -215,7 +215,7 @@ router.get("/courses", publicApiLimiter, async function (req, res) {
 
   res
     .type("text/html; charset=utf-8")
-    .set("Cache-Control", "public, max-age=300, s-maxage=600")
+    .set("Cache-Control", "no-store")
     .send(
       renderHtmlShell({
         title: title,
@@ -228,11 +228,11 @@ router.get("/courses", publicApiLimiter, async function (req, res) {
 });
 
 router.get("/courses/:slug", publicApiLimiter, async function (req, res) {
-  let course = null;
+  let course;
   try {
     course = await publicCourseService.getPublicCourseBySlug(req.params.slug);
   } catch (err) {
-    course = null;
+    return res.status(503).set("Cache-Control", "no-store").send("Course catalog temporarily unavailable");
   }
 
   if (!course) {
@@ -298,13 +298,13 @@ router.get("/courses/:slug", publicApiLimiter, async function (req, res) {
         description: course.seo.description,
         url: canonical,
         provider: { "@id": SITE_URL + "/#organization" },
-        offers: {
+        offers: course.locked ? {
           "@type": "Offer",
           price: String(course.priceRupees),
           priceCurrency: "INR",
           availability: "https://schema.org/InStock",
           url: unlockUrl,
-        },
+        } : undefined,
       },
       {
         "@type": "ItemList",
@@ -357,19 +357,19 @@ router.get("/courses/:slug", publicApiLimiter, async function (req, res) {
     '<div class="card"><strong>' + course.counts.notes + "</strong><div>Notes</div></div>" +
     '<div class="card"><strong>' + course.counts.pyqs + "</strong><div>PYQs</div></div>" +
     '<div class="card"><strong>' + course.counts.solutions + "</strong><div>Solutions</div></div>" +
-    '<div class="card"><strong>' + escapeHtml(course.priceFormatted) + "</strong><div>Semester Pass</div></div>" +
+    (course.locked ? '<div class="card"><strong>' + escapeHtml(course.priceFormatted) + "</strong><div>Semester Pass</div></div>" : "") +
     "</section>" +
-    '<section class="card"><h2>Unlock full access in 3 steps</h2><ol>' +
+    (course.locked ? '<section class="card"><h2>Unlock full access in 3 steps</h2><ol>' +
     stepsHtml +
     '</ol><a class="cta" href="' + escapeHtml(unlockUrl) + '">Unlock ' +
-    escapeHtml(course.title) + " (" + escapeHtml(course.priceFormatted) + ")</a></section>" +
+    escapeHtml(course.title) + " (" + escapeHtml(course.priceFormatted) + ")</a></section>" : "") +
     '<section><h2>Included Materials (' + course.counts.total + ')</h2><ul class="items">' +
     itemsHtml +
     "</ul></section>";
 
   res
     .type("text/html; charset=utf-8")
-    .set("Cache-Control", "public, max-age=300, s-maxage=600")
+    .set("Cache-Control", "no-store")
     .send(
       renderHtmlShell({
         title: course.seo.title,

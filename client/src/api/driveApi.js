@@ -21,7 +21,7 @@ export function fetchDriveFolder(nodeId) {
 
 export function fetchDriveFile(nodeId) {
   return axiosClient
-    .get("/drive/files/" + encodeURIComponent(nodeId))
+    .get("/drive/files/" + encodeURIComponent(nodeId), { skipCache: true })
     .then(function (res) {
       return res.data.data;
     });

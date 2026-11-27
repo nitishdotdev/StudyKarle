@@ -1,6 +1,7 @@
 import React from "react";
-import { Link, Navigate } from "react-router-dom";
+import { Link, Navigate, useSearchParams } from "react-router-dom";
 import SignupForm from "../components/auth/SignupForm";
+import { authReturnQuery, isSafeReturnPath, readReturnTo } from "../utils/sessionReturn";
 import useAuth from "../hooks/useAuth";
 import SignupImage from "../assets/illustrations/login.png";
 
@@ -19,8 +20,12 @@ function Icon({ name, className = "" }) {
 export default function SignupPage() {
   const { isAuthenticated, loading } = useAuth();
 
+  const [searchParams] = useSearchParams();
+  const redirect = searchParams.get("returnTo");
+  const redirectTo = isSafeReturnPath(redirect) ? redirect : readReturnTo();
+
   if (!loading && isAuthenticated) {
-    return <Navigate to="/dashboard" replace />;
+    return <Navigate to={redirectTo || "/dashboard"} replace />;
   }
 
   return (
@@ -98,12 +103,12 @@ export default function SignupPage() {
                 </p>
               </div>
 
-              <SignupForm />
+              <SignupForm redirectTo={redirectTo} />
 
               <p className="mt-8 text-center text-body-sm text-text-muted">
                 Already have an account?{" "}
                 <Link
-                  to="/login"
+                  to={"/login" + authReturnQuery(redirectTo)}
                   className="font-semibold text-primary hover:underline"
                 >
                   Log in

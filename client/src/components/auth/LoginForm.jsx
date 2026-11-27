@@ -9,7 +9,7 @@ import { useToast } from "../../context/ToastContext";
 import { firstInvalidField, focusField, mergeServerFieldErrors, validateLogin } from "../../utils/formValidation";
 import { clearReturnTo, isSafeReturnPath, readReturnTo } from "../../utils/sessionReturn";
 
-export default function LoginForm() {
+export default function LoginForm({ redirectTo: requestedReturn }) {
   const { login } = useAuth();
   const toast = useToast();
   const navigate = useNavigate();
@@ -24,7 +24,7 @@ export default function LoginForm() {
   const fromPath = from ? (from.pathname || "") + (from.search || "") : "";
   const storedReturn = readReturnTo();
   const redirectTo =
-    (isSafeReturnPath(fromPath) && fromPath) || storedReturn || "/dashboard";
+    (isSafeReturnPath(fromPath) && fromPath) || requestedReturn || storedReturn || "/dashboard";
 
   function handleChange(e) {
     const { name, value } = e.target;

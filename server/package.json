@@ -4,6 +4,7 @@
   "description": "StudyKarle backend API - Express + PostgreSQL + Knex",
   "main": "server.js",
   "scripts": {
+    "prestart": "node scripts/migrate-on-start.js",
     "start": "node server.js",
     "test:rate-limits": "node --test test/auth-rate-limits.test.js",
     "test:otp-email": "node --test test/otp-email.test.js",

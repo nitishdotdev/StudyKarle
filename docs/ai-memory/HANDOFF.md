@@ -6,6 +6,12 @@
 
 ---
 
+## Route and UI audit (2026-11-27)
+
+- Put course materials before the access offer, trimmed the dashboard and PDF headers, and compacted student search results. Search now tracks URL changes. Mobile admins can navigate to all nine admin pages.
+- Verified all 35 routes in an isolated Chrome run with fixture data. Local backend suite passed 389 tests and the frontend build passed eight SEO checks.
+- Dependency advisories, search query fan-out, and possible route consolidation need separate review. The screenshot archive and review notes are in the workspace outside the checkout.
+
 ## Public course release (2026-11-27)
 
 - PR #40 uses admin-approved course and preview metadata. Course slugs stay attached to the synced folder identity. The initial public catalog is empty.

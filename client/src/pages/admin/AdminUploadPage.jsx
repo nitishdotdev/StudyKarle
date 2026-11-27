@@ -9,7 +9,7 @@ export default function AdminUploadPage() {
   return (
     <AppShell>
       <div className="mb-stack-lg">
-        <h2 className="font-headline-lg text-headline-lg text-text-primary mb-1">Upload Notes</h2>
+        <h1 className="font-headline-lg text-headline-lg text-text-primary mb-1">Upload Notes</h1>
         <p className="text-body-md text-text-secondary">Add a new PDF note to StudyKarle.</p>
       </div>
 

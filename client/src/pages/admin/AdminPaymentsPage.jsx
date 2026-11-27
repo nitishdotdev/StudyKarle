@@ -110,9 +110,9 @@ export default function AdminPaymentsPage() {
   return (
     <AppShell>
       <div className="mb-stack-lg">
-        <h2 className="font-headline-lg text-headline-lg text-text-primary mb-1">
+        <h1 className="font-headline-lg text-headline-lg text-text-primary mb-1">
           Payment review
-        </h2>
+        </h1>
         <p className="text-body-md text-text-secondary">
           Approve or reject ₹9 semester-access requests. Approval uses the server
           semester end date, not a date from the student.

@@ -1,5 +1,5 @@
 import React from 'react';
-import { NavLink } from 'react-router-dom';
+import { Link, NavLink } from 'react-router-dom';
 import useAuth from '../../hooks/useAuth';
 import { useToast } from '../../context/ToastContext';
 import { useNavigate } from 'react-router-dom';
@@ -34,12 +34,11 @@ export default function Sidebar() {
           </span>
         </div>
         <div>
-          <a href="/dashboard">
-            <h1 className="font-headline-md text-headline-md font-bold text-primary leading-none">
+          <Link to="/dashboard">
+            <span className="font-headline-md text-headline-md font-bold text-primary leading-none">
               StudyKarle
-            </h1>
-            <p className="text-body-sm text-text-muted">Academic Excellence</p>
-          </a>
+            </span>
+          </Link>
         </div>
       </div>
 

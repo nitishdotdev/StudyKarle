@@ -41,7 +41,7 @@
 /* ──────────────────────────────────────────────────────────────
    Material Symbols Outlined — self-hosted variable font
    Loaded locally so icons render everywhere, even when the
-   Google Fonts CDN is unavailable or blocked.
+   Served locally so navigation icons work independently of Google Fonts.
    ────────────────────────────────────────────────────────────── */
 @font-face {
   font-family: 'Material Symbols Outlined';

@@ -18,7 +18,7 @@ export default function AdminAnalyticsPage() {
   return (
     <AppShell>
       <div className="mb-stack-lg">
-        <h2 className="font-headline-lg text-headline-lg text-text-primary mb-1">Analytics</h2>
+        <h1 className="font-headline-lg text-headline-lg text-text-primary mb-1">Analytics</h1>
         <p className="text-body-md text-text-secondary">Platform-wide engagement and content metrics.</p>
       </div>
 

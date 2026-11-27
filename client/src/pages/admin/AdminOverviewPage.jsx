@@ -146,7 +146,7 @@ export default function AdminOverviewPage() {
 
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-stack-lg">
         <div>
-          <h2 className="font-headline-lg text-headline-lg text-text-primary">Admin Dashboard</h2>
+          <h1 className="font-headline-lg text-headline-lg text-text-primary">Admin Dashboard</h1>
           <p className="text-body-md text-text-secondary">Overview of StudyKarle resources and engagement.</p>
         </div>
       </div>

@@ -1,23 +1,7 @@
 import React from "react";
 import { SOCIAL_LINKS, SOCIAL_REL } from "../utils/socialLinks";
 
-const contactPoints = [
-  {
-    icon: "mail",
-    title: "Email Us",
-    description: "nikusi099@gmail.com",
-  },
-  {
-    icon: "help",
-    title: "Help Center",
-    description: "Browse answers to common questions before reaching out.",
-  },
-  {
-    icon: "schedule",
-    title: "Response Time",
-    description: "We usually reply within 12 to 24 hours on business days.",
-  },
-];
+const supportEmail = "nikusi099@gmail.com";
 
 const socialLinks = SOCIAL_LINKS.map(function (link) {
   return {
@@ -57,26 +41,12 @@ export default function ContactPage() {
             description="We're here to help. Reach out and our team will get back to you as soon as possible."
           />
 
-          {/* Contact Info Cards */}
-          <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-3">
-            {contactPoints.map((point) => (
-              <article
-                key={point.title}
-                className="group rounded-[1.75rem] border border-border-subtle bg-white p-7 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-lg"
-              >
-                <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10 text-primary">
-                  <Icon name={point.icon} />
-                </div>
-
-                <h3 className="mt-5 font-headline-md text-headline-md">
-                  {point.title}
-                </h3>
-
-                <p className="mt-3 text-body-sm text-text-secondary">
-                  {point.description}
-                </p>
-              </article>
-            ))}
+          <div className="rounded-2xl border border-border-subtle bg-white p-6">
+            <h2 className="font-headline-md text-headline-md">Email support</h2>
+            <a className="mt-2 inline-block font-semibold text-primary underline" href={"mailto:" + supportEmail}>
+              {supportEmail}
+            </a>
+            <p className="mt-2 text-body-sm text-text-secondary">We usually reply within 12 to 24 hours on business days.</p>
           </div>
 
           {/* Social / Connect Links */}

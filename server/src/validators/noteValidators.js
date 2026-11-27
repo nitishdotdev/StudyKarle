@@ -49,8 +49,8 @@ const searchValidator = [
     .withMessage("kind must be file or folder"),
   query("year")
     .optional({ checkFalsy: true })
-    .isIn(["1", "2"])
-    .withMessage("year must be 1 or 2"),
+    .isIn(["1", "2", "3", "4"])
+    .withMessage("year must be 1, 2, 3, or 4"),
   query("type")
     .optional({ checkFalsy: true })
     .isIn(["pdf"])

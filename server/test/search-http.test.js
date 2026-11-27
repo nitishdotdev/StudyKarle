@@ -475,7 +475,7 @@ test("search finds Drive folders by name", async function () {
 
 test("partial name matches still return the resource", async function () {
   const student = await createStudent("Partial");
-  const res = await authedGet(student, "/api/search?q=thermo");
+  const res = await authedGet(student, "/api/search?q=thermo&year=3");
   assert.equal(res.status, 200);
   const hit = resultItems(res).find(function (row) {
     return row.nodeId === "thermo";
@@ -592,7 +592,7 @@ test("draft notes are not returned", async function () {
 test("deleted Drive nodes are not returned", async function () {
   const student = await createStudent("Deleted");
   driveNodes.delete("thermo");
-  const res = await authedGet(student, "/api/search?q=thermo");
+  const res = await authedGet(student, "/api/search?q=thermo&year=3");
   assert.equal(res.status, 200);
   const hit = resultItems(res).find(function (row) {
     return row.nodeId === "thermo";
@@ -618,7 +618,7 @@ test("protected Drive hits keep 402 flags and never leak file contents", async f
 
 test("unprotected Drive hits remain previewable without paying", async function () {
   const student = await createStudent("Open");
-  const res = await authedGet(student, "/api/search?q=thermo");
+  const res = await authedGet(student, "/api/search?q=thermo&year=3");
   assert.equal(res.status, 200);
   const hit = resultItems(res).find(function (row) {
     return row.nodeId === "thermo";
@@ -670,7 +670,7 @@ test("type=pdf filter excludes folders and non-PDF files", async function () {
 
 test("invalid year filter is rejected with 400, not guessed", async function () {
   const student = await createStudent("BadYear");
-  const res = await authedGet(student, "/api/search?q=pdf&year=3");
+  const res = await authedGet(student, "/api/search?q=pdf&year=5");
   assert.equal(res.status, 400);
 });
 
@@ -699,7 +699,7 @@ test("unpaid search stays 200 with access flags, never 403", async function () {
 
 test("Year 3 hits carry their academic year and remain free", async function () {
   const student = await createStudent("Year3");
-  const res = await authedGet(student, "/api/search?q=thermo");
+  const res = await authedGet(student, "/api/search?q=thermo&year=3");
   assert.equal(res.status, 200);
   const hit = resultItems(res).find(function (row) {
     return row.nodeId === "thermo";

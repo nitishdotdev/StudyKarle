@@ -1,4 +1,9 @@
-import React, { useEffect, useState } from "react";
+import { Link, useSearchParams } from "react-router-dom";
+import SemesterAccessPanel from "./SemesterAccessPanel";
+import Input from "../../components/common/Input";
+import useDebounce from "../../hooks/useDebounce";
+import useFetch from "../../hooks/useFetch";
+import React, { useState } from "react";
 import AppShell from "../../components/layout/AppShell";
 import Button from "../../components/common/Button";
 import Badge from "../../components/common/Badge";
@@ -41,34 +46,31 @@ function AdminPaymentScreenshot({ paymentId }) {
 }
 
 export default function AdminPaymentsPage() {
+  const [params] = useSearchParams();
+  const access = params.get("view") === "access";
+  return (
+    <AppShell>
+      <nav aria-label="Payments and access" className="mb-5 flex flex-wrap gap-4">
+        <Link to="/admin/payments" aria-current={access ? undefined : "page"} className="font-semibold text-primary underline">Payment requests</Link>
+        <Link to="/admin/payments?view=access" aria-current={access ? "page" : undefined} className="font-semibold text-primary underline">Semester access records</Link>
+      </nav>
+      {access ? <SemesterAccessPanel /> : <PaymentRequests />}
+    </AppShell>
+  );
+}
+
+function PaymentRequests() {
   const toast = useToast();
   const [status, setStatus] = useState("pending");
-  const [data, setData] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const [email, setEmail] = useState("");
+  const search = useDebounce(email.trim(), 350);
+  const { data, loading, error, reload: load } = useFetch(
+    () => fetchAdminPayments({ status: status || undefined, email: search }),
+    [status, search]
+  );
   const [selected, setSelected] = useState(null);
   const [note, setNote] = useState("");
   const [busy, setBusy] = useState(false);
-
-  function load() {
-    setLoading(true);
-    setError(null);
-    fetchAdminPayments({ status: status || undefined })
-      .then(setData)
-      .catch(function (err) {
-        setError(err.message);
-      })
-      .finally(function () {
-        setLoading(false);
-      });
-  }
-
-  useEffect(
-    function () {
-      load();
-    },
-    [status]
-  );
 
   function handleApprove() {
     if (!selected) return;
@@ -108,7 +110,7 @@ export default function AdminPaymentsPage() {
   const payments = data && data.payments ? data.payments : [];
 
   return (
-    <AppShell>
+    <>
       <div className="mb-stack-lg">
         <h1 className="font-headline-lg text-headline-lg text-text-primary mb-1">
           Payment review
@@ -119,6 +121,8 @@ export default function AdminPaymentsPage() {
         </p>
       </div>
 
+      <Input id="payment-student-email" label="Student email" type="search" value={email} maxLength={254}
+        onChange={(event) => setEmail(event.target.value)} className="mb-4 max-w-sm" />
       <div className="flex flex-wrap gap-2 mb-6">
         {["pending", "approved", "rejected", ""].map(function (value) {
           const label = value || "All";
@@ -271,6 +275,6 @@ export default function AdminPaymentsPage() {
           </div>
         ) : null}
       </Modal>
-    </AppShell>
+    </>
   );
 }

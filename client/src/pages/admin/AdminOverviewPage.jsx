@@ -173,7 +173,9 @@ export default function AdminOverviewPage() {
                 <h4 className="font-headline-md text-headline-md text-text-primary mb-1">
                   Content Library
                 </h4>
-                {syncState.loading ? (
+                {syncState.error ? (
+                  <p className="text-body-sm text-error" role="alert">{syncState.error}</p>
+                ) : syncState.loading ? (
                   <p className="text-body-sm text-text-muted">Loading library status…</p>
                 ) : (
                   <p className="text-body-sm text-text-secondary">
@@ -205,10 +207,10 @@ export default function AdminOverviewPage() {
                   variant="secondary"
                   icon="refresh"
                   loading={syncing}
-                  onClick={handleSync}
-                  disabled={syncing || (syncState.data && syncState.data.status === 'syncing')}
+                  onClick={syncState.error ? syncState.reload : handleSync}
+                  disabled={!syncState.error && (!syncState.data?.configured || syncing || syncState.data.status === 'syncing')}
                 >
-                  Refresh Now
+                  {syncState.error ? "Retry library status" : "Refresh Now"}
                 </Button>
               </div>
             </div>

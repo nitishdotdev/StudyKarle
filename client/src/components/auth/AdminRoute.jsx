@@ -1,10 +1,12 @@
 import React from 'react';
-import { Navigate } from 'react-router-dom';
+import { Navigate, useLocation } from 'react-router-dom';
+import { authReturnQuery } from '../../utils/sessionReturn';
 import useAuth from '../../hooks/useAuth';
 import Spinner from '../common/Spinner';
 import ErrorState from '../common/ErrorState';
 
 export default function AdminRoute({ children }) {
+  const location = useLocation();
   const { isAuthenticated, isAdmin, loading, sessionError, refreshUser } = useAuth();
 
   if (loading) {
@@ -24,7 +26,7 @@ export default function AdminRoute({ children }) {
   }
 
   if (!isAuthenticated) {
-    return <Navigate to="/login" replace />;
+    return <Navigate to={"/login" + authReturnQuery(location.pathname + location.search)} replace />;
   }
 
   if (!isAdmin) {

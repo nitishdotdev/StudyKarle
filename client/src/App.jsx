@@ -1,5 +1,6 @@
+import useAuth from "./hooks/useAuth";
 import React, { lazy, Suspense } from "react";
-import { Routes, Route } from "react-router-dom";
+import { Routes, Route, Navigate } from "react-router-dom";
 import { SpeedInsights } from "@vercel/speed-insights/react";
 
 import ProtectedRoute from "./components/auth/ProtectedRoute";
@@ -124,6 +125,7 @@ function SuspenseRoute({ children }) {
 }
 
 export default function App() {
+  const { isAdmin } = useAuth();
   return (
     <>
       <Routes>
@@ -151,7 +153,7 @@ export default function App() {
         path="/dashboard"
         element={
           <ProtectedRoute>
-            <SuspenseRoute><DashboardPage /></SuspenseRoute>
+            {isAdmin ? <Navigate to="/admin" replace /> : <SuspenseRoute><DashboardPage /></SuspenseRoute>}
           </ProtectedRoute>
         }
       />

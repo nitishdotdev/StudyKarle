@@ -1,4 +1,5 @@
 import React from 'react';
+import { Link } from 'react-router-dom';
 import { formatBytes } from '../../utils/formatBytes';
 import { formatDate } from '../../utils/formatDate';
 import Badge from '../common/Badge';
@@ -27,7 +28,7 @@ export default function NotesTable({ notes, onDelete, onToggleStatus }) {
                       <span className="material-symbols-outlined text-error" aria-hidden="true">
                         picture_as_pdf
                       </span>
-                      <span className="font-medium text-text-primary">{note.title}</span>
+                      <Link to={"/notes/" + note.id} className="font-medium text-primary hover:underline">{note.title}</Link>
                     </div>
                   </td>
                   <td className="px-6 py-4 text-body-sm text-text-secondary">{note.subject_name}</td>
@@ -36,6 +37,7 @@ export default function NotesTable({ notes, onDelete, onToggleStatus }) {
                   <td className="px-6 py-4">
                     <button
                       type="button"
+                      aria-label={(note.status === "published" ? "Unpublish " : "Publish ") + note.title}
                       onClick={function () {
                         onToggleStatus(note);
                       }}
@@ -73,7 +75,7 @@ export default function NotesTable({ notes, onDelete, onToggleStatus }) {
                   <span className="material-symbols-outlined text-error shrink-0" aria-hidden="true">
                     picture_as_pdf
                   </span>
-                  <span className="font-medium text-text-primary truncate">{note.title}</span>
+                  <Link to={"/notes/" + note.id} className="truncate font-medium text-primary hover:underline">{note.title}</Link>
                 </div>
                 <button
                   type="button"
@@ -93,6 +95,7 @@ export default function NotesTable({ notes, onDelete, onToggleStatus }) {
                 </span>
                 <button
                   type="button"
+                  aria-label={(note.status === "published" ? "Unpublish " : "Publish ") + note.title}
                   onClick={function () {
                     onToggleStatus(note);
                   }}

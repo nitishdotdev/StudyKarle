@@ -57,6 +57,7 @@ jobs:
           DB_USER: studykarle
         run: |
           npm run migrate
+          node --test test/semester-access-postgres.test.js
           node --test test/course-publication-postgres.test.js
 
   frontend-build:

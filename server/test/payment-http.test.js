@@ -197,6 +197,9 @@ const driveNodeModel = {
   async findAncestors(id) {
     return ancestorsOf(id);
   },
+  async findAncestorsForNodes(nodes) {
+    return new Map(await Promise.all(nodes.map(async (node) => [node.nodeId, await ancestorsOf(node.nodeId)])));
+  },
   async search(query) {
     const needle = String(query || "").toLowerCase();
     return Array.from(driveNodes.values()).filter(function (n) {

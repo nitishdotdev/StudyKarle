@@ -53,10 +53,11 @@ test("dedupeSearchHits drops a legacy note when the Drive file is already presen
   assert.equal(merged[1].id, 10);
 });
 
-test("academicYearFromPath only maps reliable Year 1 / Year 2 folder names", function () {
+test("academicYearFromPath maps reliable Year 1 through Year 4 folder names", function () {
   assert.equal(ranking.academicYearFromPath("Year 1/Physics/Notes.pdf", "file"), 1);
   assert.equal(ranking.academicYearFromPath("Year 2", "folder", "Year 2"), 2);
-  assert.equal(ranking.academicYearFromPath("Year 3/Physics/Notes.pdf", "file"), null);
+  assert.equal(ranking.academicYearFromPath("Year 3/Physics/Notes.pdf", "file"), 3);
+  assert.equal(ranking.academicYearFromPath("Fourth Year/Notes.pdf", "file"), 4);
   assert.equal(ranking.academicYearFromPath("Random/Year1Notes.pdf", "file"), null);
 });
 

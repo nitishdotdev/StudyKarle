@@ -1,12 +1,13 @@
 import React, { useEffect, useRef, useState } from "react";
-import * as pdfjs from "pdfjs-dist/build/pdf";
+import workerUrl from "pdfjs-dist/build/pdf.worker.min.mjs?url";
+import * as pdfjs from "pdfjs-dist/build/pdf.mjs";
 import {
   canFetchPdfThumbnail,
   isPdfResource,
   pdfThumbnailUrl,
 } from "../../utils/pdfThumbnail";
 
-pdfjs.GlobalWorkerOptions.workerSrc = "/pdf.worker.min.js";
+pdfjs.GlobalWorkerOptions.workerSrc = workerUrl;
 
 function Placeholder({ locked, label }) {
   return (

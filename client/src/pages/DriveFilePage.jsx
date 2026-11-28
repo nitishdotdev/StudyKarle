@@ -176,33 +176,27 @@ export default function DriveFilePage({ courseNodeId, courseSlug, courseItemKey 
           fileName={node.name}
         />
       ) : null}
-      <div className="flex items-center gap-3 mb-4">
-        <button
-          type="button"
-          onClick={function () {
-            navigate(-1);
-          }}
-          aria-label="Go back"
-          className="shrink-0 w-9 h-9 rounded-lg border border-border-subtle bg-white flex items-center justify-center text-text-secondary hover:bg-surface-low transition-colors"
-        >
-          <span className="material-symbols-outlined text-[20px]" aria-hidden="true">
-            arrow_back
-          </span>
-        </button>
-        <div className="flex-1 min-w-0">
-          <h2 className="font-headline-md text-headline-md text-text-primary truncate">
-            {node.name}
-          </h2>
-        </div>
-      </div>
-
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
-        <div className="min-w-0">
-          <h1 className="font-headline-lg text-headline-lg text-text-primary break-words">
-            {node.name}
-          </h1>
-          <div className="flex items-center gap-3 mt-2">
-            <Badge variant="primary">PDF</Badge>
+      <div className="mb-5 flex flex-col items-start justify-between gap-3 md:flex-row md:items-center">
+        <div className="flex min-w-0 items-start gap-3">
+          <button
+            type="button"
+            onClick={function () {
+              navigate(-1);
+            }}
+            aria-label="Go back"
+            className="shrink-0 w-11 h-11 rounded-lg border border-border-subtle bg-white flex items-center justify-center text-text-secondary hover:bg-surface-low transition-colors"
+          >
+            <span className="material-symbols-outlined text-[20px]" aria-hidden="true">
+              arrow_back
+            </span>
+          </button>
+          <div className="min-w-0">
+            <h1 className="font-headline-lg text-headline-lg text-text-primary break-words">
+              {node.name}
+            </h1>
+            <div className="flex items-center gap-3 mt-2">
+              <Badge variant="primary">PDF</Badge>
+            </div>
           </div>
         </div>
         <div className="flex flex-wrap gap-3 w-full md:w-auto">

@@ -97,9 +97,9 @@ export default function AdminViewHistoryPage() {
   return (
     <AppShell>
       <div className="mb-stack-lg">
-        <h2 className="font-headline-lg text-headline-lg text-text-primary mb-1">
+        <h1 className="font-headline-lg text-headline-lg text-text-primary mb-1">
           View History
-        </h2>
+        </h1>
         <p className="text-body-md text-text-secondary">
           Admin-only activity log of which users opened which notes.
         </p>

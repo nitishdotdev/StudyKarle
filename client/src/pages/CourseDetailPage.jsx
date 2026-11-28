@@ -21,6 +21,7 @@ export default function CourseDetailPage() {
   const [course, setCourse] = useState(null);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
+  const [requestFailed, setRequestFailed] = useState(false);
   const [activeTab, setActiveTab] = useState("all");
 
   useEffect(
@@ -28,6 +29,7 @@ export default function CourseDetailPage() {
       let active = true;
       setLoading(true);
       setNotFound(false);
+      setRequestFailed(false);
       setCourse(null);
       setActiveTab("all");
       fetchPublicCourse(slug)
@@ -42,11 +44,8 @@ export default function CourseDetailPage() {
         })
         .catch(function (err) {
           if (!active) return;
-          if (err && err.response && err.response.status === 404) {
-            setNotFound(true);
-          } else {
-            setNotFound(true);
-          }
+          if (err.status === 404) setNotFound(true);
+          else setRequestFailed(true);
         })
         .finally(function () {
           if (active) setLoading(false);
@@ -149,6 +148,15 @@ export default function CourseDetailPage() {
     );
   }
 
+  if (requestFailed) {
+    return (
+      <main className="mx-auto max-w-3xl px-4 py-12">
+        <h1 className="text-2xl font-bold text-text-primary">Course temporarily unavailable</h1>
+        <p className="mt-2 text-text-secondary">Reload the page to try again.</p>
+      </main>
+    );
+  }
+
   if (notFound || !course) {
     return (
       <main className="max-w-3xl mx-auto px-4 py-16 text-center">
@@ -203,77 +211,16 @@ export default function CourseDetailPage() {
         </div>
 
         <h1 className="mt-3 text-3xl sm:text-4xl font-bold text-slate-900">
-          {course.title} — Notes, PYQs &amp; Solutions
+          {course.title}
         </h1>
-        <p className="mt-3 text-base text-slate-600 max-w-3xl">
-          {course.seo.description}
-        </p>
       </section>
 
-      <section className="mt-6 grid grid-cols-2 sm:grid-cols-4 gap-3" aria-label="Course material counts">
-        <div className="rounded-xl border border-slate-200 bg-white p-4">
-          <div className="text-2xl font-bold text-slate-900">{course.counts.notes}</div>
-          <div className="text-xs font-medium text-slate-500 mt-0.5">Lecture Notes</div>
-        </div>
-        <div className="rounded-xl border border-slate-200 bg-white p-4">
-          <div className="text-2xl font-bold text-slate-900">{course.counts.pyqs}</div>
-          <div className="text-xs font-medium text-slate-500 mt-0.5">PYQ Papers</div>
-        </div>
-        <div className="rounded-xl border border-slate-200 bg-white p-4">
-          <div className="text-2xl font-bold text-slate-900">{course.counts.solutions}</div>
-          <div className="text-xs font-medium text-slate-500 mt-0.5">Solutions</div>
-        </div>
-        {course.locked ? <div className="rounded-xl border border-primary/20 bg-primary/5 p-4">
-          <div className="text-2xl font-bold text-primary">{course.priceFormatted}</div>
-          <div className="text-xs font-medium text-slate-700 mt-0.5">One-Time Semester Pass</div>
-        </div> : null}
-      </section>
-
-      {course.locked ? <section
-        className="mt-8 rounded-2xl border border-primary/20 bg-white p-6 shadow-sm"
-      >
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-          <div>
-            <h2 className="text-xl font-bold text-slate-900">
-              Unlock all {course.counts.total} {course.title} materials in 3 steps
-            </h2>
-            <p className="mt-1 text-sm text-slate-600">
-              One-time {course.priceFormatted} UPI payment unlocks every Year 1 &amp; Year 2 subject for the entire semester.
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={handleUnlockClick}
-            className="shrink-0 inline-flex items-center justify-center gap-2 rounded-xl bg-primary px-6 py-3 text-sm font-semibold text-white shadow-sm hover:bg-primary-container transition-colors"
-          >
-            <span className="material-symbols-outlined text-[18px]">lock_open</span>
-            {user ? "Unlock Full Access (" + course.priceFormatted + ")" : "Sign Up & Unlock (" + course.priceFormatted + ")"}
-          </button>
-        </div>
-
-        <ol className="mt-5 grid grid-cols-1 sm:grid-cols-3 gap-3 text-sm text-slate-700">
-          {(course.unlockSteps || []).map(function (step, idx) {
-            return (
-              <li
-                key={idx}
-                className="rounded-xl bg-slate-50 border border-slate-100 p-3.5 flex gap-3 items-start"
-              >
-                <span className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary text-xs font-bold text-white">
-                  {idx + 1}
-                </span>
-                <span>{step}</span>
-              </li>
-            );
-          })}
-        </ol>
-      </section> : null}
-
-      <section className="mt-10">
+      <section className="mt-6">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <h2 className="text-xl font-bold text-slate-900">
-            Included Materials ({filteredItems.length})
+            Materials
           </h2>
-          <div className="flex flex-wrap gap-2" role="tablist" aria-label="Material categories">
+          <div className="flex flex-wrap gap-2" role="group" aria-label="Material categories">
             {[
               { id: "all", label: "All (" + course.counts.total + ")" },
               { id: "pyqs", label: "PYQs (" + course.counts.pyqs + ")" },
@@ -284,8 +231,7 @@ export default function CourseDetailPage() {
                 <button
                   key={tab.id}
                   type="button"
-                  role="tab"
-                  aria-selected={activeTab === tab.id}
+                  aria-pressed={activeTab === tab.id}
                   onClick={function () {
                     setActiveTab(tab.id);
                   }}
@@ -303,7 +249,7 @@ export default function CourseDetailPage() {
           </div>
         </div>
 
-        <ul className="mt-4 divide-y divide-slate-200 rounded-2xl border border-slate-200 bg-white overflow-hidden">
+        {filteredItems.length ? <ul className="mt-4 divide-y divide-slate-200 rounded-2xl border border-slate-200 bg-white overflow-hidden">
           {filteredItems.map(function (item) {
             return (
               <li
@@ -338,8 +284,28 @@ export default function CourseDetailPage() {
               </li>
             );
           })}
-        </ul>
+        </ul> : <p className="mt-4 text-body-sm text-text-secondary">
+          {course.items.length ? "No materials in this category." : "No previews have been published for this course."}
+        </p>}
       </section>
+
+      {course.locked ? (
+        <section className="mt-8 flex flex-wrap items-center justify-between gap-4 border-t border-border-subtle pt-5">
+          <div>
+            <h2 className="font-semibold text-text-primary">Semester access</h2>
+            <p className="mt-1 text-body-sm text-text-secondary">
+              One-time {course.priceFormatted} UPI payment for protected Year 1 and Year 2 materials. Access starts after approval.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={handleUnlockClick}
+            className="min-h-[44px] rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white hover:bg-primary-container"
+          >
+            {user ? "Get semester access" : "Sign up for semester access"}
+          </button>
+        </section>
+      ) : null}
     </main>
   );
 }

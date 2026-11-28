@@ -67,31 +67,6 @@ export default function DriveSharePage() {
 
   return (
     <div className="min-h-screen bg-background">
-      <header className="sticky top-0 z-20 bg-white/90 backdrop-blur border-b border-border-subtle">
-        <div className="max-w-container mx-auto px-4 sm:px-6 lg:px-8 py-3 flex items-center justify-between gap-4">
-          <Link to="/" className="flex items-center gap-2">
-            <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary/10 text-primary">
-              <span className="material-symbols-outlined" aria-hidden="true">
-                school
-              </span>
-            </span>
-            <span className="font-headline-md text-headline-md font-semibold tracking-tight text-primary">
-              StudyKarle
-            </span>
-          </Link>
-          <div className="flex items-center gap-2">
-            <span className="text-body-sm text-text-muted hidden sm:block">
-              Shared with you
-            </span>
-            <Link to="/login">
-              <Button variant="secondary" size="sm">
-                Sign in
-              </Button>
-            </Link>
-          </div>
-        </div>
-      </header>
-
       <main className="max-w-container mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
           <div className="min-w-0">

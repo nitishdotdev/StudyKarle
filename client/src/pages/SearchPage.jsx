@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import AppShell from "../components/layout/AppShell";
 import SearchResultItem from "../components/search/SearchResultItem";
@@ -10,7 +10,6 @@ import Input from "../components/common/Input";
 import Button from "../components/common/Button";
 import SlowLoadNotice from "../components/common/SlowLoadNotice";
 import RefreshErrorBanner from "../components/common/RefreshErrorBanner";
-import useDebounce from "../hooks/useDebounce";
 import useDelayedFlag from "../hooks/useDelayedFlag";
 import { searchNotes } from "../api/notesApi";
 import {
@@ -40,21 +39,21 @@ function toSearchParams(query, page, filters) {
 export default function SearchPage() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const initialQuery = searchParams.get("q") || "";
-  const initialPage = Math.max(1, parseInt(searchParams.get("page"), 10) || 1);
-  const [inputValue, setInputValue] = useState(initialQuery);
-  const debouncedQuery = useDebounce(inputValue, 400);
-  const [page, setPage] = useState(initialPage);
-  const [filters, setFilters] = useState(function () {
-    return readFilters(searchParams);
-  });
-  const [result, setResult] = useState(null);
+  const query = (searchParams.get("q") || "").trim();
+  const page = Math.max(1, parseInt(searchParams.get("page"), 10) || 1);
+  const filters = readFilters(searchParams);
+  const [inputValue, setInputValue] = useState(query);
+  const pendingInput = useRef(null);
+  const [attempt, setAttempt] = useState(0);
+  const requestKey = toSearchParams(query, page, filters);
+  const resultKey = new URLSearchParams(requestKey).toString();
+  const [lastResult, setResult] = useState(null);
+  const result = lastResult?.key === resultKey ? lastResult : null;
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [errorStatus, setErrorStatus] = useState(null);
   const [highlight, setHighlight] = useState(-1);
   const [showSuggest, setShowSuggest] = useState(false);
-  const lastQueryRef = React.useRef(initialQuery.trim());
   const showSkeleton = useDelayedFlag(loading && !result, 200);
 
   const keyboardSuggestions = useMemo(
@@ -64,32 +63,27 @@ export default function SearchPage() {
     [inputValue]
   );
 
+  useEffect(function () {
+    setInputValue(query);
+    return function () { window.clearTimeout(pendingInput.current); };
+  }, [searchParams]);
+
   useEffect(
     function () {
-      const query = debouncedQuery.trim();
       if (!query) {
-        lastQueryRef.current = "";
         setResult(null);
         setError(null);
-        setPage(1);
-        setSearchParams({});
+        setLoading(false);
         return;
       }
-      let pageToUse = page;
-      if (lastQueryRef.current !== query) {
-        lastQueryRef.current = query;
-        pageToUse = 1;
-        if (page !== 1) setPage(1);
-      }
-      setSearchParams(toSearchParams(query, pageToUse, filters));
       const controller = new AbortController();
       setLoading(true);
       setError(null);
       setErrorStatus(null);
-      searchNotes(query, pageToUse, controller.signal, filters)
+      searchNotes(query, page, controller.signal, filters)
         .then(function (data) {
           if (controller.signal.aborted) return;
-          setResult(Object.assign({}, data, { query: query }));
+          setResult({ ...data, key: resultKey });
         })
         .catch(function (err) {
           if (controller.signal.aborted) return;
@@ -105,12 +99,12 @@ export default function SearchPage() {
         controller.abort();
       };
     },
-    [debouncedQuery, page, filters.kind, filters.year, filters.type]
+    [resultKey, attempt]
   );
 
   const items = (result && (result.items || result.notes)) || [];
   const state = classifySearchState({
-    query: debouncedQuery,
+    query: query,
     loading: loading,
     error: error,
     results: result,
@@ -121,43 +115,41 @@ export default function SearchPage() {
       if (state !== SEARCH_STATES.NO_RESULTS) {
         return null;
       }
-      return serverSuggestion || suggestCorrection(debouncedQuery, SEARCH_TOPICS);
+      return serverSuggestion || suggestCorrection(query, SEARCH_TOPICS);
     },
-    [state, debouncedQuery, serverSuggestion]
+    [state, query, serverSuggestion]
   );
 
   function retrySearch() {
-    const query = debouncedQuery.trim();
-    if (!query) {
-      return;
+    setAttempt((previous) => previous + 1);
+  }
+
+  function submitQuery(value, replace = false) {
+    window.clearTimeout(pendingInput.current);
+    setInputValue(value);
+    setSearchParams(toSearchParams(value.trim(), 1, filters), { replace });
+  }
+
+  function editQuery(value) {
+    window.clearTimeout(pendingInput.current);
+    setInputValue(value);
+    if (value.trim() !== query) {
+      pendingInput.current = window.setTimeout(function () {
+        submitQuery(value, true);
+      }, 400);
     }
-    setError(null);
-    setLoading(true);
-    searchNotes(query, page, undefined, filters)
-      .then(function (data) {
-        setResult(Object.assign({}, data, { query: query }));
-      })
-      .catch(function (err) {
-        setError(err.message || "Couldn't search notes");
-        setErrorStatus(err.status || 0);
-      })
-      .finally(function () {
-        setLoading(false);
-      });
   }
 
   function applyFilter(key, value) {
-    setFilters(function (prev) {
-      const next = Object.assign({}, prev);
-      next[key] = prev[key] === value ? "" : value;
-      return next;
-    });
-    setPage(1);
+    window.clearTimeout(pendingInput.current);
+    const next = { ...filters, [key]: filters[key] === value ? "" : value };
+    setSearchParams(toSearchParams(inputValue.trim(), 1, next));
   }
 
   function onSearchKeyDown(event) {
     if (!showSuggest || !keyboardSuggestions.length) {
       if (event.key === "Escape") setShowSuggest(false);
+      if (event.key === "Enter") submitQuery(inputValue);
       return;
     }
     if (event.key === "ArrowDown") {
@@ -170,9 +162,9 @@ export default function SearchPage() {
       setHighlight(function (i) {
         return Math.max(i - 1, 0);
       });
-    } else if (event.key === "Enter" && highlight >= 0) {
+    } else if (event.key === "Enter") {
       event.preventDefault();
-      setInputValue(keyboardSuggestions[highlight]);
+      submitQuery(keyboardSuggestions[highlight] || inputValue);
       setShowSuggest(false);
       setHighlight(-1);
     } else if (event.key === "Escape") {
@@ -192,18 +184,13 @@ export default function SearchPage() {
 
   return (
     <AppShell>
-      <div className="mb-stack-lg">
-        <h2 className="font-headline-lg text-headline-lg text-text-primary mb-1">Search library</h2>
-        <p className="text-body-md text-text-secondary">
-          Search Drive files, folders, and published notes.
-        </p>
-      </div>
+      <h1 className="mb-4 font-headline-lg text-headline-lg text-text-primary">Search library</h1>
 
       <div className="relative max-w-xl mb-4">
         <Input
           id="search-input"
           icon="search"
-          label="Search notes, files, and folders"
+          aria-label="Search notes, files, and folders"
           placeholder="Search notes, files, folders..."
           value={inputValue}
           autoComplete="off"
@@ -223,7 +210,7 @@ export default function SearchPage() {
           }}
           onKeyDown={onSearchKeyDown}
           onChange={function (e) {
-            setInputValue(e.target.value);
+            editQuery(e.target.value);
             setShowSuggest(true);
             setHighlight(-1);
           }}
@@ -245,7 +232,7 @@ export default function SearchPage() {
                     }
                     onMouseDown={function (event) {
                       event.preventDefault();
-                      setInputValue(topic);
+                      submitQuery(topic);
                       setShowSuggest(false);
                       setHighlight(-1);
                     }}
@@ -260,25 +247,25 @@ export default function SearchPage() {
       </div>
 
       <div className="flex flex-wrap gap-2 mb-stack-lg" aria-label="Search filters">
-        <button type="button" className={filterChip(filters.kind === "file")} onClick={function () { applyFilter("kind", "file"); }}>
+        <button type="button" aria-pressed={filters.kind === "file"} className={filterChip(filters.kind === "file")} onClick={function () { applyFilter("kind", "file"); }}>
           Files
         </button>
-        <button type="button" className={filterChip(filters.kind === "folder")} onClick={function () { applyFilter("kind", "folder"); }}>
+        <button type="button" aria-pressed={filters.kind === "folder"} className={filterChip(filters.kind === "folder")} onClick={function () { applyFilter("kind", "folder"); }}>
           Folders
         </button>
-        <button type="button" className={filterChip(filters.year === "1")} onClick={function () { applyFilter("year", "1"); }}>
+        <button type="button" aria-pressed={filters.year === "1"} className={filterChip(filters.year === "1")} onClick={function () { applyFilter("year", "1"); }}>
           Year 1
         </button>
-        <button type="button" className={filterChip(filters.year === "2")} onClick={function () { applyFilter("year", "2"); }}>
+        <button type="button" aria-pressed={filters.year === "2"} className={filterChip(filters.year === "2")} onClick={function () { applyFilter("year", "2"); }}>
           Year 2
         </button>
-        <button type="button" className={filterChip(filters.type === "pdf")} onClick={function () { applyFilter("type", "pdf"); }}>
+        <button type="button" aria-pressed={filters.type === "pdf"} className={filterChip(filters.type === "pdf")} onClick={function () { applyFilter("type", "pdf"); }}>
           PDF
         </button>
       </div>
 
       <SlowLoadNotice active={loading && !result} onRetry={retrySearch} />
-      {error && result && result.query === debouncedQuery.trim() && items.length ? (
+      {error && result && result.query === query && items.length ? (
         <RefreshErrorBanner message="Couldn't refresh search results." onRetry={retrySearch} />
       ) : null}
 
@@ -300,7 +287,7 @@ export default function SearchPage() {
           error={{ status: errorStatus, message: error }}
           onRetry={retrySearch}
           preserveHint={
-            result && result.query === debouncedQuery.trim()
+            result && result.query === query.trim()
               ? "Previous search results are still on screen."
               : undefined
           }
@@ -308,7 +295,7 @@ export default function SearchPage() {
       ) : state === SEARCH_STATES.NO_RESULTS ? (
         <EmptyState
           icon="search_off"
-          title={'No exact matches for "' + debouncedQuery + '"'}
+          title={'No exact matches for "' + query + '"'}
           description="Try a shorter phrase, check the spelling, or browse the library."
           action={
             <div className="flex flex-col items-center gap-3">
@@ -316,7 +303,7 @@ export default function SearchPage() {
                 <Button
                   icon="search"
                   onClick={function () {
-                    setInputValue(suggestion);
+                    submitQuery(suggestion);
                   }}
                 >
                   Did you mean {suggestion}
@@ -325,7 +312,7 @@ export default function SearchPage() {
               <Button
                 variant="secondary"
                 onClick={function () {
-                  setInputValue("");
+                  submitQuery("");
                 }}
               >
                 Clear search
@@ -345,7 +332,7 @@ export default function SearchPage() {
       ) : (
         <React.Fragment>
           <p className="text-body-md text-text-secondary mb-4">
-            {result.meta.total} results found for "{debouncedQuery}"
+            {result.meta.total} results found for "{query}"
           </p>
           <div className="space-y-4">
             {items.map(function (item) {
@@ -353,7 +340,7 @@ export default function SearchPage() {
               return <SearchResultItem key={key} item={item} />;
             })}
           </div>
-          <Pagination page={page} totalPages={result.meta.totalPages} onChange={setPage} />
+          <Pagination page={page} totalPages={result.meta.totalPages} onChange={(nextPage) => setSearchParams(toSearchParams(query, nextPage, filters))} />
         </React.Fragment>
       )}
     </AppShell>

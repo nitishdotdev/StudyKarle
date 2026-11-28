@@ -2,7 +2,6 @@ import React from "react";
 import { Link } from "react-router-dom";
 import { formatBytes } from "../../utils/formatBytes";
 import { formatDate } from "../../utils/formatDate";
-import Button from "../common/Button";
 import { paymentAccessPath } from "../../utils/paymentRedirect";
 
 function resultHref(item) {
@@ -31,75 +30,33 @@ export default function SearchResultItem({ item }) {
   const when = item.modifiedTime || item.created_at;
 
   return (
-    <div
+    <article
       data-search-key={resultKey(item)}
-      className="bg-white rounded-xl p-5 border border-border-subtle shadow-sm hover:shadow-md transition-all flex flex-col md:flex-row items-center gap-6"
+      className="flex min-w-0 items-start gap-3 rounded-xl border border-border-subtle bg-white p-3 sm:items-center sm:p-4"
     >
-      <div
-        className={
-          "w-16 h-20 rounded-lg flex flex-col items-center justify-center shrink-0 " +
-          (isFolder ? "bg-indigo-50 text-indigo-600" : "bg-error-container/30")
-        }
+      <span
+        aria-hidden="true"
+        className={"material-symbols-outlined shrink-0 rounded-lg p-2 " +
+          (isFolder ? "bg-indigo-50 text-indigo-600" : "bg-error-container/30 text-error")}
       >
-        <span
-          className={
-            "material-symbols-outlined text-4xl " + (isFolder ? "" : "text-error")
-          }
-          aria-hidden="true"
-        >
-          {isFolder ? "folder" : "picture_as_pdf"}
-        </span>
-        <span
-          className={
-            "text-[10px] font-bold mt-1 " + (isFolder ? "text-indigo-600" : "text-error")
-          }
-        >
-          {isFolder ? "DIR" : "PDF"}
-        </span>
-      </div>
+        {isFolder ? "folder" : "picture_as_pdf"}
+      </span>
 
-      <div className="flex-1 text-center md:text-left min-w-0">
-        <h3 className="font-headline-md text-headline-md text-text-primary mb-1 truncate">
-          {item.title}
-        </h3>
-        {pathLabel ? (
-          <p className="text-body-sm text-text-muted mb-2 truncate">{pathLabel}</p>
-        ) : null}
-        <div className="flex flex-wrap items-center justify-center md:justify-start gap-y-2 gap-x-4">
-          {item.page_count ? (
-            <div className="flex items-center text-body-sm text-text-muted">
-              <span className="material-symbols-outlined text-[18px] mr-1" aria-hidden="true">
-                history_edu
-              </span>
-              {item.page_count} Pages
-            </div>
-          ) : null}
-          {!isFolder ? (
-            <div className="flex items-center text-body-sm text-text-muted">
-              <span className="material-symbols-outlined text-[18px] mr-1" aria-hidden="true">
-                save
-              </span>
-              {formatBytes(size)}
-            </div>
-          ) : null}
-          {when ? (
-            <div className="flex items-center text-body-sm text-text-muted">
-              <span className="material-symbols-outlined text-[18px] mr-1" aria-hidden="true">
-                event
-              </span>
-              {formatDate(when)}
-            </div>
-          ) : null}
-        </div>
-      </div>
-
-      <div className="shrink-0">
-        <Link to={resultHref(item)}>
-          <Button variant="primary" size="md">
-            {locked ? "Unlock" : isFolder ? "Open folder" : "Preview"}
-          </Button>
+      <div className="min-w-0 flex-1">
+        <h3 className="break-words font-semibold text-text-primary">{item.title}</h3>
+        {pathLabel ? <p className="break-words text-body-sm text-text-secondary">{pathLabel}</p> : null}
+        <p className="mt-1 text-body-sm text-text-muted">
+          {[item.page_count && item.page_count + " pages", !isFolder && size != null && formatBytes(size), when && formatDate(when)]
+            .filter(Boolean).join(" · ")}
+        </p>
+        <Link
+          to={resultHref(item)}
+          className="inline-flex min-h-[44px] items-center font-semibold text-primary hover:underline"
+          aria-label={(locked ? "Unlock " : isFolder ? "Open folder " : "Preview ") + item.title}
+        >
+          {locked ? "Unlock" : isFolder ? "Open folder" : "Preview"}
         </Link>
       </div>
-    </div>
+    </article>
   );
 }

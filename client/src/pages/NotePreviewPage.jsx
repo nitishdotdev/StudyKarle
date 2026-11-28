@@ -171,43 +171,37 @@ export default function NotePreviewPage() {
       {error && note ? (
         <RefreshErrorBanner message="Couldn't refresh this note." onRetry={reload} />
       ) : null}
-      <div className="flex items-center gap-3 mb-4">
-        <button
-          type="button"
-          onClick={function () {
-            navigate(-1);
-          }}
-          aria-label="Go back"
-          className="shrink-0 w-9 h-9 rounded-lg border border-border-subtle bg-white flex items-center justify-center text-text-secondary hover:bg-surface-low transition-colors"
-        >
-          <span className="material-symbols-outlined text-[20px]" aria-hidden="true">
-            arrow_back
-          </span>
-        </button>
-        <div className="flex-1 min-w-0">
-          <h2 className="font-headline-md text-headline-md text-text-primary truncate">
-            {loading ? "..." : note ? note.title : "Note"}
-          </h2>
-        </div>
-      </div>
-
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
-        <div className="min-w-0">
-          {loading && !note && showSkeleton ? (
-            <div className="space-y-2">
-              <Skeleton type="row" count={1} label="Loading note" />
-            </div>
-          ) : note ? (
-            <React.Fragment>
-              <h1 className="font-headline-lg text-headline-lg text-text-primary break-words">
-                {note.title}
-              </h1>
-              <div className="flex items-center gap-3 mt-2">
-                <Badge variant="primary">PDF</Badge>
-                <Badge variant="success">Secure Preview</Badge>
+      <div className="mb-5 flex flex-col items-start justify-between gap-3 md:flex-row md:items-center">
+        <div className="flex min-w-0 items-start gap-3">
+          <button
+            type="button"
+            onClick={function () {
+              navigate(-1);
+            }}
+            aria-label="Go back"
+            className="shrink-0 w-11 h-11 rounded-lg border border-border-subtle bg-white flex items-center justify-center text-text-secondary hover:bg-surface-low transition-colors"
+          >
+            <span className="material-symbols-outlined text-[20px]" aria-hidden="true">
+              arrow_back
+            </span>
+          </button>
+          <div className="min-w-0">
+            {loading && !note && showSkeleton ? (
+              <div className="space-y-2">
+                <Skeleton type="row" count={1} label="Loading note" />
               </div>
-            </React.Fragment>
-          ) : null}
+            ) : note ? (
+              <React.Fragment>
+                <h1 className="font-headline-lg text-headline-lg text-text-primary break-words">
+                  {note.title}
+                </h1>
+                <div className="flex items-center gap-3 mt-2">
+                  <Badge variant="primary">PDF</Badge>
+                  <Badge variant="success">Secure Preview</Badge>
+                </div>
+              </React.Fragment>
+            ) : null}
+          </div>
         </div>
         <div className="flex flex-wrap gap-3 w-full md:w-auto">
           {!isProtected ? (

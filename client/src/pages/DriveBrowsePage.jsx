@@ -47,7 +47,7 @@ export default function DriveBrowsePage() {
     }
   }
 
-  const breadcrumbs = [{ label: "Library", to: isRoot ? undefined : "/drive" }]
+  const breadcrumbs = isRoot ? [{ label: "Library" }] : [{ label: "Library", to: "/drive" }]
     .concat(
       ancestors.map(function (a) {
         return { label: a.name, to: "/drive/folder/" + a.nodeId };
@@ -76,9 +76,9 @@ export default function DriveBrowsePage() {
       </div>
 
       <div className="mb-stack-lg">
-        <h2 className="font-headline-lg text-headline-lg text-text-primary mb-1 break-words">
+        <h1 className="font-headline-lg text-headline-lg text-text-primary mb-1 break-words">
           {node ? node.name : isRoot ? "Library" : "Folder"}
-        </h2>
+        </h1>
         <p className="text-body-md text-text-secondary">Browse the files available in this folder.</p>
       </div>
 

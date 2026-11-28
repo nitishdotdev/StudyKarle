@@ -18,18 +18,12 @@ export default function PublicHeader() {
         <Link to="/how-it-works">How It Works</Link>
         <Link to="/about">About</Link>
 
-        <a
-          href="/contact"
+        <Link
+          to="/contact"
           className="font-body-md text-body-md text-on-surface-variant hover:text-primary transition-colors"
         >
           Contact
-        </a>
-        {/* <a
-          className="text-body-md text-text-secondary hover:text-primary transition-colors"
-          href="#how-it-works"
-        >
-          Contact
-        </a> */}
+        </Link>
       </nav>
 
       <div className="flex items-center gap-3">

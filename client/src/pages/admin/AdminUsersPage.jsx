@@ -92,7 +92,7 @@ export default function AdminUsersPage() {
   return (
     <AppShell>
       <div className="mb-stack-lg">
-        <h2 className="font-headline-lg text-headline-lg text-text-primary mb-1">Manage Users</h2>
+        <h1 className="font-headline-lg text-headline-lg text-text-primary mb-1">Manage Users</h1>
         <p className="text-body-md text-text-secondary">View and manage all registered students and admins.</p>
       </div>
 

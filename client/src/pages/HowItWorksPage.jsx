@@ -1,5 +1,4 @@
 import React from "react";
-import PublicHeader from "../components/layout/PublicHeader";
 
 const steps = [
   {
@@ -15,10 +14,10 @@ const steps = [
       "After payment proof is approved, explore semester-wise notes, previous year papers, assignments, lab files, and practical resources.",
   },
   {
-    icon: "download",
-    title: "Download and Study",
+    icon: "picture_as_pdf",
+    title: "Open a PDF",
     description:
-      "Download the resources you need and focus on learning without wasting time searching.",
+      "Open resources in the StudyKarle viewer. Protected materials require approved semester access.",
   },
 ];
 
@@ -43,8 +42,6 @@ function SectionHeading({ eyebrow, title, description }) {
 export default function HowItWorksPage() {
   return (
     <>
-      {/* <PublicHeader /> */}
-
       <main className="min-h-screen bg-background text-text-primary py-20">
         <section className="max-w-container mx-auto px-4 sm:px-6 lg:px-8">
           <SectionHeading

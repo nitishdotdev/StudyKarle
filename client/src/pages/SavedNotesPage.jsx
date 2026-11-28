@@ -63,7 +63,7 @@ export default function SavedNotesPage() {
   return (
     <AppShell>
       <div className="mb-stack-lg">
-        <h2 className="font-headline-lg text-headline-lg text-text-primary mb-1">Saved</h2>
+        <h1 className="font-headline-lg text-headline-lg text-text-primary mb-1">Saved</h1>
         <p className="text-body-md text-text-secondary">Everything you have saved for later.</p>
       </div>
 

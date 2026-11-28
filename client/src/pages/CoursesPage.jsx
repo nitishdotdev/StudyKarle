@@ -61,16 +61,9 @@ export default function CoursesPage() {
   return (
     <main className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
       <div className="max-w-3xl">
-        <p className="text-xs font-semibold uppercase tracking-wider text-primary">
-          Public Course Catalog
-        </p>
-        <h1 className="mt-2 text-3xl sm:text-4xl font-bold text-slate-900">
-          Engineering Notes, Solutions &amp; PYQs by Subject
-        </h1>
-        <p className="mt-3 text-base text-slate-600">
-          Inspect every subject&apos;s notes, previous-year question papers (PYQs), and
-          solutions before creating an account. Unlock full Year 1 &amp; Year 2 semester
-          access with a one-time ₹9 UPI pass.
+        <h1 className="text-3xl font-bold text-slate-900 sm:text-4xl">Browse courses</h1>
+        <p className="mt-2 text-text-secondary">
+          Find published notes, past papers, and solutions by subject.
         </p>
       </div>
 
@@ -81,7 +74,7 @@ export default function CoursesPage() {
           onChange={function (e) {
             setQuery(e.target.value);
           }}
-          placeholder="Search subjects (e.g. Elements of AIML, Data Structures)..."
+          placeholder="Search subjects"
           aria-label="Search courses"
           className="w-full sm:max-w-md rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm text-slate-900 focus:border-primary focus:outline-none"
         />
@@ -89,6 +82,7 @@ export default function CoursesPage() {
         <div className="flex flex-wrap gap-2" role="group" aria-label="Filter by year">
           <button
             type="button"
+            aria-pressed={yearFilter === "all"}
             onClick={function () {
               setYearFilter("all");
             }}
@@ -107,6 +101,7 @@ export default function CoursesPage() {
               <button
                 key={yr}
                 type="button"
+                aria-pressed={yearFilter === val}
                 onClick={function () {
                   setYearFilter(val);
                 }}
@@ -134,7 +129,9 @@ export default function CoursesPage() {
         </div>
       ) : filtered.length === 0 ? (
         <div className="mt-8 rounded-xl border border-slate-200 bg-white p-8 text-center text-slate-600">
-          No matching courses found. Try clearing your search or year filter.
+          {courses.length
+            ? "No courses match your search or year filter."
+            : "No courses have been published yet."}
         </div>
       ) : (
         <div className="mt-8 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">

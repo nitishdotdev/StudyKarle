@@ -22,7 +22,7 @@ import {
 
 function readFilters(params) {
   const kind = params.get("kind") === "file" || params.get("kind") === "folder" ? params.get("kind") : "";
-  const year = params.get("year") === "1" || params.get("year") === "2" ? params.get("year") : "";
+  const year = ["1", "2", "3", "4"].includes(params.get("year")) ? params.get("year") : "";
   const type = params.get("type") === "pdf" ? "pdf" : "";
   return { kind: kind, year: year, type: type };
 }
@@ -253,12 +253,12 @@ export default function SearchPage() {
         <button type="button" aria-pressed={filters.kind === "folder"} className={filterChip(filters.kind === "folder")} onClick={function () { applyFilter("kind", "folder"); }}>
           Folders
         </button>
-        <button type="button" aria-pressed={filters.year === "1"} className={filterChip(filters.year === "1")} onClick={function () { applyFilter("year", "1"); }}>
-          Year 1
-        </button>
-        <button type="button" aria-pressed={filters.year === "2"} className={filterChip(filters.year === "2")} onClick={function () { applyFilter("year", "2"); }}>
-          Year 2
-        </button>
+        {["1", "2", "3", "4"].map((year) => (
+          <button key={year} type="button" aria-pressed={filters.year === year}
+            className={filterChip(filters.year === year)} onClick={() => applyFilter("year", year)}>
+            Year {year}
+          </button>
+        ))}
         <button type="button" aria-pressed={filters.type === "pdf"} className={filterChip(filters.type === "pdf")} onClick={function () { applyFilter("type", "pdf"); }}>
           PDF
         </button>

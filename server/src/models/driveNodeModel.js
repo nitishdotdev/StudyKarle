@@ -95,6 +95,32 @@ module.exports = {
     return ancestors;
   },
 
+  async findAncestorsForNodes(nodes) {
+    const parents = new Map();
+    let frontier = new Set(nodes.map((node) => node.parentDriveId).filter(Boolean));
+    while (frontier.size) {
+      const ids = [...frontier];
+      for (const id of ids) parents.set(id, null);
+      const rows = await db(TABLE).whereIn("drive_id", ids)
+        .select("drive_id", "parent_drive_id", "name");
+      for (const row of rows) parents.set(row.drive_id, row);
+      frontier = new Set(rows.map((row) => row.parent_drive_id)
+        .filter((id) => id && !parents.has(id)));
+    }
+
+    return new Map(nodes.map(function (node) {
+      const ancestors = [];
+      const seen = new Set([node.nodeId]);
+      let parent = parents.get(node.parentDriveId);
+      while (parent && !seen.has(parent.drive_id)) {
+        seen.add(parent.drive_id);
+        ancestors.unshift({ nodeId: parent.drive_id, name: parent.name });
+        parent = parents.get(parent.parent_drive_id);
+      }
+      return [node.nodeId, ancestors];
+    }));
+  },
+
   async countAll() {
     const result = await db(TABLE).count("id as count").first();
     return Number(result.count);
@@ -127,9 +153,9 @@ module.exports = {
     if (params && params.kind) {
       builder.andWhere("kind", params.kind);
     }
-    builder.orderBy("name", "asc");
+    builder.orderBy("name", "asc").orderBy("drive_id", "asc");
     if (params && params.limit) {
-      builder.limit(params.limit);
+      builder.limit(params.limit).offset(params.offset || 0);
     }
     return builder;
   },

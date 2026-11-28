@@ -143,9 +143,18 @@ function dedupeSearchHits(driveHits, noteHits) {
   return drive.concat(notes);
 }
 
+function classifyAcademicYear(name) {
+  const protectedYear = yearScope.classifyYearFolder(name);
+  if (protectedYear) return protectedYear;
+  const normalized = yearScope.normalizeName(name);
+  if (/^(year\s*3|3rd\s*year|third\s*year|y3)$/.test(normalized)) return 3;
+  if (/^(year\s*4|4th\s*year|fourth\s*year|y4)$/.test(normalized)) return 4;
+  return null;
+}
+
 function academicYearFromPath(path, kind, folderName) {
   if (kind === "folder" && folderName) {
-    const fromName = yearScope.classifyYearFolder(folderName);
+    const fromName = classifyAcademicYear(folderName);
     if (fromName) return fromName;
   }
   const parts = String(path || "").split("/").filter(Boolean);
@@ -153,7 +162,7 @@ function academicYearFromPath(path, kind, folderName) {
     parts.pop();
   }
   for (let i = 0; i < parts.length; i++) {
-    const year = yearScope.classifyYearFolder(parts[i]);
+    const year = classifyAcademicYear(parts[i]);
     if (year) return year;
   }
   return null;
@@ -173,7 +182,7 @@ function applySearchFilters(hits, filters) {
   const type = filters && filters.type;
   return rows.filter(function (hit) {
     if (kind && hit.kind !== kind) return false;
-    if (year === 1 || year === 2) {
+    if (year) {
       const hitYear =
         hit.academicYear != null
           ? Number(hit.academicYear)

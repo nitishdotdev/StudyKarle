@@ -258,10 +258,15 @@ const driveNodeModel = {
   async findAncestors(id) {
     return ancestorsOf(id);
   },
-  async search(query) {
-    return Array.from(driveNodes.values()).filter(function (n) {
+  async findAncestorsForNodes(nodes) {
+    return new Map(await Promise.all(nodes.map(async (node) => [node.nodeId, await ancestorsOf(node.nodeId)])));
+  },
+  async search(query, params = {}) {
+    const rows = Array.from(driveNodes.values()).filter(function (n) {
+      if (params.kind && n.kind !== params.kind) return false;
       return matchesQuery(n.name, query) || matchesQuery(n.path, query);
     });
+    return rows.slice(params.offset || 0, (params.offset || 0) + (params.limit || rows.length));
   },
 };
 
@@ -272,8 +277,8 @@ const noteModel = {
   async findRawById(id) {
     return notes.get(Number(id)) || null;
   },
-  async search(query) {
-    return Array.from(notes.values()).filter(function (n) {
+  async search(query, params = {}) {
+    const rows = Array.from(notes.values()).filter(function (n) {
       if (n.status !== "published") return false;
       return (
         matchesQuery(n.title, query) ||
@@ -281,6 +286,7 @@ const noteModel = {
         matchesQuery(n.subject_name, query)
       );
     });
+    return rows.slice(params.offset || 0, (params.offset || 0) + (params.limit || rows.length));
   },
   async countSearch(query) {
     const rows = await this.search(query);
@@ -469,7 +475,7 @@ test("search finds Drive folders by name", async function () {
 
 test("partial name matches still return the resource", async function () {
   const student = await createStudent("Partial");
-  const res = await authedGet(student, "/api/search?q=thermo");
+  const res = await authedGet(student, "/api/search?q=thermo&year=3");
   assert.equal(res.status, 200);
   const hit = resultItems(res).find(function (row) {
     return row.nodeId === "thermo";
@@ -586,7 +592,7 @@ test("draft notes are not returned", async function () {
 test("deleted Drive nodes are not returned", async function () {
   const student = await createStudent("Deleted");
   driveNodes.delete("thermo");
-  const res = await authedGet(student, "/api/search?q=thermo");
+  const res = await authedGet(student, "/api/search?q=thermo&year=3");
   assert.equal(res.status, 200);
   const hit = resultItems(res).find(function (row) {
     return row.nodeId === "thermo";
@@ -612,7 +618,7 @@ test("protected Drive hits keep 402 flags and never leak file contents", async f
 
 test("unprotected Drive hits remain previewable without paying", async function () {
   const student = await createStudent("Open");
-  const res = await authedGet(student, "/api/search?q=thermo");
+  const res = await authedGet(student, "/api/search?q=thermo&year=3");
   assert.equal(res.status, 200);
   const hit = resultItems(res).find(function (row) {
     return row.nodeId === "thermo";
@@ -664,7 +670,7 @@ test("type=pdf filter excludes folders and non-PDF files", async function () {
 
 test("invalid year filter is rejected with 400, not guessed", async function () {
   const student = await createStudent("BadYear");
-  const res = await authedGet(student, "/api/search?q=pdf&year=3");
+  const res = await authedGet(student, "/api/search?q=pdf&year=5");
   assert.equal(res.status, 400);
 });
 
@@ -691,13 +697,14 @@ test("unpaid search stays 200 with access flags, never 403", async function () {
   assert.equal(hit.canPreview, false);
 });
 
-test("Year 3 hits are not labeled as Year 1 or Year 2", async function () {
+test("Year 3 hits carry their academic year and remain free", async function () {
   const student = await createStudent("Year3");
-  const res = await authedGet(student, "/api/search?q=thermo");
+  const res = await authedGet(student, "/api/search?q=thermo&year=3");
   assert.equal(res.status, 200);
   const hit = resultItems(res).find(function (row) {
     return row.nodeId === "thermo";
   });
   assert.ok(hit);
-  assert.equal(hit.academicYear, null);
+  assert.equal(hit.academicYear, 3);
+  assert.equal(hit.protected, false);
 });

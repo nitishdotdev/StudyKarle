@@ -1,6 +1,7 @@
 const driveNodeModel = require("../models/driveNodeModel");
 const noteModel = require("../models/noteModel");
-const materialGate = require("./materialGateService");
+const { authorizeMaterial } = require("./materialAccessService");
+const { getEntitlementState } = require("./accessEntitlementService");
 const ranking = require("./searchRanking");
 const noteService = require("./noteService");
 
@@ -9,7 +10,7 @@ const CANDIDATE_CAP = 200;
 function parseFilters(query) {
   const kind = query && (query.kind === "file" || query.kind === "folder") ? query.kind : "";
   const yearRaw = query && query.year != null ? String(query.year) : "";
-  const year = yearRaw === "1" || yearRaw === "2" ? yearRaw : "";
+  const year = ["1", "2", "3", "4"].includes(yearRaw) ? yearRaw : "";
   const type = query && query.type === "pdf" ? "pdf" : "";
   return { kind: kind, year: year, type: type };
 }
@@ -28,6 +29,7 @@ function toDriveHit(row) {
   return {
     source: "drive",
     nodeId: nodeId,
+    parentDriveId: row.parent_drive_id || null,
     title: title,
     kind: kind,
     path: row.path || "",
@@ -65,39 +67,40 @@ function toNoteHit(row) {
   });
 }
 
-async function withAncestors(hit) {
-  if (hit.source !== "drive" || !hit.nodeId || typeof driveNodeModel.findAncestors !== "function") {
-    hit.ancestors = hit.ancestors || [];
-    return hit;
+// Fetch bounded batches until the cap contains matching candidates. Use the
+// same year and file classification for both sources and for displayed hits.
+async function collectCandidates(model, query, filters, toHit) {
+  const candidates = [];
+  for (let offset = 0; candidates.length < CANDIDATE_CAP; offset += CANDIDATE_CAP) {
+    const rows = await model.search(query, {
+      kind: filters.kind || undefined,
+      limit: CANDIDATE_CAP,
+      offset,
+    });
+    const matches = ranking.applySearchFilters(rows.map(toHit), filters);
+    candidates.push(...matches.slice(0, CANDIDATE_CAP - candidates.length));
+    if (rows.length < CANDIDATE_CAP) break;
   }
-  const ancestors = await driveNodeModel.findAncestors(hit.nodeId);
-  hit.ancestors = ancestors || [];
-  return hit;
+  return candidates;
 }
 
-async function decorateHit(user, hit) {
-  if (hit.source === "drive") {
-    const raw =
-      typeof driveNodeModel.findById === "function"
-        ? await driveNodeModel.findById(hit.nodeId)
-        : null;
-    if (!raw) {
-      return null;
-    }
-    raw.ancestors = hit.ancestors || [];
-    const decision = await materialGate.authorizeDriveNode(user, raw);
-    hit.protected = decision.protected;
-    hit.canPreview = decision.canPreview;
-    hit.canDownload = decision.canDownload;
-    hit.accessCode = decision.code || null;
-    return hit;
-  }
-  const decision = await materialGate.authorizeNote(user, hit);
-  hit.protected = decision.protected;
-  hit.canPreview = decision.canPreview;
-  hit.canDownload = decision.canDownload;
-  hit.accessCode = decision.code || null;
-  return hit;
+function decorateHit(user, hit, ancestorsById, entitlement) {
+  const { parentDriveId, ...publicHit } = hit;
+  const ancestors = ancestorsById.get(hit.nodeId) || [];
+  const decision = authorizeMaterial(user, {
+    kind: hit.kind,
+    name: hit.title,
+    path: hit.path,
+    ancestors,
+  }, entitlement);
+  return {
+    ...publicHit,
+    ancestors,
+    protected: decision.protected,
+    canPreview: decision.canPreview,
+    canDownload: decision.canDownload,
+    accessCode: decision.code || null,
+  };
 }
 
 async function searchLibrary(user, query, reqQuery) {
@@ -105,32 +108,20 @@ async function searchLibrary(user, query, reqQuery) {
   const pagination = noteService.parsePagination(reqQuery || {});
   const filters = parseFilters(reqQuery || {});
 
-  let driveRows = [];
-  if (typeof driveNodeModel.search === "function") {
-    driveRows = await driveNodeModel.search(q, {
-      kind: filters.kind || undefined,
-      limit: CANDIDATE_CAP,
-    });
-  }
-
-  let noteRows = [];
-  if (typeof noteModel.search === "function") {
-    noteRows = await noteModel.search(q, { limit: CANDIDATE_CAP });
-  }
-
-  const driveHits = (driveRows || []).map(toDriveHit);
-  const noteHits = (noteRows || []).map(toNoteHit);
+  const [driveHits, noteHits] = await Promise.all([
+    collectCandidates(driveNodeModel, q, filters, toDriveHit),
+    filters.kind === "folder" ? [] : collectCandidates(noteModel, q, filters, toNoteHit),
+  ]);
   const merged = ranking.dedupeSearchHits(driveHits, noteHits);
-  const filtered = ranking.applySearchFilters(merged, filters);
-  const ranked = ranking.sortSearchHits(filtered, q);
+  const ranked = ranking.sortSearchHits(merged, q);
   const page = ranking.paginateSearchHits(ranked, pagination);
 
-  const items = [];
-  for (let i = 0; i < page.items.length; i++) {
-    const withPath = await withAncestors(page.items[i]);
-    const decorated = await decorateHit(user, withPath);
-    if (decorated) items.push(decorated);
-  }
+  const nodes = page.items.filter((hit) => hit.source === "drive");
+  const [ancestors, entitlement] = await Promise.all([
+    driveNodeModel.findAncestorsForNodes(nodes),
+    page.items.length && user.role !== "admin" ? getEntitlementState(user.id) : null,
+  ]);
+  const items = page.items.map((hit) => decorateHit(user, hit, ancestors, entitlement));
 
   const corpus = ranked.map(function (hit) {
     return hit.title;

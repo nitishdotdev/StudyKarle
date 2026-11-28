@@ -276,7 +276,7 @@ async function adminList(filters) {
 }
 
 async function adminGet(id) {
-  const rows = await paymentRequestModel.list({});
+  const rows = await paymentRequestModel.list({ id });
   const row = (rows || []).find(function (item) {
     return Number(item.id) === Number(id);
   });

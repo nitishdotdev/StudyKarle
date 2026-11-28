@@ -40,6 +40,7 @@ function authorizeMaterial(user, node, entitlement) {
   if (status === "pending") code = "PAYMENT_PENDING";
   else if (status === "rejected") code = "PAYMENT_REJECTED";
   else if (status === "expired") code = "PAYMENT_EXPIRED";
+  else if (status === "revoked") code = "PAYMENT_REVOKED";
 
   return {
     protected: true,

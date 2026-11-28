@@ -10,6 +10,15 @@ async function getEntitlementState(userId) {
   const access = await semesterAccessModel.findByUserId(userId);
   const latest = await paymentRequestModel.findLatestByUser(userId);
 
+  if (access && access.revoked_at) {
+    return {
+      hasAccess: false,
+      status: latest?.status === "pending" ? "pending" : "revoked",
+      endsAt: access.ends_at,
+      payment: latest,
+    };
+  }
+
   if (access && isFuture(access.ends_at)) {
     return {
       hasAccess: true,

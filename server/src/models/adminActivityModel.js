@@ -3,8 +3,8 @@ const db = require('../config/db');
 const TABLE = 'admin_activity';
 
 module.exports = {
-  async log(adminId, action, entityType, entityId, meta) {
-    return db(TABLE).insert({
+  async log(adminId, action, entityType, entityId, meta, trx) {
+    return (trx || db)(TABLE).insert({
       admin_id: adminId,
       action: action,
       entity_type: entityType,

@@ -15,6 +15,7 @@ export function shouldRedirectToAccess(err) {
     code === "PAYMENT_REQUIRED" ||
     code === "PAYMENT_PENDING" ||
     code === "PAYMENT_REJECTED" ||
+    code === "PAYMENT_REVOKED" ||
     code === "PAYMENT_EXPIRED"
   );
 }

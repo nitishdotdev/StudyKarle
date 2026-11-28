@@ -44,6 +44,7 @@ module.exports = {
         proof_filename: data.proof_filename || null,
         proof_size_bytes: data.proof_size_bytes || null,
         submitted_at: data.submitted_at || null,
+        source_course_slug: data.source_course_slug || null,
       })
       .returning("*");
     return rows[0];
@@ -82,6 +83,12 @@ module.exports = {
       .orderBy("payment_requests.id", "desc");
     if (filters && filters.status) {
       query.where("payment_requests.status", filters.status);
+    }
+    if (filters && filters.email) {
+      query.andWhereRaw("position(lower(?) in lower(users.email)) > 0", [filters.email]);
+    }
+    if (filters && filters.id) {
+      query.where("payment_requests.id", filters.id);
     }
     return query;
   },

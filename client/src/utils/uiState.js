@@ -66,6 +66,9 @@ function paymentMessage(code) {
   if (code === "PAYMENT_REJECTED") {
     return "This payment was not approved. You can submit a clearer screenshot from the access page.";
   }
+  if (code === "PAYMENT_REVOKED") {
+    return "An administrator removed your semester access. Contact support if you think this is a mistake.";
+  }
   if (code === "PAYMENT_EXPIRED") {
     return "Your previous semester access has ended. Pay ₹9 again for the current semester.";
   }

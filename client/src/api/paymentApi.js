@@ -82,3 +82,12 @@ export function rejectAdminPayment(id, note) {
 export function isPaymentRequiredStatus(status) {
   return status === 402;
 }
+
+export function fetchAdminSemesterAccess(params) {
+  return axiosClient.get("/admin/semester-access", { params, skipCache: true }).then((res) => res.data.data);
+}
+
+export function setAdminSemesterAccessRevoked(id, revoked) {
+  return axiosClient.patch("/admin/semester-access/" + encodeURIComponent(id), { revoked })
+    .then((res) => res.data.data);
+}

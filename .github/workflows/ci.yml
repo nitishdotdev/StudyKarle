@@ -48,7 +48,7 @@ jobs:
         working-directory: server
         run: npm test
 
-      - name: Verify course publications on PostgreSQL
+      - name: Run PostgreSQL integration tests
         working-directory: server
         env:
           DB_HOST: 127.0.0.1
@@ -58,6 +58,7 @@ jobs:
         run: |
           npm run migrate
           node --test test/course-publication-postgres.test.js test/search-postgres.test.js
+          node --test test/semester-access-postgres.test.js
 
   frontend-build:
     name: Frontend production build (Node 20)

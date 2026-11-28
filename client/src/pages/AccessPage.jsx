@@ -80,6 +80,9 @@ function statusCopy(reason, status) {
   if (status === "rejected" || reason === "PAYMENT_REJECTED") {
     return "This payment was not approved. You can submit a clearer screenshot or a UTR and we will review it again.";
   }
+  if (status === "revoked" || reason === "PAYMENT_REVOKED") {
+    return "An administrator removed your semester access. Contact support if you think this is a mistake.";
+  }
   if (status === "expired" || reason === "PAYMENT_EXPIRED") {
     return "Your previous semester access has ended. Pay ₹9 again for the current semester.";
   }

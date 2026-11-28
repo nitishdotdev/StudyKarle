@@ -2,6 +2,8 @@ const asyncHandler = require("../middleware/asyncHandler");
 const ApiResponse = require("../utils/ApiResponse");
 const paymentService = require("../services/paymentService");
 const accessEntitlementService = require("../services/accessEntitlementService");
+const semesterAccessModel = require("../models/semesterAccessModel");
+const ApiError = require("../utils/ApiError");
 const paymentConfig = require("../config/paymentConfig");
 
 module.exports = {
@@ -76,8 +78,30 @@ module.exports = {
     return ApiResponse.ok(res, data);
   }),
 
+  adminAccessList: asyncHandler(async function (req, res) {
+    const page = Math.min(100000, Math.max(1, Number.parseInt(req.query.page, 10) || 1));
+    const email = typeof req.query.email === "string" ? req.query.email.trim().slice(0, 254) : "";
+    const status = ["active", "expired", "revoked"].includes(req.query.status) ? req.query.status : "";
+    const records = await semesterAccessModel.listForAdmin({ page, limit: 25, email, status });
+    res.set("Cache-Control", "private, no-store");
+    return ApiResponse.ok(res, records);
+  }),
+
+  adminUpdateAccess: asyncHandler(async function (req, res) {
+    const id = Number(req.params.id);
+    if (!Number.isInteger(id) || id < 1 || id > 2147483647 || typeof req.body?.revoked !== "boolean") {
+      throw ApiError.badRequest("A valid access record and revocation state are required");
+    }
+    await semesterAccessModel.setRevoked(id, req.body.revoked, req.user.id);
+    res.set("Cache-Control", "private, no-store");
+    return ApiResponse.ok(res, { revoked: req.body.revoked });
+  }),
+
   adminList: asyncHandler(async function (req, res) {
-    const data = await paymentService.adminList({ status: req.query.status });
+    const status = ["pending", "approved", "rejected"].includes(req.query.status) ? req.query.status : "";
+    const email = typeof req.query.email === "string" ? req.query.email.trim().slice(0, 254) : "";
+    const data = await paymentService.adminList({ status, email });
+    res.set("Cache-Control", "private, no-store");
     return ApiResponse.ok(res, data);
   }),
 

@@ -32,29 +32,22 @@ export default function UploadForm({ onUploaded }) {
       });
   }, []);
 
-  // NEW: Load units when subject changes
-  useEffect(
-    function () {
-      if (!form.subjectId) {
-        setUnits([]);
-        setForm(function (prev) {
-          return { ...prev, unitId: "" };
-        });
-        return;
-      }
-      fetchSubjectUnits(form.subjectId)
-        .then(setUnits)
-        .catch(function () {
-          toast.error("Failed to load units");
-        });
-    },
-    [form.subjectId]
-  );
+  useEffect(function () {
+    if (!form.subjectId) return;
+    let active = true;
+    fetchSubjectUnits(form.subjectId)
+      .then((rows) => { if (active) setUnits(rows); })
+      .catch(() => { if (active) toast.error("Failed to load units"); });
+    return () => { active = false; };
+  }, [form.subjectId]);
 
   function handleChange(e) {
     const { name, value } = e.target;
+    if (name === "subjectId") setUnits([]);
     setForm(function (prev) {
-      return { ...prev, [name]: value };
+      return name === "subjectId"
+        ? { ...prev, subjectId: value, unitId: "" }
+        : { ...prev, [name]: value };
     });
   }
 
@@ -135,6 +128,7 @@ export default function UploadForm({ onUploaded }) {
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       <Input
+        id="upload-title"
         label="Title"
         name="title"
         value={form.title}
@@ -143,10 +137,11 @@ export default function UploadForm({ onUploaded }) {
       />
 
       <div>
-        <label className="block text-sm font-medium text-gray-700">
+        <label htmlFor="upload-subjectId" className="block text-sm font-medium text-gray-700">
           Subject
         </label>
         <select
+          id="upload-subjectId"
           name="subjectId"
           value={form.subjectId}
           onChange={handleChange}
@@ -168,8 +163,9 @@ export default function UploadForm({ onUploaded }) {
 
       {/* NEW: Unit Dropdown */}
       <div>
-        <label className="block text-sm font-medium text-gray-700">Unit</label>
+        <label htmlFor="upload-unitId" className="block text-sm font-medium text-gray-700">Unit</label>
         <select
+          id="upload-unitId"
           name="unitId"
           value={form.unitId}
           onChange={handleChange}
@@ -191,19 +187,20 @@ export default function UploadForm({ onUploaded }) {
       </div>
 
       <Input
+        id="upload-description"
         label="Description"
         name="description"
         value={form.description}
         onChange={handleChange}
         error={errors.description}
-        textarea
       />
 
       <div>
-        <label className="block text-sm font-medium text-gray-700">
+        <label htmlFor="upload-status" className="block text-sm font-medium text-gray-700">
           Status
         </label>
         <select
+          id="upload-status"
           name="status"
           value={form.status}
           onChange={handleChange}
@@ -215,10 +212,11 @@ export default function UploadForm({ onUploaded }) {
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-gray-700">
+        <label htmlFor="upload-file" className="block text-sm font-medium text-gray-700">
           PDF File
         </label>
         <input
+          id="upload-file"
           type="file"
           accept="application/pdf"
           onChange={handleFileChange}

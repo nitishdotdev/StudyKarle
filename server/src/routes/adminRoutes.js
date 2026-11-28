@@ -103,6 +103,9 @@ router.delete(
   adminController.deleteUser
 );
 
+router.get("/semester-access", paymentController.adminAccessList);
+router.patch("/semester-access/:id", paymentController.adminUpdateAccess);
+
 router.get("/payments", paymentController.adminList);
 router.get("/payments/:id", paymentController.adminGet);
 router.get("/payments/:id/screenshot", paymentController.adminScreenshot);

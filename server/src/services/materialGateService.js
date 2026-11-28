@@ -9,6 +9,7 @@ function paymentError(decision) {
     PAYMENT_REQUIRED: "Semester access is required to view this material.",
     PAYMENT_PENDING: "Your payment is being verified. Access will unlock after approval.",
     PAYMENT_REJECTED: "Your payment was not approved. You can resubmit proof from the access page.",
+    PAYMENT_REVOKED: "An administrator removed your semester access.",
     PAYMENT_EXPIRED: "Your semester access has expired.",
     DOWNLOAD_DISABLED: "Downloads are disabled for students.",
   };
